@@ -1,0 +1,12 @@
+/*
+ * Plugin design tokens, layered over Obsidian theme variables so the look can be
+ * retargeted from a single place. Components consume these instead of literals.
+ */
+.roadmap-view {
+  --rm-surface: var(--background-primary);
+  --rm-surface-alt: var(--background-secondary);
+  --rm-border: var(--background-modifier-border);
+  --rm-text: var(--text-normal);
+  --rm-accent: var(--interactive-accent);
+  --rm-radius: var(--radius-m);
+}

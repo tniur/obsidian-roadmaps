@@ -1,0 +1,7 @@
+dist/
+node_modules/
+coverage/
+main.js
+main.js.map
+package-lock.json
+*.log
