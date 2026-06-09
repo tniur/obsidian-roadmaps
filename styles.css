@@ -2,11 +2,70 @@
  * Plugin design tokens, layered over Obsidian theme variables so the look can be
  * retargeted from a single place. Components consume these instead of literals.
  */
-.roadmap-view {
+.rm-view {
+  --rm-space-1: 4px;
+  --rm-space-2: 8px;
+  --rm-space-3: 16px;
+  --rm-space-4: 24px;
+
+  --rm-radius-s: var(--radius-s, 4px);
+  --rm-radius-m: var(--radius-m, 8px);
+
   --rm-surface: var(--background-primary);
   --rm-surface-alt: var(--background-secondary);
   --rm-border: var(--background-modifier-border);
   --rm-text: var(--text-normal);
+  --rm-text-muted: var(--text-muted);
   --rm-accent: var(--interactive-accent);
-  --rm-radius: var(--radius-m);
+
+  --rm-border-width: 1px;
+  --rm-control-size: 28px;
+  --rm-icon-size: 16px;
+
+  height: 100%;
+  background: var(--rm-surface);
+  color: var(--rm-text);
+}
+
+.rm-canvas {
+  width: 100%;
+  height: 100%;
+}
+
+.rm-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rm-space-1);
+}
+
+.rm-toolbar__button {
+  --icon-size: var(--rm-icon-size);
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--rm-control-size);
+  height: var(--rm-control-size);
+  padding: 0;
+  background: var(--rm-surface-alt);
+  color: var(--rm-text);
+  border: var(--rm-border-width) solid var(--rm-border);
+  border-radius: var(--rm-radius-s);
+  cursor: pointer;
+}
+
+.rm-toolbar__button:hover {
+  background: var(--rm-surface);
+  border-color: var(--rm-accent);
+}
+
+.rm-toolbar__button[aria-pressed="true"] {
+  color: var(--rm-accent);
+  border-color: var(--rm-accent);
+}
+
+.rm-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
