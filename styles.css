@@ -22,6 +22,19 @@
   --rm-control-size: 28px;
   --rm-icon-size: 16px;
 
+  --rm-status-draft: var(--text-muted);
+  --rm-status-in-progress: var(--color-yellow);
+  --rm-status-done: var(--color-green);
+  --rm-status-archived: var(--text-faint);
+
+  --rm-priority-low: var(--color-blue);
+  --rm-priority-medium: var(--color-yellow);
+  --rm-priority-high: var(--color-orange);
+  --rm-priority-critical: var(--color-red);
+
+  --rm-node-min-width: 140px;
+  --rm-node-max-width: 260px;
+
   height: 100%;
   background: var(--rm-surface);
   color: var(--rm-text);
@@ -68,4 +81,80 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+
+.rm-node-toolbar {
+  display: flex;
+  flex-direction: row;
+  gap: var(--rm-space-1);
+}
+
+.rm-node {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rm-space-1);
+  min-width: var(--rm-node-min-width);
+  max-width: var(--rm-node-max-width);
+  padding: var(--rm-space-2) var(--rm-space-3);
+  background: var(--rm-surface-alt);
+  color: var(--rm-text);
+  border: var(--rm-border-width) solid var(--rm-border);
+  border-radius: var(--rm-radius-m);
+  box-shadow: var(--shadow-s);
+  font-size: var(--font-ui-small);
+}
+
+.rm-node[data-selected="true"] {
+  border-color: var(--rm-accent);
+  box-shadow:
+    var(--shadow-s),
+    0 0 0 1px var(--rm-accent);
+}
+
+.rm-node__header {
+  display: flex;
+  align-items: center;
+  gap: var(--rm-space-1);
+}
+
+.rm-node__swatch {
+  flex: 0 0 auto;
+  width: var(--rm-space-2);
+  height: var(--rm-space-2);
+  border-radius: 50%;
+  background: var(--rm-node-accent, var(--rm-text-muted));
+}
+
+.rm-node__title {
+  font-weight: var(--font-semibold);
+  overflow-wrap: anywhere;
+}
+
+.rm-node__desc {
+  margin: 0;
+  color: var(--rm-text-muted);
+  font-size: var(--font-ui-smaller);
+  overflow-wrap: anywhere;
+}
+
+.rm-node__status {
+  align-self: flex-start;
+  padding: 0 var(--rm-space-1);
+  border: var(--rm-border-width) solid currentColor;
+  border-radius: var(--rm-radius-s);
+  font-size: var(--font-ui-smaller);
+  text-transform: capitalize;
+  color: var(--rm-status-draft);
+}
+
+.rm-node__status[data-status="in-progress"] {
+  color: var(--rm-status-in-progress);
+}
+
+.rm-node__status[data-status="done"] {
+  color: var(--rm-status-done);
+}
+
+.rm-node__status[data-status="archived"] {
+  color: var(--rm-status-archived);
 }
