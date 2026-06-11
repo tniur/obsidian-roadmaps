@@ -1,6 +1,6 @@
 import { nanoid } from "nanoid";
 import { DEFAULT_NODE_HEIGHT, DEFAULT_NODE_WIDTH } from "../constants";
-import type { RoadmapNode } from "./types";
+import type { EdgeSide, RoadmapEdge, RoadmapNode } from "./types";
 
 export interface NodePlacement {
   x: number;
@@ -19,4 +19,32 @@ export function createNoteNode(filePath: string, placement: NodePlacement): Road
       height: DEFAULT_NODE_HEIGHT,
     },
   };
+}
+
+export function asSide(value: string | null | undefined): EdgeSide | undefined {
+  return value === "top" || value === "right" || value === "bottom" || value === "left"
+    ? value
+    : undefined;
+}
+
+export function createEdge(
+  fromNodeId: string,
+  toNodeId: string,
+  fromSide?: EdgeSide,
+  toSide?: EdgeSide,
+): RoadmapEdge {
+  const edge: RoadmapEdge = {
+    id: nanoid(),
+    from: { type: "node", id: fromNodeId },
+    to: { type: "node", id: toNodeId },
+    direction: "forward",
+  };
+  if (fromSide !== undefined) {
+    edge.fromSide = fromSide;
+  }
+  if (toSide !== undefined) {
+    edge.toSide = toSide;
+  }
+
+  return edge;
 }

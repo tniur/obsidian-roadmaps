@@ -42,18 +42,27 @@ const clusterSchema = z
 
 const endpointSchema = z.tuple([z.enum(["node", "cluster"]), z.string()]);
 
+const directionCodeSchema = z.union([z.literal(0), z.literal(1), z.literal(2)]);
+
+const sideSchema = z.enum(["top", "right", "bottom", "left"]);
+
+const lineSchema = z.enum(["dashed", "dotted"]);
+
 const edgeObjectSchema = z
   .object({
     from: endpointSchema,
     to: endpointSchema,
-    d: z.boolean().optional(),
+    dir: directionCodeSchema.optional(),
+    sh: sideSchema.optional(),
+    th: sideSchema.optional(),
     lbl: z.string().optional(),
     col: z.string().optional(),
+    ln: lineSchema.optional(),
     dash: z.boolean().optional(),
   })
   .strict();
 
-const edgeTupleSchema = z.tuple([z.string(), z.string(), z.union([z.literal(0), z.literal(1)])]);
+const edgeTupleSchema = z.tuple([z.string(), z.string(), directionCodeSchema]);
 
 const edgeSchema = z.union([edgeTupleSchema, edgeObjectSchema]);
 

@@ -1,4 +1,4 @@
-import type { Node } from "@xyflow/react";
+import type { Edge, Node } from "@xyflow/react";
 import { nodeTitle } from "../domain/title";
 import type {
   RoadmapNodeKind,
@@ -8,6 +8,8 @@ import type {
 } from "../domain/types";
 
 export const ROADMAP_NODE_TYPE = "roadmapNode";
+
+export const ROADMAP_EDGE_TYPE = "floating";
 
 export interface RoadmapNodeData {
   label: string;
@@ -48,4 +50,23 @@ export function reconcileFlowNodes(
 
     return existing === undefined ? node : { ...existing, data: node.data };
   });
+}
+
+export function stateToFlowEdges(state: RoadmapState): Edge[] {
+  return Object.values(state.edges)
+    .filter((edge) => edge.from.type === "node" && edge.to.type === "node")
+    .map((edge) => ({
+      id: edge.id,
+      source: edge.from.id,
+      target: edge.to.id,
+      sourceHandle: edge.fromSide ?? null,
+      targetHandle: edge.toSide ?? null,
+      type: ROADMAP_EDGE_TYPE,
+      data: {
+        direction: edge.direction,
+        line: edge.style?.line,
+        fromSide: edge.fromSide,
+        toSide: edge.toSide,
+      },
+    }));
 }

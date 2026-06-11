@@ -51,13 +51,21 @@ export interface RoadmapCluster {
 
 export type RoadmapEndpoint = { type: "node" | "cluster"; id: string };
 
+export type EdgeDirection = "none" | "forward" | "both";
+
+export type EdgeSide = "top" | "right" | "bottom" | "left";
+
+export type EdgeLine = "dashed" | "dotted";
+
 export interface RoadmapEdge {
   id: string;
   from: RoadmapEndpoint;
   to: RoadmapEndpoint;
-  directed: boolean;
+  direction: EdgeDirection;
+  fromSide?: EdgeSide;
+  toSide?: EdgeSide;
   label?: string;
-  style?: { color?: string; dashed?: boolean };
+  style?: { color?: string; line?: EdgeLine };
 }
 
 export interface RoadmapViewport {

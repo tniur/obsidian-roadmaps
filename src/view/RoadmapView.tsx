@@ -1,11 +1,18 @@
-import { TextFileView, TFile, type App, type Menu, type WorkspaceLeaf } from "obsidian";
+import { Menu, TextFileView, TFile, type App, type WorkspaceLeaf } from "obsidian";
 import { ReactFlowProvider } from "@xyflow/react";
 import { StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { VIEW_TYPE_ROADMAP } from "../constants";
 import { createNoteNode, type NodePlacement } from "../domain/create";
 import { nodeOpenTarget } from "../domain/openTarget";
-import { emptyState, reconcileState, readState, writeState } from "../state/document";
+import type { EdgeDirection, EdgeLine } from "../domain/types";
+import {
+  emptyState,
+  reconcileState,
+  readState,
+  writeRelations,
+  writeState,
+} from "../state/document";
 import { RoadmapSession } from "../state/session";
 import { NoteSuggestModal } from "./NoteSuggestModal";
 import { RoadmapCanvas } from "./RoadmapCanvas";
@@ -46,7 +53,8 @@ export class RoadmapView extends TextFileView {
   setViewData(data: string): void {
     const parsed = readState(data) ?? emptyState();
     const reconciled = reconcileState(parsed, data);
-    const content = reconciled === parsed ? data : writeState(data, reconciled);
+    const content =
+      reconciled === parsed ? data : writeRelations(writeState(data, reconciled), reconciled);
     this.data = content;
     this.session = new RoadmapSession(reconciled, content);
     if (content !== data) {
@@ -136,6 +144,69 @@ export class RoadmapView extends TextFileView {
     this.commit();
   };
 
+  private readonly handleConnectNodes = (
+    source: string,
+    target: string,
+    sourceHandle: string | null,
+    targetHandle: string | null,
+  ): void => {
+    this.session?.addEdge(source, target, sourceHandle, targetHandle);
+    this.commit();
+  };
+
+  private readonly handleEdgesDeleted = (ids: string[]): void => {
+    if (this.session === null || ids.length === 0) {
+      return;
+    }
+    ids.forEach((id) => this.session?.deleteEdge(id));
+    this.commit();
+  };
+
+  private readonly handleEdgeContextMenu = (id: string, event: MouseEvent): void => {
+    const edge = this.session?.state.edges[id];
+    if (edge === undefined) {
+      return;
+    }
+    const line = edge.style?.line ?? "solid";
+    const menu = new Menu();
+    const lines: { title: string; value: EdgeLine | "solid" }[] = [
+      { title: "Solid line", value: "solid" },
+      { title: "Dashed line", value: "dashed" },
+      { title: "Dotted line", value: "dotted" },
+    ];
+    for (const { title, value } of lines) {
+      menu.addItem((item) =>
+        item
+          .setTitle(title)
+          .setChecked(line === value)
+          .onClick(() => this.updateEdge(id, { line: value })),
+      );
+    }
+    menu.addSeparator();
+    const directions: { title: string; value: EdgeDirection }[] = [
+      { title: "Undirected", value: "none" },
+      { title: "Directed", value: "forward" },
+      { title: "Bidirectional", value: "both" },
+    ];
+    for (const { title, value } of directions) {
+      menu.addItem((item) =>
+        item
+          .setTitle(title)
+          .setChecked(edge.direction === value)
+          .onClick(() => this.updateEdge(id, { direction: value })),
+      );
+    }
+    menu.showAtMouseEvent(event);
+  };
+
+  private updateEdge(
+    id: string,
+    patch: { direction?: EdgeDirection; line?: EdgeLine | "solid" },
+  ): void {
+    this.session?.updateEdge(id, patch);
+    this.commit();
+  }
+
   private readonly handleDropFiles = (
     placement: NodePlacement,
     dataTransfer: DataTransfer | null,
@@ -222,6 +293,9 @@ export class RoadmapView extends TextFileView {
               onAddNote={this.handleAddNote}
               onDropFiles={this.handleDropFiles}
               onNodesDelete={this.handleNodesDeleted}
+              onConnectNodes={this.handleConnectNodes}
+              onEdgesDelete={this.handleEdgesDeleted}
+              onEdgeContextMenu={this.handleEdgeContextMenu}
             />
           </ReactFlowProvider>
         </div>

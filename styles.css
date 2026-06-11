@@ -34,6 +34,12 @@
 
   --rm-node-min-width: 140px;
   --rm-node-max-width: 260px;
+  --rm-handle-size: 6px;
+  --rm-edge-color: var(--rm-text-muted);
+  --rm-edge-width: 1.25px;
+  --rm-edge-dash: 6 4;
+  --rm-edge-dot: 0 6;
+  --rm-edge-dot-size: 2.25px;
 
   height: 100%;
   background: var(--rm-surface);
@@ -157,4 +163,46 @@
 
 .rm-node__status[data-status="archived"] {
   color: var(--rm-status-archived);
+}
+
+.rm-handle.react-flow__handle {
+  width: var(--rm-handle-size);
+  height: var(--rm-handle-size);
+  min-width: 0;
+  min-height: 0;
+  background: var(--rm-border);
+  border: 1px solid var(--rm-surface);
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.react-flow__node:hover .rm-handle.react-flow__handle,
+.react-flow__node.selected .rm-handle.react-flow__handle {
+  opacity: 1;
+}
+
+.react-flow__node.selected .rm-handle.react-flow__handle {
+  background: var(--rm-accent);
+}
+
+.rm-canvas .react-flow__edge-path {
+  stroke: var(--rm-edge-color);
+  stroke-width: var(--rm-edge-width);
+}
+
+.rm-canvas .react-flow__edge.selected .react-flow__edge-path {
+  stroke: var(--rm-accent);
+}
+
+.rm-canvas .rm-edge-arrow {
+  fill: none;
+  stroke: var(--rm-edge-color);
+  stroke-width: var(--rm-edge-width);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.rm-canvas .react-flow__edge.selected .rm-edge-arrow {
+  stroke: var(--rm-accent);
 }

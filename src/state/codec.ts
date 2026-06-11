@@ -1,4 +1,5 @@
 import type {
+  EdgeDirection,
   RoadmapCluster,
   RoadmapEdge,
   RoadmapNode,
@@ -111,26 +112,37 @@ function encodeCluster(cluster: RoadmapCluster): CompactCluster {
   return c;
 }
 
+function dirFromCode(code: 0 | 1 | 2): EdgeDirection {
+  return code === 0 ? "none" : code === 2 ? "both" : "forward";
+}
+
+function dirToCode(direction: EdgeDirection): 0 | 1 | 2 {
+  return direction === "none" ? 0 : direction === "both" ? 2 : 1;
+}
+
 function decodeEdge(id: string, c: CompactEdge): RoadmapEdge {
   if (Array.isArray(c)) {
     return {
       id,
       from: { type: "node", id: c[0] },
       to: { type: "node", id: c[1] },
-      directed: c[2] === 1,
+      direction: dirFromCode(c[2]),
     };
   }
   const edge: RoadmapEdge = {
     id,
     from: { type: c.from[0], id: c.from[1] },
     to: { type: c.to[0], id: c.to[1] },
-    directed: c.d ?? false,
+    direction: dirFromCode(c.dir ?? 1),
   };
+  if (c.sh !== undefined) edge.fromSide = c.sh;
+  if (c.th !== undefined) edge.toSide = c.th;
   if (c.lbl !== undefined) edge.label = c.lbl;
-  if (c.col !== undefined || c.dash !== undefined) {
+  const line = c.ln ?? (c.dash === true ? "dashed" : undefined);
+  if (c.col !== undefined || line !== undefined) {
     edge.style = {};
     if (c.col !== undefined) edge.style.color = c.col;
-    if (c.dash !== undefined) edge.style.dashed = c.dash;
+    if (line !== undefined) edge.style.line = line;
   }
 
   return edge;
@@ -138,18 +150,24 @@ function decodeEdge(id: string, c: CompactEdge): RoadmapEdge {
 
 function encodeEdge(edge: RoadmapEdge): CompactEdge {
   const bothNodes = edge.from.type === "node" && edge.to.type === "node";
-  const plain = edge.label === undefined && edge.style === undefined;
+  const plain =
+    edge.label === undefined &&
+    edge.style === undefined &&
+    edge.fromSide === undefined &&
+    edge.toSide === undefined;
   if (bothNodes && plain) {
-    return [edge.from.id, edge.to.id, edge.directed ? 1 : 0];
+    return [edge.from.id, edge.to.id, dirToCode(edge.direction)];
   }
   const c: Exclude<CompactEdge, unknown[]> = {
     from: [edge.from.type, edge.from.id],
     to: [edge.to.type, edge.to.id],
-    d: edge.directed,
   };
+  if (edge.direction !== "forward") c.dir = dirToCode(edge.direction);
+  if (edge.fromSide !== undefined) c.sh = edge.fromSide;
+  if (edge.toSide !== undefined) c.th = edge.toSide;
   if (edge.label !== undefined) c.lbl = edge.label;
   if (edge.style?.color !== undefined) c.col = edge.style.color;
-  if (edge.style?.dashed !== undefined) c.dash = edge.style.dashed;
+  if (edge.style?.line !== undefined) c.ln = edge.style.line;
 
   return c;
 }

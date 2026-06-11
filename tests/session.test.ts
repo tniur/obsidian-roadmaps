@@ -51,4 +51,85 @@ describe("roadmap session", () => {
     expect(session.content.split("%% roadmap:state")[0]).toBe(bodyBefore);
     expect(readState(session.content)?.nodes[node.id]?.layout.x).toBe(40);
   });
+
+  it("adds an edge to state and the ## Relations section", () => {
+    const session = newSession();
+    const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
+    const b = createNoteNode("notes/b.md", { x: 0, y: 0 });
+    session.addNode(a);
+    session.addNode(b);
+    session.addEdge(a.id, b.id);
+    const edgeId = Object.keys(session.state.edges)[0];
+
+    expect(Object.keys(session.state.edges)).toHaveLength(1);
+    expect(session.content).toContain("## Relations");
+    expect(session.content).toContain(`roadmap-edge:id=${edgeId}`);
+    expect(readState(session.content)?.edges[edgeId]?.from.id).toBe(a.id);
+  });
+
+  it("stores the connected handle sides on the edge", () => {
+    const session = newSession();
+    const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
+    const b = createNoteNode("notes/b.md", { x: 0, y: 0 });
+    session.addNode(a);
+    session.addNode(b);
+    session.addEdge(a.id, b.id, "bottom", "left");
+    const edge = readState(session.content)?.edges[Object.keys(session.state.edges)[0]];
+
+    expect(edge?.fromSide).toBe("bottom");
+    expect(edge?.toSide).toBe("left");
+  });
+
+  it("does not duplicate the same directed edge", () => {
+    const session = newSession();
+    const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
+    const b = createNoteNode("notes/b.md", { x: 0, y: 0 });
+    session.addNode(a);
+    session.addNode(b);
+    session.addEdge(a.id, b.id);
+    session.addEdge(a.id, b.id);
+
+    expect(Object.keys(session.state.edges)).toHaveLength(1);
+  });
+
+  it("deletes an edge from state and the ## Relations section", () => {
+    const session = newSession();
+    const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
+    const b = createNoteNode("notes/b.md", { x: 0, y: 0 });
+    session.addNode(a);
+    session.addNode(b);
+    session.addEdge(a.id, b.id);
+    session.deleteEdge(Object.keys(session.state.edges)[0]);
+
+    expect(Object.keys(session.state.edges)).toHaveLength(0);
+    expect(session.content).not.toContain("## Relations");
+  });
+
+  it("removes connected edges when a node is deleted", () => {
+    const session = newSession();
+    const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
+    const b = createNoteNode("notes/b.md", { x: 0, y: 0 });
+    session.addNode(a);
+    session.addNode(b);
+    session.addEdge(a.id, b.id);
+    session.deleteNode(a.id);
+
+    expect(Object.keys(session.state.edges)).toHaveLength(0);
+  });
+
+  it("updates edge direction and line style in state and ## Relations", () => {
+    const session = newSession();
+    const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
+    const b = createNoteNode("notes/b.md", { x: 0, y: 0 });
+    session.addNode(a);
+    session.addNode(b);
+    session.addEdge(a.id, b.id);
+    const edgeId = Object.keys(session.state.edges)[0];
+    session.updateEdge(edgeId, { direction: "both", line: "dotted" });
+    const edge = readState(session.content)?.edges[edgeId];
+
+    expect(edge?.direction).toBe("both");
+    expect(edge?.style?.line).toBe("dotted");
+    expect(session.content).toContain("<->");
+  });
 });

@@ -4,8 +4,9 @@ import {
   ROADMAP_FRONTMATTER_VALUE,
   ROADMAP_SCHEMA_VERSION,
 } from "../constants";
-import type { RoadmapNode, RoadmapState } from "../domain/types";
+import type { RoadmapEdge, RoadmapEndpoint, RoadmapNode, RoadmapState } from "../domain/types";
 import { renderNodeBlock } from "../markdown/nodeBlock";
+import { renderRelationsSection } from "../markdown/relations";
 import { parseState, serializeState } from "./codec";
 
 const FIRST_HEADING_RE = /^## /m;
@@ -18,6 +19,10 @@ const STATE_BLOCK_RE =
 const NODE_BOUNDARY_RE = /<!-- roadmap-node:id=\S+ type=\w+ -->|^## |%%[ \t]*roadmap:state/m;
 
 const NODE_MARKER_RE = /<!-- roadmap-node:id=(\S+) type=\w+ -->/g;
+
+const EDGE_MARKER_RE = /<!-- roadmap-edge:id=(\S+) -->/g;
+
+const RELATIONS_HEADING_RE = /^## Relations[ \t]*$/m;
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -73,6 +78,35 @@ export function writeState(content: string, state: RoadmapState): string {
   return `${content.replace(/\s*$/, "")}\n\n${block}\n`;
 }
 
+function removeRelationsSection(body: string): string {
+  const heading = RELATIONS_HEADING_RE.exec(body);
+  if (heading === null) {
+    return body;
+  }
+  const afterHeading = heading.index + heading[0].length;
+  const next = /^## /m.exec(body.slice(afterHeading));
+  const end = next === null ? body.length : afterHeading + next.index;
+
+  return `${body.slice(0, heading.index)}${body.slice(end)}`;
+}
+
+export function writeRelations(content: string, state: RoadmapState): string {
+  const frontmatter = FRONTMATTER_RE.exec(content);
+  const bodyStart = frontmatter === null ? 0 : frontmatter[0].length;
+  const stateBlock = STATE_BLOCK_RE.exec(content);
+  const bodyEnd = stateBlock === null ? content.length : stateBlock.index;
+  const before = content.slice(0, bodyStart);
+  const body = removeRelationsSection(content.slice(bodyStart, bodyEnd)).replace(/\s+$/, "");
+  const after = content.slice(bodyEnd).replace(/^\s+/, "");
+  const section = renderRelationsSection(state);
+  const newBody = section === null ? body : `${body}\n\n${section}`;
+  if (after.length === 0) {
+    return `${before}${newBody}\n`;
+  }
+
+  return `${before}${newBody}\n\n${after}`;
+}
+
 function insertIntoBody(body: string, block: string): string {
   const heading = FIRST_HEADING_RE.exec(body);
   if (heading !== null) {
@@ -122,19 +156,41 @@ export function bodyNodeIds(content: string): Set<string> {
   return ids;
 }
 
+export function bodyEdgeIds(content: string): Set<string> {
+  const ids = new Set<string>();
+  for (const match of content.matchAll(EDGE_MARKER_RE)) {
+    ids.add(match[1]);
+  }
+
+  return ids;
+}
+
 export function reconcileState(state: RoadmapState, content: string): RoadmapState {
-  const present = bodyNodeIds(content);
+  const presentNodes = bodyNodeIds(content);
   const nodes: Record<string, RoadmapNode> = {};
   let changed = false;
   for (const [id, node] of Object.entries(state.nodes)) {
-    if (present.has(id)) {
+    if (presentNodes.has(id)) {
       nodes[id] = node;
     } else {
       changed = true;
     }
   }
+  const presentEdges = bodyEdgeIds(content);
+  const trackEdges = presentEdges.size > 0;
+  const hasEndpoint = (endpoint: RoadmapEndpoint): boolean =>
+    endpoint.type !== "node" || nodes[endpoint.id] !== undefined;
+  const edges: Record<string, RoadmapEdge> = {};
+  for (const [id, edge] of Object.entries(state.edges)) {
+    const marked = !trackEdges || presentEdges.has(id);
+    if (marked && hasEndpoint(edge.from) && hasEndpoint(edge.to)) {
+      edges[id] = edge;
+    } else {
+      changed = true;
+    }
+  }
 
-  return changed ? { ...state, nodes } : state;
+  return changed ? { ...state, nodes, edges } : state;
 }
 
 export function createRoadmapDocument(title: string): string {

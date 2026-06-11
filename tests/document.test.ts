@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { RoadmapNode } from "../src/domain/types";
+import type { RoadmapEdge, RoadmapNode } from "../src/domain/types";
 import {
   createRoadmapDocument,
   emptyState,
@@ -8,6 +8,7 @@ import {
   readState,
   reconcileState,
   removeNodeBlock,
+  writeRelations,
   writeState,
 } from "../src/state/document";
 
@@ -80,5 +81,150 @@ describe("roadmap document", () => {
     const reconciled = reconcileState(readState(withBoth) ?? emptyState(), withBoth);
 
     expect(reconciled.nodes[node.id]).toBeDefined();
+  });
+
+  it("writes a readable ## Relations section before the state block", () => {
+    const nodeB: RoadmapNode = {
+      id: "n2",
+      kind: "note",
+      source: { type: "note", file: "notes/b.md" },
+      layout: { x: 0, y: 0, width: 200, height: 80 },
+    };
+    const edge: RoadmapEdge = {
+      id: "e1",
+      from: { type: "node", id: node.id },
+      to: { type: "node", id: nodeB.id },
+      direction: "forward",
+    };
+    const doc = createRoadmapDocument("My Roadmap");
+    const base = readState(doc);
+    if (base === null) {
+      throw new Error("expected a state block");
+    }
+    const state = { ...base, nodes: { [node.id]: node, [nodeB.id]: nodeB }, edges: { e1: edge } };
+    const next = writeRelations(writeState(doc, state), state);
+
+    expect(next).toContain("## Relations");
+    expect(next).toContain("[[notes/a|a]] -> [[notes/b|b]]");
+    expect(next.indexOf("## Relations")).toBeLessThan(next.indexOf("%% roadmap:state"));
+  });
+
+  it("reconcile drops edges whose endpoint node is gone", () => {
+    const nodeB: RoadmapNode = {
+      id: "n2",
+      kind: "note",
+      source: { type: "note", file: "notes/b.md" },
+      layout: { x: 0, y: 0, width: 200, height: 80 },
+    };
+    const edge: RoadmapEdge = {
+      id: "e1",
+      from: { type: "node", id: node.id },
+      to: { type: "node", id: nodeB.id },
+      direction: "forward",
+    };
+    const docWithA = insertNodeBlock(createRoadmapDocument("My Roadmap"), node);
+    const base = readState(docWithA);
+    if (base === null) {
+      throw new Error("expected a state block");
+    }
+    const content = writeState(docWithA, {
+      ...base,
+      nodes: { [node.id]: node, [nodeB.id]: nodeB },
+      edges: { e1: edge },
+    });
+    const reconciled = reconcileState(readState(content) ?? emptyState(), content);
+
+    expect(reconciled.nodes[node.id]).toBeDefined();
+    expect(reconciled.nodes[nodeB.id]).toBeUndefined();
+    expect(reconciled.edges.e1).toBeUndefined();
+  });
+
+  it("tags ## Relations lines with a hidden edge-id marker", () => {
+    const nodeB: RoadmapNode = {
+      id: "n2",
+      kind: "note",
+      source: { type: "note", file: "notes/b.md" },
+      layout: { x: 0, y: 0, width: 200, height: 80 },
+    };
+    const edge: RoadmapEdge = {
+      id: "e1",
+      from: { type: "node", id: node.id },
+      to: { type: "node", id: nodeB.id },
+      direction: "forward",
+    };
+    const doc = createRoadmapDocument("My Roadmap");
+    const base = readState(doc);
+    if (base === null) {
+      throw new Error("expected a state block");
+    }
+    const state = { ...base, nodes: { [node.id]: node, [nodeB.id]: nodeB }, edges: { e1: edge } };
+    const next = writeRelations(writeState(doc, state), state);
+
+    expect(next).toContain("<!-- roadmap-edge:id=e1 -->");
+  });
+
+  it("reconcile drops an edge whose relations marker was removed", () => {
+    const nodeB: RoadmapNode = {
+      id: "n2",
+      kind: "note",
+      source: { type: "note", file: "notes/b.md" },
+      layout: { x: 0, y: 0, width: 200, height: 80 },
+    };
+    const e1: RoadmapEdge = {
+      id: "e1",
+      from: { type: "node", id: node.id },
+      to: { type: "node", id: nodeB.id },
+      direction: "forward",
+    };
+    const e2: RoadmapEdge = {
+      id: "e2",
+      from: { type: "node", id: nodeB.id },
+      to: { type: "node", id: node.id },
+      direction: "forward",
+    };
+    const doc = insertNodeBlock(insertNodeBlock(createRoadmapDocument("My Roadmap"), node), nodeB);
+    const base = readState(doc);
+    if (base === null) {
+      throw new Error("expected a state block");
+    }
+    const state = {
+      ...base,
+      nodes: { [node.id]: node, [nodeB.id]: nodeB },
+      edges: { e1, e2 },
+    };
+    const content = writeRelations(writeState(doc, state), state);
+    const edited = content.replace(/^-.*roadmap-edge:id=e1[^\n]*\n?/m, "");
+    const reconciled = reconcileState(readState(edited) ?? emptyState(), edited);
+
+    expect(reconciled.edges.e1).toBeUndefined();
+    expect(reconciled.edges.e2).toBeDefined();
+  });
+
+  it("reconcile keeps edges when the body has no edge markers (legacy)", () => {
+    const nodeB: RoadmapNode = {
+      id: "n2",
+      kind: "note",
+      source: { type: "note", file: "notes/b.md" },
+      layout: { x: 0, y: 0, width: 200, height: 80 },
+    };
+    const e1: RoadmapEdge = {
+      id: "e1",
+      from: { type: "node", id: node.id },
+      to: { type: "node", id: nodeB.id },
+      direction: "forward",
+    };
+    const doc = insertNodeBlock(insertNodeBlock(createRoadmapDocument("My Roadmap"), node), nodeB);
+    const base = readState(doc);
+    if (base === null) {
+      throw new Error("expected a state block");
+    }
+    const content = writeState(doc, {
+      ...base,
+      nodes: { [node.id]: node, [nodeB.id]: nodeB },
+      edges: { e1 },
+    });
+    const reconciled = reconcileState(readState(content) ?? emptyState(), content);
+
+    expect(reconciled.edges.e1).toBeDefined();
   });
 });
