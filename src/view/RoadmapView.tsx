@@ -103,8 +103,13 @@ export class RoadmapView extends TextFileView {
     this.renderApp();
   }
 
-  private readonly handleNodeMoved = (id: string, x: number, y: number): void => {
-    this.session?.moveNode(id, x, y);
+  private readonly handleNodesMoved = (
+    moves: ReadonlyArray<{ id: string; x: number; y: number }>,
+  ): void => {
+    if (this.session === null || moves.length === 0) {
+      return;
+    }
+    this.session.moveNodes(moves);
     this.commit();
   };
 
@@ -287,7 +292,7 @@ export class RoadmapView extends TextFileView {
               state={this.session.state}
               initialDotsVisible={this.host.getShowBackgroundDots()}
               onDotsVisibleChange={this.host.setShowBackgroundDots}
-              onNodeMoved={this.handleNodeMoved}
+              onNodesMoved={this.handleNodesMoved}
               onNodeOpen={this.handleNodeOpen}
               onCreateNote={this.handleCreateNote}
               onAddNote={this.handleAddNote}

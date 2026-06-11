@@ -40,6 +40,9 @@
   --rm-edge-dash: 6 4;
   --rm-edge-dot: 0 6;
   --rm-edge-dot-size: 2.25px;
+  --rm-selection-fill: color-mix(in srgb, var(--rm-accent) 12%, transparent);
+  --rm-selection-radius: var(--rm-radius-m);
+  --rm-selection-pad: 6px;
 
   height: 100%;
   background: var(--rm-surface);
@@ -115,6 +118,26 @@
   box-shadow:
     var(--shadow-s),
     0 0 0 1px var(--rm-accent);
+}
+
+.rm-canvas .react-flow__selection {
+  background: var(--rm-selection-fill);
+  border: none;
+  border-radius: var(--rm-selection-radius);
+}
+
+.rm-canvas .react-flow__nodesselection-rect {
+  background: transparent;
+  border: none;
+}
+
+.rm-canvas .react-flow__nodesselection-rect::after {
+  content: "";
+  position: absolute;
+  inset: calc(-1 * var(--rm-selection-pad));
+  background: var(--rm-selection-fill);
+  border-radius: var(--rm-selection-radius);
+  pointer-events: none;
 }
 
 .rm-node__header {

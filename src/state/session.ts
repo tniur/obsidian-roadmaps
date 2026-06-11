@@ -40,14 +40,24 @@ export class RoadmapSession {
   }
 
   moveNode(id: string, x: number, y: number): void {
-    const node = this.stateValue.nodes[id];
-    if (node === undefined) {
+    this.moveNodes([{ id, x, y }]);
+  }
+
+  moveNodes(moves: ReadonlyArray<{ id: string; x: number; y: number }>): void {
+    const nodes = { ...this.stateValue.nodes };
+    let changed = false;
+    for (const { id, x, y } of moves) {
+      const node = nodes[id];
+      if (node === undefined) {
+        continue;
+      }
+      nodes[id] = { ...node, layout: { ...node.layout, x, y } };
+      changed = true;
+    }
+    if (!changed) {
       return;
     }
-    this.stateValue = {
-      ...this.stateValue,
-      nodes: { ...this.stateValue.nodes, [id]: { ...node, layout: { ...node.layout, x, y } } },
-    };
+    this.stateValue = { ...this.stateValue, nodes };
     this.contentValue = writeState(this.contentValue, this.stateValue);
   }
 

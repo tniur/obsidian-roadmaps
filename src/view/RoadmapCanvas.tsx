@@ -5,6 +5,7 @@ import {
   BackgroundVariant,
   ConnectionMode,
   ReactFlow,
+  SelectionMode,
   useReactFlow,
   type Connection,
   type Edge,
@@ -42,7 +43,7 @@ interface RoadmapCanvasProps {
   state: RoadmapState;
   initialDotsVisible: boolean;
   onDotsVisibleChange: (value: boolean) => void;
-  onNodeMoved: (id: string, x: number, y: number) => void;
+  onNodesMoved: (moves: ReadonlyArray<{ id: string; x: number; y: number }>) => void;
   onNodeOpen: (id: string, newLeaf: boolean) => void;
   onCreateNote: (placement: NodePlacement) => void;
   onAddNote: (placement: NodePlacement) => void;
@@ -62,7 +63,7 @@ export function RoadmapCanvas({
   state,
   initialDotsVisible,
   onDotsVisibleChange,
-  onNodeMoved,
+  onNodesMoved,
   onNodeOpen,
   onCreateNote,
   onAddNote,
@@ -101,11 +102,27 @@ export function RoadmapCanvas({
     [onConnectNodes],
   );
 
-  const onNodeDragStop = useCallback(
-    (_event: unknown, node: RoadmapFlowNode) => {
-      onNodeMoved(node.id, node.position.x, node.position.y);
+  const persistMoves = useCallback(
+    (dragged: RoadmapFlowNode[]) => {
+      onNodesMoved(
+        dragged.map((node) => ({ id: node.id, x: node.position.x, y: node.position.y })),
+      );
     },
-    [onNodeMoved],
+    [onNodesMoved],
+  );
+
+  const onNodeDragStop = useCallback(
+    (_event: MouseEvent | TouchEvent, _node: RoadmapFlowNode, dragged: RoadmapFlowNode[]) => {
+      persistMoves(dragged);
+    },
+    [persistMoves],
+  );
+
+  const onSelectionDragStop = useCallback(
+    (_event: ReactMouseEvent, dragged: RoadmapFlowNode[]) => {
+      persistMoves(dragged);
+    },
+    [persistMoves],
   );
 
   const onNodeDoubleClick = useCallback(
@@ -170,11 +187,18 @@ export function RoadmapCanvas({
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         onNodeDragStop={onNodeDragStop}
+        onSelectionDragStop={onSelectionDragStop}
         onNodeDoubleClick={onNodeDoubleClick}
         onEdgeContextMenu={onEdgeContextMenuInternal}
         onNodesDelete={onNodesDeleteInternal}
         onEdgesDelete={onEdgesDeleteInternal}
         deleteKeyCode={["Backspace", "Delete"]}
+        multiSelectionKeyCode="Shift"
+        selectionKeyCode={null}
+        selectionOnDrag
+        selectionMode={SelectionMode.Partial}
+        panOnDrag={[1, 2]}
+        panOnScroll
         proOptions={{ hideAttribution: true }}
         fitView
       >
