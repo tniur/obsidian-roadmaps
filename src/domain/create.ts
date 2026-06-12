@@ -21,6 +21,10 @@ export function createNoteNode(filePath: string, placement: NodePlacement): Road
   };
 }
 
+export function copyNode(node: RoadmapNode, x: number, y: number): RoadmapNode {
+  return { ...node, id: nanoid(), layout: { ...node.layout, x, y } };
+}
+
 export function asSide(value: string | null | undefined): EdgeSide | undefined {
   return value === "top" || value === "right" || value === "bottom" || value === "left"
     ? value

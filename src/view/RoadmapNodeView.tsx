@@ -22,7 +22,7 @@ export function RoadmapNodeView({ id, data, selected }: NodeProps) {
       <NodeResizer
         minWidth={MIN_NODE_WIDTH}
         minHeight={MIN_NODE_HEIGHT}
-        isVisible={selected === true}
+        isVisible={selected === true && callbacks?.locked !== true}
         onResizeEnd={(_event, params) => {
           callbacks?.onResizeEnd(id, params.width, params.height, params.x, params.y);
         }}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createNoteNode } from "../src/domain/create";
+import { copyNode, createNoteNode } from "../src/domain/create";
 import { createRoadmapDocument, readState } from "../src/state/document";
 import { RoadmapSession } from "../src/state/session";
 
@@ -147,5 +147,71 @@ describe("roadmap session", () => {
     expect(edge?.direction).toBe("both");
     expect(edge?.style?.line).toBe("dotted");
     expect(session.content).toContain("<->");
+  });
+
+  it("undoes and redoes a mutation, restoring state and content", () => {
+    const session = newSession();
+    const emptyContent = session.content;
+    const node = createNoteNode("notes/a.md", { x: 1, y: 2 });
+    session.addNode(node);
+
+    expect(session.canUndo).toBe(true);
+    expect(session.undo()).toBe(true);
+    expect(session.state.nodes[node.id]).toBeUndefined();
+    expect(session.content).toBe(emptyContent);
+    expect(session.canRedo).toBe(true);
+
+    expect(session.redo()).toBe(true);
+    expect(session.state.nodes[node.id]).toBeDefined();
+  });
+
+  it("undoes a batch delete atomically", () => {
+    const session = newSession();
+    const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
+    const b = createNoteNode("notes/b.md", { x: 0, y: 0 });
+    session.addNode(a);
+    session.addNode(b);
+    session.deleteNodes([a.id, b.id]);
+
+    expect(Object.keys(session.state.nodes)).toHaveLength(0);
+
+    session.undo();
+
+    expect(session.state.nodes[a.id]).toBeDefined();
+    expect(session.state.nodes[b.id]).toBeDefined();
+  });
+
+  it("deletes a node with its edges and restores both in a single undo", () => {
+    const session = newSession();
+    const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
+    const b = createNoteNode("notes/b.md", { x: 0, y: 0 });
+    session.addNode(a);
+    session.addNode(b);
+    session.addEdge(a.id, b.id);
+    const edgeId = Object.keys(session.state.edges)[0];
+
+    session.deleteElements([a.id], [edgeId]);
+
+    expect(session.state.nodes[a.id]).toBeUndefined();
+    expect(Object.keys(session.state.edges)).toHaveLength(0);
+
+    session.undo();
+
+    expect(session.state.nodes[a.id]).toBeDefined();
+    expect(session.state.edges[edgeId]).toBeDefined();
+    expect(session.canRedo).toBe(true);
+  });
+
+  it("adds copied nodes with new ids and offset positions", () => {
+    const session = newSession();
+    const a = createNoteNode("notes/a.md", { x: 10, y: 20 });
+    session.addNode(a);
+    const clone = copyNode(a, a.layout.x + 24, a.layout.y + 24);
+    session.addNodes([clone]);
+
+    expect(clone.id).not.toBe(a.id);
+    expect(session.state.nodes[clone.id]?.layout).toMatchObject({ x: 34, y: 44 });
+    expect(session.state.nodes[clone.id]?.source).toEqual(a.source);
+    expect(session.content).toContain(`id=${clone.id}`);
   });
 });

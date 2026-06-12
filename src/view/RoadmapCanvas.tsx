@@ -19,8 +19,10 @@ import {
   useEffect,
   useId,
   useMemo,
+  useRef,
   useState,
 } from "react";
+import { nanoid } from "nanoid";
 import type { NodePlacement } from "../domain/create";
 import type { RoadmapState } from "../domain/types";
 import { FloatingEdge } from "./FloatingEdge";
@@ -47,20 +49,27 @@ interface RoadmapCanvasProps {
   state: RoadmapState;
   initialDotsVisible: boolean;
   onDotsVisibleChange: (value: boolean) => void;
+  canUndo: boolean;
+  canRedo: boolean;
+  onUndo: () => void;
+  onRedo: () => void;
+  focusIds: string[];
+  focusNonce: number;
   onNodesMoved: (moves: ReadonlyArray<{ id: string; x: number; y: number }>) => void;
+  onNodesDuplicate: (items: ReadonlyArray<{ id: string; x: number; y: number }>) => void;
   onNodeResized: (id: string, width: number, height: number, x: number, y: number) => void;
   onNodeOpen: (id: string, newLeaf: boolean) => void;
+  onSelectionChange: (ids: string[]) => void;
   onCreateNote: (placement: NodePlacement) => void;
   onAddNote: (placement: NodePlacement) => void;
   onDropFiles: (placement: NodePlacement, dataTransfer: DataTransfer | null) => void;
-  onNodesDelete: (ids: string[]) => void;
+  onDeleteElements: (nodeIds: string[], edgeIds: string[]) => void;
   onConnectNodes: (
     source: string,
     target: string,
     sourceHandle: string | null,
     targetHandle: string | null,
   ) => void;
-  onEdgesDelete: (ids: string[]) => void;
   onEdgeContextMenu: (id: string, event: MouseEvent) => void;
   onNodeContextMenu: (id: string, event: MouseEvent) => void;
 }
@@ -69,32 +78,84 @@ export function RoadmapCanvas({
   state,
   initialDotsVisible,
   onDotsVisibleChange,
+  canUndo,
+  canRedo,
+  onUndo,
+  onRedo,
+  focusIds,
+  focusNonce,
   onNodesMoved,
+  onNodesDuplicate,
   onNodeResized,
   onNodeOpen,
+  onSelectionChange,
   onCreateNote,
   onAddNote,
   onDropFiles,
-  onNodesDelete,
+  onDeleteElements,
   onConnectNodes,
-  onEdgesDelete,
   onEdgeContextMenu,
   onNodeContextMenu,
 }: RoadmapCanvasProps) {
   const { screenToFlowPosition, getNodes } = useReactFlow();
   const flowId = useId();
   const [dotsVisible, setDotsVisible] = useState(initialDotsVisible);
+  const [locked, setLocked] = useState(false);
   const [nodes, setNodes] = useState<RoadmapFlowNode[]>(() => stateToFlowNodes(state));
   const [edges, setEdges] = useState<Edge[]>(() => stateToFlowEdges(state));
   const [helperLines, setHelperLines] = useState<{ horizontal?: number; vertical?: number }>({});
+  const altDragRef = useRef<{
+    map: Map<string, string>;
+    frozen: Map<string, { x: number; y: number }>;
+  } | null>(null);
 
   useEffect(() => {
     setNodes((current) => reconcileFlowNodes(current, stateToFlowNodes(state)));
     setEdges(stateToFlowEdges(state));
   }, [state]);
 
+  useEffect(() => {
+    if (focusNonce === 0) {
+      return;
+    }
+    setNodes((current) =>
+      current.map((node) => ({ ...node, selected: focusIds.includes(node.id) })),
+    );
+  }, [focusNonce, focusIds]);
+
   const onNodesChange = useCallback(
     (changes: NodeChange<RoadmapFlowNode>[]) => {
+      const alt = altDragRef.current;
+      if (alt !== null) {
+        const augmented: NodeChange<RoadmapFlowNode>[] = [];
+        for (const change of changes) {
+          if (
+            change.type === "position" &&
+            change.position !== undefined &&
+            alt.map.has(change.id)
+          ) {
+            const copyId = alt.map.get(change.id) as string;
+            const frozen = alt.frozen.get(change.id) as { x: number; y: number };
+            augmented.push({
+              id: copyId,
+              type: "position",
+              position: { x: change.position.x, y: change.position.y },
+              dragging: change.dragging,
+            });
+            augmented.push({
+              id: change.id,
+              type: "position",
+              position: { x: frozen.x, y: frozen.y },
+              dragging: change.dragging,
+            });
+          } else {
+            augmented.push(change);
+          }
+        }
+        setNodes((current) => applyNodeChanges(augmented, current));
+
+        return;
+      }
       let lines: { horizontal?: number; vertical?: number } = {};
       const [first] = changes;
       if (
@@ -134,27 +195,86 @@ export function RoadmapCanvas({
     [onConnectNodes],
   );
 
-  const persistMoves = useCallback(
-    (dragged: RoadmapFlowNode[]) => {
-      onNodesMoved(
-        dragged.map((node) => ({ id: node.id, x: node.position.x, y: node.position.y })),
-      );
+  const positionsOf = useCallback(
+    (dragged: RoadmapFlowNode[]) =>
+      dragged.map((node) => ({ id: node.id, x: node.position.x, y: node.position.y })),
+    [],
+  );
+
+  const startAltDuplicate = useCallback((dragged: RoadmapFlowNode[]) => {
+    const map = new Map<string, string>();
+    const frozen = new Map<string, { x: number; y: number }>();
+    const copies: RoadmapFlowNode[] = [];
+    for (const node of dragged) {
+      const copyId = `dup-${nanoid()}`;
+      map.set(node.id, copyId);
+      frozen.set(node.id, { x: node.position.x, y: node.position.y });
+      copies.push({ ...node, id: copyId, selected: false, dragging: true });
+    }
+    altDragRef.current = { map, frozen };
+    setNodes((current) => [...current, ...copies]);
+  }, []);
+
+  const finalizeAltDuplicate = useCallback((): boolean => {
+    const alt = altDragRef.current;
+    if (alt === null) {
+      return false;
+    }
+    altDragRef.current = null;
+    const all = getNodes();
+    const items: { id: string; x: number; y: number }[] = [];
+    for (const [originalId, copyId] of alt.map) {
+      const copy = all.find((node) => node.id === copyId);
+      if (copy !== undefined) {
+        items.push({ id: originalId, x: copy.position.x, y: copy.position.y });
+      }
+    }
+    onNodesDuplicate(items);
+
+    return true;
+  }, [getNodes, onNodesDuplicate]);
+
+  const onNodeDragStart = useCallback(
+    (event: MouseEvent | TouchEvent, _node: RoadmapFlowNode, dragged: RoadmapFlowNode[]) => {
+      if ("altKey" in event && event.altKey) {
+        startAltDuplicate(dragged);
+      }
     },
-    [onNodesMoved],
+    [startAltDuplicate],
+  );
+
+  const onSelectionDragStart = useCallback(
+    (event: ReactMouseEvent, dragged: RoadmapFlowNode[]) => {
+      if (event.altKey) {
+        startAltDuplicate(dragged);
+      }
+    },
+    [startAltDuplicate],
   );
 
   const onNodeDragStop = useCallback(
     (_event: MouseEvent | TouchEvent, _node: RoadmapFlowNode, dragged: RoadmapFlowNode[]) => {
-      persistMoves(dragged);
+      if (!finalizeAltDuplicate()) {
+        onNodesMoved(positionsOf(dragged));
+      }
     },
-    [persistMoves],
+    [finalizeAltDuplicate, onNodesMoved, positionsOf],
   );
 
   const onSelectionDragStop = useCallback(
     (_event: ReactMouseEvent, dragged: RoadmapFlowNode[]) => {
-      persistMoves(dragged);
+      if (!finalizeAltDuplicate()) {
+        onNodesMoved(positionsOf(dragged));
+      }
     },
-    [persistMoves],
+    [finalizeAltDuplicate, onNodesMoved, positionsOf],
+  );
+
+  const onSelectionChangeInternal = useCallback(
+    ({ nodes: selected }: { nodes: RoadmapFlowNode[] }) => {
+      onSelectionChange(selected.map((node) => node.id));
+    },
+    [onSelectionChange],
   );
 
   const onNodeDoubleClick = useCallback(
@@ -180,18 +300,14 @@ export function RoadmapCanvas({
     [onNodeContextMenu],
   );
 
-  const onNodesDeleteInternal = useCallback(
-    (deleted: RoadmapFlowNode[]) => {
-      onNodesDelete(deleted.map((node) => node.id));
+  const onDeleteInternal = useCallback(
+    ({ nodes: deletedNodes, edges: deletedEdges }: { nodes: RoadmapFlowNode[]; edges: Edge[] }) => {
+      onDeleteElements(
+        deletedNodes.map((node) => node.id),
+        deletedEdges.map((edge) => edge.id),
+      );
     },
-    [onNodesDelete],
-  );
-
-  const onEdgesDeleteInternal = useCallback(
-    (deleted: Edge[]) => {
-      onEdgesDelete(deleted.map((edge) => edge.id));
-    },
-    [onEdgesDelete],
+    [onDeleteElements],
   );
 
   const onDragOver = useCallback((event: DragEvent<HTMLDivElement>) => {
@@ -214,9 +330,13 @@ export function RoadmapCanvas({
     onDotsVisibleChange(next);
   }, [dotsVisible, onDotsVisibleChange]);
 
+  const toggleLock = useCallback(() => {
+    setLocked((value) => !value);
+  }, []);
+
   const nodeCallbacks = useMemo<NodeCallbacks>(
-    () => ({ onResizeEnd: onNodeResized }),
-    [onNodeResized],
+    () => ({ locked, onResizeEnd: onNodeResized }),
+    [locked, onNodeResized],
   );
 
   return (
@@ -229,17 +349,21 @@ export function RoadmapCanvas({
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
           connectionMode={ConnectionMode.Loose}
+          nodesDraggable={!locked}
+          nodesConnectable={!locked}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
+          onNodeDragStart={onNodeDragStart}
           onNodeDragStop={onNodeDragStop}
+          onSelectionDragStart={onSelectionDragStart}
           onSelectionDragStop={onSelectionDragStop}
+          onSelectionChange={onSelectionChangeInternal}
           onNodeDoubleClick={onNodeDoubleClick}
           onNodeContextMenu={onNodeContextMenuInternal}
           onEdgeContextMenu={onEdgeContextMenuInternal}
-          onNodesDelete={onNodesDeleteInternal}
-          onEdgesDelete={onEdgesDeleteInternal}
-          deleteKeyCode={["Backspace", "Delete"]}
+          onDelete={onDeleteInternal}
+          deleteKeyCode={locked ? null : ["Backspace", "Delete"]}
           multiSelectionKeyCode="Shift"
           selectionKeyCode={null}
           selectionOnDrag
@@ -252,7 +376,16 @@ export function RoadmapCanvas({
           {dotsVisible ? <Background variant={BackgroundVariant.Dots} /> : null}
           <HelperLines horizontal={helperLines.horizontal} vertical={helperLines.vertical} />
           <NodeToolbar onCreateNote={onCreateNote} onAddNote={onAddNote} />
-          <RoadmapToolbar dotsVisible={dotsVisible} onToggleDots={toggleDots} />
+          <RoadmapToolbar
+            dotsVisible={dotsVisible}
+            onToggleDots={toggleDots}
+            locked={locked}
+            onToggleLock={toggleLock}
+            canUndo={canUndo}
+            canRedo={canRedo}
+            onUndo={onUndo}
+            onRedo={onRedo}
+          />
         </ReactFlow>
       </div>
     </NodeCallbacksContext.Provider>

@@ -1,6 +1,7 @@
 import { createContext, useContext } from "react";
 
 export interface NodeCallbacks {
+  locked: boolean;
   onResizeEnd: (id: string, width: number, height: number, x: number, y: number) => void;
 }
 

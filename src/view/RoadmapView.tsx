@@ -3,9 +3,9 @@ import { ReactFlowProvider } from "@xyflow/react";
 import { StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { VIEW_TYPE_ROADMAP } from "../constants";
-import { createNoteNode, type NodePlacement } from "../domain/create";
+import { copyNode, createNoteNode, type NodePlacement } from "../domain/create";
 import { nodeOpenTarget } from "../domain/openTarget";
-import type { EdgeDirection, EdgeLine, TextAlignH, TextAlignV } from "../domain/types";
+import type { EdgeDirection, EdgeLine, RoadmapNode, TextAlignH, TextAlignV } from "../domain/types";
 import {
   emptyState,
   reconcileState,
@@ -27,9 +27,16 @@ type AppWithDragManager = App & {
   dragManager?: { draggable?: { file?: unknown; files?: unknown[] } };
 };
 
+const PASTE_OFFSET = 24;
+
 export class RoadmapView extends TextFileView {
   private root: Root | null = null;
   private session: RoadmapSession | null = null;
+  private selectedNodeIds: string[] = [];
+  private clipboard: RoadmapNode[] = [];
+  private pasteOffset = 0;
+  private focusIds: string[] = [];
+  private focusNonce = 0;
 
   constructor(
     leaf: WorkspaceLeaf,
@@ -86,8 +93,105 @@ export class RoadmapView extends TextFileView {
 
   protected async onOpen(): Promise<void> {
     this.root = createRoot(this.contentEl);
+    this.registerDomEvent(this.contentEl.ownerDocument, "keydown", this.handleKeyDown);
     this.renderApp();
   }
+
+  private readonly handleKeyDown = (event: KeyboardEvent): void => {
+    if (!(event.metaKey || event.ctrlKey)) {
+      return;
+    }
+    if (this.app.workspace.getActiveViewOfType(RoadmapView) !== this) {
+      return;
+    }
+    const key = event.key.toLowerCase();
+    if (key === "z") {
+      event.preventDefault();
+      event.stopPropagation();
+      if (event.shiftKey) {
+        this.redoEdit();
+      } else {
+        this.undoEdit();
+      }
+    } else if (key === "y") {
+      event.preventDefault();
+      event.stopPropagation();
+      this.redoEdit();
+    } else if (key === "c") {
+      this.copySelection();
+    } else if (key === "v") {
+      this.pasteClipboard();
+    }
+  };
+
+  private readonly undoEdit = (): void => {
+    if (this.session?.undo() === true) {
+      this.commit();
+    }
+  };
+
+  private readonly redoEdit = (): void => {
+    if (this.session?.redo() === true) {
+      this.commit();
+    }
+  };
+
+  private copySelection(): void {
+    if (this.session === null) {
+      return;
+    }
+    const nodes: RoadmapNode[] = [];
+    for (const id of this.selectedNodeIds) {
+      const node = this.session.state.nodes[id];
+      if (node !== undefined) {
+        nodes.push(node);
+      }
+    }
+    if (nodes.length > 0) {
+      this.clipboard = nodes;
+      this.pasteOffset = 0;
+    }
+  }
+
+  private pasteClipboard(): void {
+    if (this.session === null || this.clipboard.length === 0) {
+      return;
+    }
+    this.pasteOffset += PASTE_OFFSET;
+    const clones = this.clipboard.map((node) =>
+      copyNode(node, node.layout.x + this.pasteOffset, node.layout.y + this.pasteOffset),
+    );
+    this.session.addNodes(clones);
+    this.focusNodes(clones.map((node) => node.id));
+    this.commit();
+  }
+
+  private focusNodes(ids: string[]): void {
+    this.focusIds = ids;
+    this.focusNonce += 1;
+  }
+
+  private readonly handleSelectionChange = (ids: string[]): void => {
+    this.selectedNodeIds = ids;
+  };
+
+  private readonly handleNodesDuplicated = (
+    items: ReadonlyArray<{ id: string; x: number; y: number }>,
+  ): void => {
+    if (this.session === null || items.length === 0) {
+      return;
+    }
+    const clones: RoadmapNode[] = [];
+    for (const { id, x, y } of items) {
+      const node = this.session.state.nodes[id];
+      if (node !== undefined) {
+        clones.push(copyNode(node, x, y));
+      }
+    }
+    this.session.addNodes(clones);
+    this.focusNodes(clones.map((node) => node.id));
+    this.commit();
+  };
 
   protected async onClose(): Promise<void> {
     this.root?.unmount();
@@ -152,11 +256,11 @@ export class RoadmapView extends TextFileView {
     void this.createNote(placement);
   };
 
-  private readonly handleNodesDeleted = (ids: string[]): void => {
-    if (this.session === null || ids.length === 0) {
+  private readonly handleDeleteElements = (nodeIds: string[], edgeIds: string[]): void => {
+    if (this.session === null || (nodeIds.length === 0 && edgeIds.length === 0)) {
       return;
     }
-    ids.forEach((id) => this.session?.deleteNode(id));
+    this.session.deleteElements(nodeIds, edgeIds);
     this.commit();
   };
 
@@ -167,14 +271,6 @@ export class RoadmapView extends TextFileView {
     targetHandle: string | null,
   ): void => {
     this.session?.addEdge(source, target, sourceHandle, targetHandle);
-    this.commit();
-  };
-
-  private readonly handleEdgesDeleted = (ids: string[]): void => {
-    if (this.session === null || ids.length === 0) {
-      return;
-    }
-    ids.forEach((id) => this.session?.deleteEdge(id));
     this.commit();
   };
 
@@ -345,15 +441,22 @@ export class RoadmapView extends TextFileView {
               state={this.session.state}
               initialDotsVisible={this.host.getShowBackgroundDots()}
               onDotsVisibleChange={this.host.setShowBackgroundDots}
+              canUndo={this.session.canUndo}
+              canRedo={this.session.canRedo}
+              onUndo={this.undoEdit}
+              onRedo={this.redoEdit}
+              focusIds={this.focusIds}
+              focusNonce={this.focusNonce}
               onNodesMoved={this.handleNodesMoved}
+              onNodesDuplicate={this.handleNodesDuplicated}
               onNodeResized={this.handleNodeResized}
               onNodeOpen={this.handleNodeOpen}
+              onSelectionChange={this.handleSelectionChange}
               onCreateNote={this.handleCreateNote}
               onAddNote={this.handleAddNote}
               onDropFiles={this.handleDropFiles}
-              onNodesDelete={this.handleNodesDeleted}
+              onDeleteElements={this.handleDeleteElements}
               onConnectNodes={this.handleConnectNodes}
-              onEdgesDelete={this.handleEdgesDeleted}
               onEdgeContextMenu={this.handleEdgeContextMenu}
               onNodeContextMenu={this.handleNodeContextMenu}
             />

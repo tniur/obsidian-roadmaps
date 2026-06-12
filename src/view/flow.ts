@@ -52,8 +52,20 @@ export function reconcileFlowNodes(
 
   return next.map((node) => {
     const existing = currentById.get(node.id);
+    if (existing === undefined) {
+      return node;
+    }
+    if (existing.dragging === true) {
+      return { ...existing, data: node.data };
+    }
 
-    return existing === undefined ? node : { ...existing, data: node.data };
+    return {
+      ...existing,
+      position: node.position,
+      width: node.width,
+      height: node.height,
+      data: node.data,
+    };
   });
 }
 
