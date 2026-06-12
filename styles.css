@@ -43,6 +43,8 @@
   --rm-selection-fill: color-mix(in srgb, var(--rm-accent) 12%, transparent);
   --rm-selection-radius: var(--rm-radius-m);
   --rm-selection-pad: 6px;
+  --rm-guide-color: var(--rm-accent);
+  --rm-guide-width: 1px;
 
   height: 100%;
   background: var(--rm-surface);
@@ -137,6 +139,15 @@
   inset: calc(-1 * var(--rm-selection-pad));
   background: var(--rm-selection-fill);
   border-radius: var(--rm-selection-radius);
+  pointer-events: none;
+}
+
+.rm-helper-lines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 10;
   pointer-events: none;
 }
 

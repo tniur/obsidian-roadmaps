@@ -23,6 +23,8 @@ import {
 import type { NodePlacement } from "../domain/create";
 import type { RoadmapState } from "../domain/types";
 import { FloatingEdge } from "./FloatingEdge";
+import { getHelperLines } from "./alignment";
+import { HelperLines } from "./HelperLines";
 import {
   reconcileFlowNodes,
   ROADMAP_EDGE_TYPE,
@@ -73,20 +75,44 @@ export function RoadmapCanvas({
   onEdgesDelete,
   onEdgeContextMenu,
 }: RoadmapCanvasProps) {
-  const { screenToFlowPosition } = useReactFlow();
+  const { screenToFlowPosition, getNodes } = useReactFlow();
   const flowId = useId();
   const [dotsVisible, setDotsVisible] = useState(initialDotsVisible);
   const [nodes, setNodes] = useState<RoadmapFlowNode[]>(() => stateToFlowNodes(state));
   const [edges, setEdges] = useState<Edge[]>(() => stateToFlowEdges(state));
+  const [helperLines, setHelperLines] = useState<{ horizontal?: number; vertical?: number }>({});
 
   useEffect(() => {
     setNodes((current) => reconcileFlowNodes(current, stateToFlowNodes(state)));
     setEdges(stateToFlowEdges(state));
   }, [state]);
 
-  const onNodesChange = useCallback((changes: NodeChange<RoadmapFlowNode>[]) => {
-    setNodes((current) => applyNodeChanges(changes, current));
-  }, []);
+  const onNodesChange = useCallback(
+    (changes: NodeChange<RoadmapFlowNode>[]) => {
+      let lines: { horizontal?: number; vertical?: number } = {};
+      const [first] = changes;
+      if (
+        changes.length === 1 &&
+        first?.type === "position" &&
+        first.dragging === true &&
+        first.position !== undefined
+      ) {
+        const result = getHelperLines(first, getNodes());
+        if (result.snapX !== undefined) {
+          first.position.x = result.snapX;
+        }
+        if (result.snapY !== undefined) {
+          first.position.y = result.snapY;
+        }
+        lines = { horizontal: result.horizontal, vertical: result.vertical };
+      }
+      setHelperLines((prev) =>
+        prev.horizontal === lines.horizontal && prev.vertical === lines.vertical ? prev : lines,
+      );
+      setNodes((current) => applyNodeChanges(changes, current));
+    },
+    [getNodes],
+  );
 
   const onEdgesChange = useCallback((changes: EdgeChange[]) => {
     setEdges((current) => applyEdgeChanges(changes, current));
@@ -203,6 +229,7 @@ export function RoadmapCanvas({
         fitView
       >
         {dotsVisible ? <Background variant={BackgroundVariant.Dots} /> : null}
+        <HelperLines horizontal={helperLines.horizontal} vertical={helperLines.vertical} />
         <NodeToolbar onCreateNote={onCreateNote} onAddNote={onAddNote} />
         <RoadmapToolbar dotsVisible={dotsVisible} onToggleDots={toggleDots} />
       </ReactFlow>
