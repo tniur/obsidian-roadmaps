@@ -24,6 +24,8 @@ const nodeSchema = z
     l: layoutSchema,
     st: statusSchema.optional(),
     p: prioritySchema.optional(),
+    ah: z.enum(["left", "center", "right"]).optional(),
+    av: z.enum(["top", "middle", "bottom"]).optional(),
     cl: z.string().nullable().optional(),
     col: z.string().optional(),
     i: z.string().optional(),

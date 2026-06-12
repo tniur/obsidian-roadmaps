@@ -5,6 +5,7 @@ import type {
   RoadmapPriority,
   RoadmapState,
   RoadmapStatus,
+  TextAlign,
 } from "../domain/types";
 
 export const ROADMAP_NODE_TYPE = "roadmapNode";
@@ -18,6 +19,7 @@ export interface RoadmapNodeData {
   status?: RoadmapStatus;
   priority?: RoadmapPriority;
   color?: string;
+  align?: TextAlign;
   [key: string]: unknown;
 }
 
@@ -28,6 +30,8 @@ export function stateToFlowNodes(state: RoadmapState): RoadmapFlowNode[] {
     id: node.id,
     type: ROADMAP_NODE_TYPE,
     position: { x: node.layout.x, y: node.layout.y },
+    width: node.layout.width,
+    height: node.layout.height,
     data: {
       label: nodeTitle(node),
       description: node.description,
@@ -35,6 +39,7 @@ export function stateToFlowNodes(state: RoadmapState): RoadmapFlowNode[] {
       status: node.status,
       priority: node.priority,
       color: node.style?.color,
+      align: node.align,
     },
   }));
 }

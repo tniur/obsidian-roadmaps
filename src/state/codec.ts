@@ -62,6 +62,9 @@ function decodeNode(id: string, c: CompactNode): RoadmapNode {
   };
   if (c.st !== undefined) node.status = c.st;
   if (c.p !== undefined) node.priority = c.p;
+  if (c.ah !== undefined || c.av !== undefined) {
+    node.align = { h: c.ah ?? "left", v: c.av ?? "middle" };
+  }
   if (c.cl !== undefined) node.clusterId = c.cl;
   if (c.col !== undefined || c.i !== undefined) {
     node.style = {};
@@ -80,6 +83,10 @@ function encodeNode(node: RoadmapNode): CompactNode {
   };
   if (node.status !== undefined) c.st = node.status;
   if (node.priority !== undefined) c.p = node.priority;
+  if (node.align !== undefined) {
+    c.ah = node.align.h;
+    c.av = node.align.v;
+  }
   if (node.clusterId !== undefined) c.cl = node.clusterId;
   if (node.style?.color !== undefined) c.col = node.style.color;
   if (node.style?.icon !== undefined) c.i = node.style.icon;

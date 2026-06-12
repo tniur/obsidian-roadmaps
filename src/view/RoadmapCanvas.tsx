@@ -18,6 +18,7 @@ import {
   useCallback,
   useEffect,
   useId,
+  useMemo,
   useState,
 } from "react";
 import type { NodePlacement } from "../domain/create";
@@ -25,6 +26,7 @@ import type { RoadmapState } from "../domain/types";
 import { FloatingEdge } from "./FloatingEdge";
 import { getHelperLines } from "./alignment";
 import { HelperLines } from "./HelperLines";
+import { NodeCallbacksContext, type NodeCallbacks } from "./nodeCallbacks";
 import {
   reconcileFlowNodes,
   ROADMAP_EDGE_TYPE,
@@ -46,6 +48,7 @@ interface RoadmapCanvasProps {
   initialDotsVisible: boolean;
   onDotsVisibleChange: (value: boolean) => void;
   onNodesMoved: (moves: ReadonlyArray<{ id: string; x: number; y: number }>) => void;
+  onNodeResized: (id: string, width: number, height: number, x: number, y: number) => void;
   onNodeOpen: (id: string, newLeaf: boolean) => void;
   onCreateNote: (placement: NodePlacement) => void;
   onAddNote: (placement: NodePlacement) => void;
@@ -59,6 +62,7 @@ interface RoadmapCanvasProps {
   ) => void;
   onEdgesDelete: (ids: string[]) => void;
   onEdgeContextMenu: (id: string, event: MouseEvent) => void;
+  onNodeContextMenu: (id: string, event: MouseEvent) => void;
 }
 
 export function RoadmapCanvas({
@@ -66,6 +70,7 @@ export function RoadmapCanvas({
   initialDotsVisible,
   onDotsVisibleChange,
   onNodesMoved,
+  onNodeResized,
   onNodeOpen,
   onCreateNote,
   onAddNote,
@@ -74,6 +79,7 @@ export function RoadmapCanvas({
   onConnectNodes,
   onEdgesDelete,
   onEdgeContextMenu,
+  onNodeContextMenu,
 }: RoadmapCanvasProps) {
   const { screenToFlowPosition, getNodes } = useReactFlow();
   const flowId = useId();
@@ -166,6 +172,14 @@ export function RoadmapCanvas({
     [onEdgeContextMenu],
   );
 
+  const onNodeContextMenuInternal = useCallback(
+    (event: ReactMouseEvent, node: RoadmapFlowNode) => {
+      event.preventDefault();
+      onNodeContextMenu(node.id, event.nativeEvent);
+    },
+    [onNodeContextMenu],
+  );
+
   const onNodesDeleteInternal = useCallback(
     (deleted: RoadmapFlowNode[]) => {
       onNodesDelete(deleted.map((node) => node.id));
@@ -200,39 +214,47 @@ export function RoadmapCanvas({
     onDotsVisibleChange(next);
   }, [dotsVisible, onDotsVisibleChange]);
 
+  const nodeCallbacks = useMemo<NodeCallbacks>(
+    () => ({ onResizeEnd: onNodeResized }),
+    [onNodeResized],
+  );
+
   return (
-    <div className="rm-canvas" onDragOver={onDragOver} onDrop={onDrop}>
-      <ReactFlow
-        id={flowId}
-        nodes={nodes}
-        edges={edges}
-        nodeTypes={nodeTypes}
-        edgeTypes={edgeTypes}
-        connectionMode={ConnectionMode.Loose}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
-        onNodeDragStop={onNodeDragStop}
-        onSelectionDragStop={onSelectionDragStop}
-        onNodeDoubleClick={onNodeDoubleClick}
-        onEdgeContextMenu={onEdgeContextMenuInternal}
-        onNodesDelete={onNodesDeleteInternal}
-        onEdgesDelete={onEdgesDeleteInternal}
-        deleteKeyCode={["Backspace", "Delete"]}
-        multiSelectionKeyCode="Shift"
-        selectionKeyCode={null}
-        selectionOnDrag
-        selectionMode={SelectionMode.Partial}
-        panOnDrag={[1, 2]}
-        panOnScroll
-        proOptions={{ hideAttribution: true }}
-        fitView
-      >
-        {dotsVisible ? <Background variant={BackgroundVariant.Dots} /> : null}
-        <HelperLines horizontal={helperLines.horizontal} vertical={helperLines.vertical} />
-        <NodeToolbar onCreateNote={onCreateNote} onAddNote={onAddNote} />
-        <RoadmapToolbar dotsVisible={dotsVisible} onToggleDots={toggleDots} />
-      </ReactFlow>
-    </div>
+    <NodeCallbacksContext.Provider value={nodeCallbacks}>
+      <div className="rm-canvas" onDragOver={onDragOver} onDrop={onDrop}>
+        <ReactFlow
+          id={flowId}
+          nodes={nodes}
+          edges={edges}
+          nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
+          connectionMode={ConnectionMode.Loose}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onConnect={onConnect}
+          onNodeDragStop={onNodeDragStop}
+          onSelectionDragStop={onSelectionDragStop}
+          onNodeDoubleClick={onNodeDoubleClick}
+          onNodeContextMenu={onNodeContextMenuInternal}
+          onEdgeContextMenu={onEdgeContextMenuInternal}
+          onNodesDelete={onNodesDeleteInternal}
+          onEdgesDelete={onEdgesDeleteInternal}
+          deleteKeyCode={["Backspace", "Delete"]}
+          multiSelectionKeyCode="Shift"
+          selectionKeyCode={null}
+          selectionOnDrag
+          selectionMode={SelectionMode.Partial}
+          panOnDrag={[1, 2]}
+          panOnScroll
+          proOptions={{ hideAttribution: true }}
+          fitView
+        >
+          {dotsVisible ? <Background variant={BackgroundVariant.Dots} /> : null}
+          <HelperLines horizontal={helperLines.horizontal} vertical={helperLines.vertical} />
+          <NodeToolbar onCreateNote={onCreateNote} onAddNote={onAddNote} />
+          <RoadmapToolbar dotsVisible={dotsVisible} onToggleDots={toggleDots} />
+        </ReactFlow>
+      </div>
+    </NodeCallbacksContext.Provider>
   );
 }

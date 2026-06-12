@@ -20,6 +20,15 @@ export type RoadmapStatus = "draft" | "in-progress" | "done" | "archived";
 
 export type RoadmapPriority = "low" | "medium" | "high" | "critical";
 
+export type TextAlignH = "left" | "center" | "right";
+
+export type TextAlignV = "top" | "middle" | "bottom";
+
+export interface TextAlign {
+  h: TextAlignH;
+  v: TextAlignV;
+}
+
 export interface RoadmapLayout {
   x: number;
   y: number;
@@ -35,6 +44,7 @@ export interface RoadmapNode {
   description?: string;
   status?: RoadmapStatus;
   priority?: RoadmapPriority;
+  align?: TextAlign;
   clusterId?: string | null;
   layout: RoadmapLayout;
   style?: { color?: string; icon?: string };

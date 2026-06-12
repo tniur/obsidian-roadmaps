@@ -11,3 +11,7 @@ export const BACKGROUND_DOTS_ICON_ID = "roadmap-background-dots";
 export const DEFAULT_NODE_WIDTH = 200;
 
 export const DEFAULT_NODE_HEIGHT = 80;
+
+export const MIN_NODE_WIDTH = 140;
+
+export const MIN_NODE_HEIGHT = 56;

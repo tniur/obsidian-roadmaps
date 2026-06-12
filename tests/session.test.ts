@@ -52,6 +52,22 @@ describe("roadmap session", () => {
     expect(readState(session.content)?.nodes[node.id]?.layout.x).toBe(40);
   });
 
+  it("sets text alignment per axis, merging with the default", () => {
+    const session = newSession();
+    const node = createNoteNode("notes/a.md", { x: 0, y: 0 });
+    session.addNode(node);
+    const bodyBefore = session.content.split("%% roadmap:state")[0];
+    session.setNodeAlign(node.id, { h: "center" });
+
+    expect(session.state.nodes[node.id]?.align).toEqual({ h: "center", v: "middle" });
+
+    session.setNodeAlign(node.id, { v: "bottom" });
+
+    expect(session.state.nodes[node.id]?.align).toEqual({ h: "center", v: "bottom" });
+    expect(session.content.split("%% roadmap:state")[0]).toBe(bodyBefore);
+    expect(readState(session.content)?.nodes[node.id]?.align).toEqual({ h: "center", v: "bottom" });
+  });
+
   it("adds an edge to state and the ## Relations section", () => {
     const session = newSession();
     const a = createNoteNode("notes/a.md", { x: 0, y: 0 });

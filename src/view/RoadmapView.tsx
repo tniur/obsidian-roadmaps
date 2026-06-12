@@ -5,7 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { VIEW_TYPE_ROADMAP } from "../constants";
 import { createNoteNode, type NodePlacement } from "../domain/create";
 import { nodeOpenTarget } from "../domain/openTarget";
-import type { EdgeDirection, EdgeLine } from "../domain/types";
+import type { EdgeDirection, EdgeLine, TextAlignH, TextAlignV } from "../domain/types";
 import {
   emptyState,
   reconcileState,
@@ -113,6 +113,17 @@ export class RoadmapView extends TextFileView {
     this.commit();
   };
 
+  private readonly handleNodeResized = (
+    id: string,
+    width: number,
+    height: number,
+    x: number,
+    y: number,
+  ): void => {
+    this.session?.resizeNode(id, width, height, x, y);
+    this.commit();
+  };
+
   private readonly handleNodeOpen = (id: string, newLeaf: boolean): void => {
     const node = this.session?.state.nodes[id];
     if (node === undefined) {
@@ -212,6 +223,48 @@ export class RoadmapView extends TextFileView {
     this.commit();
   }
 
+  private readonly handleNodeContextMenu = (id: string, event: MouseEvent): void => {
+    const node = this.session?.state.nodes[id];
+    if (node === undefined) {
+      return;
+    }
+    const align = node.align ?? { h: "left", v: "middle" };
+    const menu = new Menu();
+    const horizontal: { title: string; value: TextAlignH }[] = [
+      { title: "Align left", value: "left" },
+      { title: "Align center", value: "center" },
+      { title: "Align right", value: "right" },
+    ];
+    for (const { title, value } of horizontal) {
+      menu.addItem((item) =>
+        item
+          .setTitle(title)
+          .setChecked(align.h === value)
+          .onClick(() => this.updateNodeAlign(id, { h: value })),
+      );
+    }
+    menu.addSeparator();
+    const vertical: { title: string; value: TextAlignV }[] = [
+      { title: "Align top", value: "top" },
+      { title: "Align middle", value: "middle" },
+      { title: "Align bottom", value: "bottom" },
+    ];
+    for (const { title, value } of vertical) {
+      menu.addItem((item) =>
+        item
+          .setTitle(title)
+          .setChecked(align.v === value)
+          .onClick(() => this.updateNodeAlign(id, { v: value })),
+      );
+    }
+    menu.showAtMouseEvent(event);
+  };
+
+  private updateNodeAlign(id: string, patch: { h?: TextAlignH; v?: TextAlignV }): void {
+    this.session?.setNodeAlign(id, patch);
+    this.commit();
+  }
+
   private readonly handleDropFiles = (
     placement: NodePlacement,
     dataTransfer: DataTransfer | null,
@@ -293,6 +346,7 @@ export class RoadmapView extends TextFileView {
               initialDotsVisible={this.host.getShowBackgroundDots()}
               onDotsVisibleChange={this.host.setShowBackgroundDots}
               onNodesMoved={this.handleNodesMoved}
+              onNodeResized={this.handleNodeResized}
               onNodeOpen={this.handleNodeOpen}
               onCreateNote={this.handleCreateNote}
               onAddNote={this.handleAddNote}
@@ -301,6 +355,7 @@ export class RoadmapView extends TextFileView {
               onConnectNodes={this.handleConnectNodes}
               onEdgesDelete={this.handleEdgesDeleted}
               onEdgeContextMenu={this.handleEdgeContextMenu}
+              onNodeContextMenu={this.handleNodeContextMenu}
             />
           </ReactFlowProvider>
         </div>

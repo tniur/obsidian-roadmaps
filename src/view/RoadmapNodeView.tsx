@@ -1,15 +1,32 @@
-import { Handle, Position, type NodeProps } from "@xyflow/react";
+import { Handle, NodeResizer, Position, type NodeProps } from "@xyflow/react";
+import { MIN_NODE_HEIGHT, MIN_NODE_WIDTH } from "../constants";
 import type { RoadmapNodeData } from "./flow";
+import { useNodeCallbacks } from "./nodeCallbacks";
 import { getNodeRenderer } from "./nodeRegistry";
 
 const HANDLE_SIDES = [Position.Top, Position.Right, Position.Bottom, Position.Left];
 
-export function RoadmapNodeView({ data, selected }: NodeProps) {
+export function RoadmapNodeView({ id, data, selected }: NodeProps) {
   const node = data as RoadmapNodeData;
   const Body = getNodeRenderer(node.kind);
+  const callbacks = useNodeCallbacks();
+  const align = node.align ?? { h: "left", v: "middle" };
 
   return (
-    <div className="rm-node" data-selected={selected === true}>
+    <div
+      className="rm-node"
+      data-selected={selected === true}
+      data-align-h={align.h}
+      data-align-v={align.v}
+    >
+      <NodeResizer
+        minWidth={MIN_NODE_WIDTH}
+        minHeight={MIN_NODE_HEIGHT}
+        isVisible={selected === true}
+        onResizeEnd={(_event, params) => {
+          callbacks?.onResizeEnd(id, params.width, params.height, params.x, params.y);
+        }}
+      />
       {HANDLE_SIDES.map((side) => (
         <Handle key={side} id={side} type="source" position={side} className="rm-handle" />
       ))}

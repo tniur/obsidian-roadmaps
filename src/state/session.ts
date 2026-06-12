@@ -5,6 +5,9 @@ import type {
   RoadmapEdge,
   RoadmapNode,
   RoadmapState,
+  TextAlign,
+  TextAlignH,
+  TextAlignV,
 } from "../domain/types";
 import { insertNodeBlock, removeNodeBlock, writeRelations, writeState } from "./document";
 
@@ -58,6 +61,32 @@ export class RoadmapSession {
       return;
     }
     this.stateValue = { ...this.stateValue, nodes };
+    this.contentValue = writeState(this.contentValue, this.stateValue);
+  }
+
+  resizeNode(id: string, width: number, height: number, x: number, y: number): void {
+    const node = this.stateValue.nodes[id];
+    if (node === undefined) {
+      return;
+    }
+    this.stateValue = {
+      ...this.stateValue,
+      nodes: { ...this.stateValue.nodes, [id]: { ...node, layout: { x, y, width, height } } },
+    };
+    this.contentValue = writeState(this.contentValue, this.stateValue);
+  }
+
+  setNodeAlign(id: string, patch: { h?: TextAlignH; v?: TextAlignV }): void {
+    const node = this.stateValue.nodes[id];
+    if (node === undefined) {
+      return;
+    }
+    const current = node.align ?? { h: "left", v: "middle" };
+    const align: TextAlign = { h: patch.h ?? current.h, v: patch.v ?? current.v };
+    this.stateValue = {
+      ...this.stateValue,
+      nodes: { ...this.stateValue.nodes, [id]: { ...node, align } },
+    };
     this.contentValue = writeState(this.contentValue, this.stateValue);
   }
 

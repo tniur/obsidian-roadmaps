@@ -14,6 +14,7 @@ function sample(): RoadmapState {
         layout: { x: 10, y: 20, width: 200, height: 80 },
         status: "in-progress",
         priority: "high",
+        align: { h: "center", v: "bottom" },
         style: { color: "#abc" },
       },
     },
