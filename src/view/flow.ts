@@ -1,6 +1,7 @@
 import type { Edge, Node } from "@xyflow/react";
 import { nodeTitle } from "../domain/title";
 import type {
+  RoadmapNode,
   RoadmapNodeKind,
   RoadmapPriority,
   RoadmapState,
@@ -20,12 +21,18 @@ export interface RoadmapNodeData {
   priority?: RoadmapPriority;
   color?: string;
   align?: TextAlign;
+  missing?: boolean;
   [key: string]: unknown;
 }
 
 export type RoadmapFlowNode = Node<RoadmapNodeData>;
 
-export function stateToFlowNodes(state: RoadmapState): RoadmapFlowNode[] {
+export type NodeMissingPredicate = (node: RoadmapNode) => boolean;
+
+export function stateToFlowNodes(
+  state: RoadmapState,
+  isMissing?: NodeMissingPredicate,
+): RoadmapFlowNode[] {
   return Object.values(state.nodes).map((node) => ({
     id: node.id,
     type: ROADMAP_NODE_TYPE,
@@ -40,6 +47,7 @@ export function stateToFlowNodes(state: RoadmapState): RoadmapFlowNode[] {
       priority: node.priority,
       color: node.style?.color,
       align: node.align,
+      missing: isMissing?.(node) ?? false,
     },
   }));
 }

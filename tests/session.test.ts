@@ -149,6 +149,46 @@ describe("roadmap session", () => {
     expect(session.content).toContain("<->");
   });
 
+  it("reverses an edge, swapping endpoints and sides in state and ## Relations", () => {
+    const session = newSession();
+    const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
+    const b = createNoteNode("notes/b.md", { x: 0, y: 0 });
+    session.addNode(a);
+    session.addNode(b);
+    session.addEdge(a.id, b.id, "right", "left");
+    const edgeId = Object.keys(session.state.edges)[0];
+    session.reverseEdge(edgeId);
+    const reversed = readState(session.content)?.edges[edgeId];
+
+    expect(reversed?.from.id).toBe(b.id);
+    expect(reversed?.to.id).toBe(a.id);
+    expect(reversed?.fromSide).toBe("left");
+    expect(reversed?.toSide).toBe("right");
+    expect(reversed?.direction).toBe("forward");
+
+    session.undo();
+    const restored = session.state.edges[edgeId];
+
+    expect(restored?.from.id).toBe(a.id);
+    expect(restored?.fromSide).toBe("right");
+    expect(restored?.toSide).toBe("left");
+  });
+
+  it("drops the source side when reversing a one-sided edge", () => {
+    const session = newSession();
+    const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
+    const b = createNoteNode("notes/b.md", { x: 0, y: 0 });
+    session.addNode(a);
+    session.addNode(b);
+    session.addEdge(a.id, b.id, "right", null);
+    const edgeId = Object.keys(session.state.edges)[0];
+    session.reverseEdge(edgeId);
+    const reversed = readState(session.content)?.edges[edgeId];
+
+    expect(reversed?.fromSide).toBeUndefined();
+    expect(reversed?.toSide).toBe("right");
+  });
+
   it("undoes and redoes a mutation, restoring state and content", () => {
     const session = newSession();
     const emptyContent = session.content;

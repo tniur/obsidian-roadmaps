@@ -289,6 +289,30 @@ export class RoadmapSession {
       this.stateValue,
     );
   }
+
+  reverseEdge(id: string): void {
+    const edge = this.stateValue.edges[id];
+    if (edge === undefined) {
+      return;
+    }
+    this.begin();
+    const next: RoadmapEdge = { ...edge, from: edge.to, to: edge.from };
+    if (edge.toSide !== undefined) {
+      next.fromSide = edge.toSide;
+    } else {
+      delete next.fromSide;
+    }
+    if (edge.fromSide !== undefined) {
+      next.toSide = edge.fromSide;
+    } else {
+      delete next.toSide;
+    }
+    this.stateValue = { ...this.stateValue, edges: { ...this.stateValue.edges, [id]: next } };
+    this.contentValue = writeRelations(
+      writeState(this.contentValue, this.stateValue),
+      this.stateValue,
+    );
+  }
 }
 
 function endpointNodeId(endpoint: RoadmapEdge["from"]): string {

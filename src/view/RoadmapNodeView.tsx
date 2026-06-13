@@ -1,6 +1,7 @@
 import { Handle, NodeResizer, Position, type NodeProps } from "@xyflow/react";
 import { MIN_NODE_HEIGHT, MIN_NODE_WIDTH } from "../constants";
 import type { RoadmapNodeData } from "./flow";
+import { Icon } from "./Icon";
 import { useNodeCallbacks } from "./nodeCallbacks";
 import { getNodeRenderer } from "./nodeRegistry";
 
@@ -16,6 +17,7 @@ export function RoadmapNodeView({ id, data, selected }: NodeProps) {
     <div
       className="rm-node"
       data-selected={selected === true}
+      data-missing={node.missing === true}
       data-align-h={align.h}
       data-align-v={align.v}
     >
@@ -30,6 +32,15 @@ export function RoadmapNodeView({ id, data, selected }: NodeProps) {
       {HANDLE_SIDES.map((side) => (
         <Handle key={side} id={side} type="source" position={side} className="rm-handle" />
       ))}
+      {node.missing === true ? (
+        <span
+          className="rm-node__broken"
+          aria-label="Source file is missing"
+          title="Source file is missing"
+        >
+          <Icon name="alert-triangle" />
+        </span>
+      ) : null}
       {Body !== null ? <Body data={node} /> : <span className="rm-node__title">{node.label}</span>}
     </div>
   );

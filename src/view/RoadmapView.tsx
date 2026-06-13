@@ -5,6 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { VIEW_TYPE_ROADMAP } from "../constants";
 import { copyNode, createNoteNode, type NodePlacement } from "../domain/create";
 import { nodeOpenTarget } from "../domain/openTarget";
+import { sourceFile } from "../domain/source";
 import type { EdgeDirection, EdgeLine, RoadmapNode, TextAlignH, TextAlignV } from "../domain/types";
 import {
   emptyState,
@@ -175,6 +176,12 @@ export class RoadmapView extends TextFileView {
     this.selectedNodeIds = ids;
   };
 
+  private readonly isNodeMissing = (node: RoadmapNode): boolean => {
+    const path = sourceFile(node.source);
+
+    return path !== null && this.app.vault.getAbstractFileByPath(path) === null;
+  };
+
   private readonly handleNodesDuplicated = (
     items: ReadonlyArray<{ id: string; x: number; y: number }>,
   ): void => {
@@ -308,8 +315,22 @@ export class RoadmapView extends TextFileView {
           .onClick(() => this.updateEdge(id, { direction: value })),
       );
     }
+    if (edge.direction === "forward") {
+      menu.addSeparator();
+      menu.addItem((item) =>
+        item
+          .setTitle("Reverse direction")
+          .setIcon("arrow-left-right")
+          .onClick(() => this.reverseEdge(id)),
+      );
+    }
     menu.showAtMouseEvent(event);
   };
+
+  private reverseEdge(id: string): void {
+    this.session?.reverseEdge(id);
+    this.commit();
+  }
 
   private updateEdge(
     id: string,
@@ -439,6 +460,7 @@ export class RoadmapView extends TextFileView {
           <ReactFlowProvider>
             <RoadmapCanvas
               state={this.session.state}
+              isNodeMissing={this.isNodeMissing}
               initialDotsVisible={this.host.getShowBackgroundDots()}
               onDotsVisibleChange={this.host.setShowBackgroundDots}
               canUndo={this.session.canUndo}

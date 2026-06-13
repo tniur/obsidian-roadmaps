@@ -35,6 +35,7 @@ import {
   ROADMAP_NODE_TYPE,
   stateToFlowEdges,
   stateToFlowNodes,
+  type NodeMissingPredicate,
   type RoadmapFlowNode,
 } from "./flow";
 import { NodeToolbar } from "./NodeToolbar";
@@ -47,6 +48,7 @@ const edgeTypes = { [ROADMAP_EDGE_TYPE]: FloatingEdge };
 
 interface RoadmapCanvasProps {
   state: RoadmapState;
+  isNodeMissing: NodeMissingPredicate;
   initialDotsVisible: boolean;
   onDotsVisibleChange: (value: boolean) => void;
   canUndo: boolean;
@@ -76,6 +78,7 @@ interface RoadmapCanvasProps {
 
 export function RoadmapCanvas({
   state,
+  isNodeMissing,
   initialDotsVisible,
   onDotsVisibleChange,
   canUndo,
@@ -101,7 +104,9 @@ export function RoadmapCanvas({
   const flowId = useId();
   const [dotsVisible, setDotsVisible] = useState(initialDotsVisible);
   const [locked, setLocked] = useState(false);
-  const [nodes, setNodes] = useState<RoadmapFlowNode[]>(() => stateToFlowNodes(state));
+  const [nodes, setNodes] = useState<RoadmapFlowNode[]>(() =>
+    stateToFlowNodes(state, isNodeMissing),
+  );
   const [edges, setEdges] = useState<Edge[]>(() => stateToFlowEdges(state));
   const [helperLines, setHelperLines] = useState<{ horizontal?: number; vertical?: number }>({});
   const altDragRef = useRef<{
@@ -110,9 +115,9 @@ export function RoadmapCanvas({
   } | null>(null);
 
   useEffect(() => {
-    setNodes((current) => reconcileFlowNodes(current, stateToFlowNodes(state)));
+    setNodes((current) => reconcileFlowNodes(current, stateToFlowNodes(state, isNodeMissing)));
     setEdges(stateToFlowEdges(state));
-  }, [state]);
+  }, [state, isNodeMissing]);
 
   useEffect(() => {
     if (focusNonce === 0) {
