@@ -1,23 +1,23 @@
-import type { CSSProperties } from "react";
 import type { NodeBodyProps } from "./nodeRegistry";
 
 export function NoteNodeBody({ data }: NodeBodyProps) {
-  const accent: CSSProperties | undefined =
-    typeof data.color === "string"
-      ? ({ "--rm-node-accent": data.color } as CSSProperties)
-      : undefined;
-
   return (
     <>
-      <div className="rm-node__header">
-        {accent !== undefined ? <span className="rm-node__swatch" style={accent} /> : null}
-        <span className="rm-node__title">{data.label}</span>
-      </div>
+      <span className="rm-node__title">{data.label}</span>
       {data.description !== undefined ? <p className="rm-node__desc">{data.description}</p> : null}
-      {data.status !== undefined ? (
-        <span className="rm-node__status" data-status={data.status}>
-          {data.status}
-        </span>
+      {data.status !== undefined || data.priority !== undefined ? (
+        <div className="rm-node__meta">
+          {data.status !== undefined ? (
+            <span className="rm-node__badge" data-status={data.status}>
+              {data.status}
+            </span>
+          ) : null}
+          {data.priority !== undefined ? (
+            <span className="rm-node__badge" data-priority={data.priority}>
+              {data.priority}
+            </span>
+          ) : null}
+        </div>
       ) : null}
     </>
   );

@@ -1,4 +1,5 @@
 import { Handle, NodeResizer, Position, type NodeProps } from "@xyflow/react";
+import type { CSSProperties } from "react";
 import { MIN_NODE_HEIGHT, MIN_NODE_WIDTH } from "../constants";
 import type { RoadmapNodeData } from "./flow";
 import { Icon } from "./Icon";
@@ -12,6 +13,8 @@ export function RoadmapNodeView({ id, data, selected }: NodeProps) {
   const Body = getNodeRenderer(node.kind);
   const callbacks = useNodeCallbacks();
   const align = node.align ?? { h: "left", v: "middle" };
+  const colorStyle =
+    node.color !== undefined ? ({ "--rm-node-color": node.color } as CSSProperties) : undefined;
 
   return (
     <>
@@ -19,8 +22,10 @@ export function RoadmapNodeView({ id, data, selected }: NodeProps) {
         className="rm-node"
         data-selected={selected === true}
         data-missing={node.missing === true}
+        data-colored={node.color !== undefined}
         data-align-h={align.h}
         data-align-v={align.v}
+        style={colorStyle}
       >
         {node.missing === true ? (
           <span

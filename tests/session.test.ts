@@ -68,6 +68,71 @@ describe("roadmap session", () => {
     expect(readState(session.content)?.nodes[node.id]?.align).toEqual({ h: "center", v: "bottom" });
   });
 
+  it("sets and clears node status in state and the body block", () => {
+    const session = newSession();
+    const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
+    session.addNode(a);
+
+    session.updateNodeMeta(a.id, { status: "done" });
+
+    expect(session.state.nodes[a.id]?.status).toBe("done");
+    expect(session.content).toContain("#done");
+    expect(readState(session.content)?.nodes[a.id]?.status).toBe("done");
+
+    session.updateNodeMeta(a.id, { status: null });
+
+    expect(session.state.nodes[a.id]?.status).toBeUndefined();
+    expect(session.content).not.toContain("#done");
+
+    session.undo();
+
+    expect(session.state.nodes[a.id]?.status).toBe("done");
+  });
+
+  it("sets node priority in state and the body block", () => {
+    const session = newSession();
+    const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
+    session.addNode(a);
+
+    session.updateNodeMeta(a.id, { priority: "high" });
+
+    expect(session.state.nodes[a.id]?.priority).toBe("high");
+    expect(session.content).toContain("#high");
+    expect(readState(session.content)?.nodes[a.id]?.priority).toBe("high");
+  });
+
+  it("sets node color in state without touching the readable body", () => {
+    const session = newSession();
+    const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
+    session.addNode(a);
+    const bodyBefore = session.content.split("%% roadmap:state")[0];
+
+    session.updateNodeMeta(a.id, { color: "var(--color-red)" });
+
+    expect(session.state.nodes[a.id]?.style?.color).toBe("var(--color-red)");
+    expect(session.content.split("%% roadmap:state")[0]).toBe(bodyBefore);
+
+    session.updateNodeMeta(a.id, { color: null });
+
+    expect(session.state.nodes[a.id]?.style?.color).toBeUndefined();
+  });
+
+  it("sets a node title and reflects it in the body link alias", () => {
+    const session = newSession();
+    const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
+    session.addNode(a);
+
+    session.updateNodeMeta(a.id, { title: "Custom" });
+
+    expect(session.state.nodes[a.id]?.title).toBe("Custom");
+    expect(session.content).toContain("|Custom]]");
+
+    session.updateNodeMeta(a.id, { title: "" });
+
+    expect(session.state.nodes[a.id]?.title).toBeUndefined();
+    expect(session.content).not.toContain("Custom");
+  });
+
   it("adds an edge to state and the ## Relations section", () => {
     const session = newSession();
     const a = createNoteNode("notes/a.md", { x: 0, y: 0 });

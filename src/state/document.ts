@@ -147,6 +147,22 @@ export function removeNodeBlock(content: string, id: string): string {
   return after.length === 0 ? `${before}\n` : `${before}\n\n${after}`;
 }
 
+export function updateNodeBlock(content: string, node: RoadmapNode): string {
+  const marker = new RegExp(`<!-- roadmap-node:id=${escapeRegExp(node.id)} type=\\w+ -->`);
+  const match = marker.exec(content);
+  if (match === null) {
+    return insertNodeBlock(content, node);
+  }
+  const afterMarker = match.index + match[0].length;
+  const boundary = NODE_BOUNDARY_RE.exec(content.slice(afterMarker));
+  const end = boundary === null ? content.length : afterMarker + boundary.index;
+  const block = renderNodeBlock(node);
+  const before = content.slice(0, match.index).replace(/\s*$/, "");
+  const after = content.slice(end).replace(/^\s*/, "");
+
+  return after.length === 0 ? `${before}\n\n${block}\n` : `${before}\n\n${block}\n\n${after}`;
+}
+
 export function bodyNodeIds(content: string): Set<string> {
   const ids = new Set<string>();
   for (const match of content.matchAll(NODE_MARKER_RE)) {

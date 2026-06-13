@@ -12,6 +12,8 @@ import type {
   EdgeLine,
   EdgeSide,
   RoadmapNode,
+  RoadmapPriority,
+  RoadmapStatus,
   TextAlignH,
   TextAlignV,
 } from "../domain/types";
@@ -22,7 +24,7 @@ import {
   writeRelations,
   writeState,
 } from "../state/document";
-import { RoadmapSession } from "../state/session";
+import { RoadmapSession, type NodeMetaPatch } from "../state/session";
 import { NoteSuggestModal } from "./NoteSuggestModal";
 import { PromptModal } from "./PromptModal";
 import { RoadmapCanvas } from "./RoadmapCanvas";
@@ -492,6 +494,48 @@ export class RoadmapView extends TextFileView {
     }
     const align = node.align ?? { h: "left", v: "middle" };
     const menu = new Menu();
+    const statuses: { title: string; value: RoadmapStatus }[] = [
+      { title: "Draft", value: "draft" },
+      { title: "In progress", value: "in-progress" },
+      { title: "Done", value: "done" },
+      { title: "Archived", value: "archived" },
+    ];
+    menu.addItem((item) =>
+      item
+        .setTitle("No status")
+        .setChecked(node.status === undefined)
+        .onClick(() => this.updateNodeMeta(id, { status: null })),
+    );
+    for (const { title, value } of statuses) {
+      menu.addItem((item) =>
+        item
+          .setTitle(title)
+          .setChecked(node.status === value)
+          .onClick(() => this.updateNodeMeta(id, { status: value })),
+      );
+    }
+    menu.addSeparator();
+    const priorities: { title: string; value: RoadmapPriority }[] = [
+      { title: "Low priority", value: "low" },
+      { title: "Medium priority", value: "medium" },
+      { title: "High priority", value: "high" },
+      { title: "Critical priority", value: "critical" },
+    ];
+    menu.addItem((item) =>
+      item
+        .setTitle("No priority")
+        .setChecked(node.priority === undefined)
+        .onClick(() => this.updateNodeMeta(id, { priority: null })),
+    );
+    for (const { title, value } of priorities) {
+      menu.addItem((item) =>
+        item
+          .setTitle(title)
+          .setChecked(node.priority === value)
+          .onClick(() => this.updateNodeMeta(id, { priority: value })),
+      );
+    }
+    menu.addSeparator();
     const horizontal: { title: string; value: TextAlignH }[] = [
       { title: "Align left", value: "left" },
       { title: "Align center", value: "center" },
@@ -519,11 +563,68 @@ export class RoadmapView extends TextFileView {
           .onClick(() => this.updateNodeAlign(id, { v: value })),
       );
     }
+    menu.addSeparator();
+    const colors: { title: string; value: string }[] = [
+      { title: "Red", value: "var(--color-red)" },
+      { title: "Orange", value: "var(--color-orange)" },
+      { title: "Yellow", value: "var(--color-yellow)" },
+      { title: "Green", value: "var(--color-green)" },
+      { title: "Cyan", value: "var(--color-cyan)" },
+      { title: "Blue", value: "var(--color-blue)" },
+      { title: "Purple", value: "var(--color-purple)" },
+      { title: "Pink", value: "var(--color-pink)" },
+    ];
+    menu.addItem((item) =>
+      item
+        .setTitle("No color")
+        .setChecked(node.style?.color === undefined)
+        .onClick(() => this.updateNodeMeta(id, { color: null })),
+    );
+    for (const { title, value } of colors) {
+      menu.addItem((item) =>
+        item
+          .setTitle(title)
+          .setChecked(node.style?.color === value)
+          .onClick(() => this.updateNodeMeta(id, { color: value })),
+      );
+    }
+    menu.addSeparator();
+    menu.addItem((item) =>
+      item
+        .setTitle("Set title…")
+        .setIcon("pencil")
+        .onClick(() => this.editNodeText(id, "title")),
+    );
+    menu.addItem((item) =>
+      item
+        .setTitle("Set description…")
+        .setIcon("text")
+        .onClick(() => this.editNodeText(id, "description")),
+    );
     menu.showAtMouseEvent(event);
   };
 
+  private editNodeText(id: string, field: "title" | "description"): void {
+    const node = this.session?.state.nodes[id];
+    if (node === undefined) {
+      return;
+    }
+    new PromptModal(this.app, {
+      title: field === "title" ? "Node title" : "Node description",
+      placeholder: field === "title" ? "Title (empty uses the file name)" : "Description",
+      initialValue: (field === "title" ? node.title : node.description) ?? "",
+      cta: "Save",
+      onSubmit: (value) => this.updateNodeMeta(id, { [field]: value }),
+    }).open();
+  }
+
   private updateNodeAlign(id: string, patch: { h?: TextAlignH; v?: TextAlignV }): void {
     this.session?.setNodeAlign(id, patch);
+    this.commit();
+  }
+
+  private updateNodeMeta(id: string, patch: NodeMetaPatch): void {
+    this.session?.updateNodeMeta(id, patch);
     this.commit();
   }
 

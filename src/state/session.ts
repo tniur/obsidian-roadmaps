@@ -5,12 +5,28 @@ import type {
   EdgeSide,
   RoadmapEdge,
   RoadmapNode,
+  RoadmapPriority,
   RoadmapState,
+  RoadmapStatus,
   TextAlign,
   TextAlignH,
   TextAlignV,
 } from "../domain/types";
-import { insertNodeBlock, removeNodeBlock, writeRelations, writeState } from "./document";
+import {
+  insertNodeBlock,
+  removeNodeBlock,
+  updateNodeBlock,
+  writeRelations,
+  writeState,
+} from "./document";
+
+export interface NodeMetaPatch {
+  status?: RoadmapStatus | null;
+  priority?: RoadmapPriority | null;
+  color?: string | null;
+  title?: string | null;
+  description?: string | null;
+}
 
 interface Snapshot {
   state: RoadmapState;
@@ -176,6 +192,45 @@ export class RoadmapSession {
       nodes: { ...this.stateValue.nodes, [id]: { ...node, align } },
     };
     this.contentValue = writeState(this.contentValue, this.stateValue);
+  }
+
+  updateNodeMeta(id: string, patch: NodeMetaPatch): void {
+    const node = this.stateValue.nodes[id];
+    if (node === undefined) {
+      return;
+    }
+    this.begin();
+    const next: RoadmapNode = { ...node };
+    if ("status" in patch) {
+      if (patch.status == null) delete next.status;
+      else next.status = patch.status;
+    }
+    if ("priority" in patch) {
+      if (patch.priority == null) delete next.priority;
+      else next.priority = patch.priority;
+    }
+    if ("title" in patch) {
+      if (patch.title == null || patch.title.length === 0) delete next.title;
+      else next.title = patch.title;
+    }
+    if ("description" in patch) {
+      if (patch.description == null || patch.description.length === 0) delete next.description;
+      else next.description = patch.description;
+    }
+    if ("color" in patch) {
+      const style = { ...next.style };
+      if (patch.color == null || patch.color.length === 0) delete style.color;
+      else style.color = patch.color;
+      next.style = Object.keys(style).length > 0 ? style : undefined;
+    }
+    this.stateValue = { ...this.stateValue, nodes: { ...this.stateValue.nodes, [id]: next } };
+    const touchesBody = "status" in patch || "priority" in patch || "title" in patch;
+    let content = touchesBody ? updateNodeBlock(this.contentValue, next) : this.contentValue;
+    content = writeState(content, this.stateValue);
+    if ("title" in patch) {
+      content = writeRelations(content, this.stateValue);
+    }
+    this.contentValue = content;
   }
 
   deleteNode(id: string): void {
