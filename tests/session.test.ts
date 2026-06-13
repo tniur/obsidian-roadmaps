@@ -169,6 +169,26 @@ describe("roadmap session", () => {
     expect(session.content).not.toContain("depends on");
   });
 
+  it("adds a node and a connecting edge atomically, with a floating target by default", () => {
+    const session = newSession();
+    const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
+    session.addNode(a);
+    const b = createNoteNode("notes/b.md", { x: 50, y: 50 });
+    session.addNodeWithEdge(b, a.id, "right", null);
+    const edgeId = Object.keys(session.state.edges)[0];
+
+    expect(session.state.nodes[b.id]).toBeDefined();
+    expect(session.state.edges[edgeId]?.from.id).toBe(a.id);
+    expect(session.state.edges[edgeId]?.to.id).toBe(b.id);
+    expect(session.state.edges[edgeId]?.fromSide).toBe("right");
+    expect(session.state.edges[edgeId]?.toSide).toBeUndefined();
+
+    session.undo();
+
+    expect(session.state.nodes[b.id]).toBeUndefined();
+    expect(Object.keys(session.state.edges)).toHaveLength(0);
+  });
+
   it("toggles an edge endpoint between a fixed side and floating", () => {
     const session = newSession();
     const a = createNoteNode("notes/a.md", { x: 0, y: 0 });

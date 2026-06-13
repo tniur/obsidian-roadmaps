@@ -10,6 +10,7 @@ import {
   type Connection,
   type Edge,
   type EdgeChange,
+  type FinalConnectionState,
   type NodeChange,
 } from "@xyflow/react";
 import {
@@ -46,6 +47,15 @@ const nodeTypes = { [ROADMAP_NODE_TYPE]: RoadmapNodeView };
 
 const edgeTypes = { [ROADMAP_EDGE_TYPE]: FloatingEdge };
 
+function clientPoint(event: MouseEvent | TouchEvent): { x: number; y: number } | null {
+  if ("clientX" in event) {
+    return { x: event.clientX, y: event.clientY };
+  }
+  const touch = event.changedTouches[0];
+
+  return touch === undefined ? null : { x: touch.clientX, y: touch.clientY };
+}
+
 interface RoadmapCanvasProps {
   state: RoadmapState;
   isNodeMissing: NodeMissingPredicate;
@@ -72,6 +82,12 @@ interface RoadmapCanvasProps {
     sourceHandle: string | null,
     targetHandle: string | null,
   ) => void;
+  onConnectToEmpty: (
+    source: string,
+    sourceHandle: string | null,
+    placement: NodePlacement,
+    event: MouseEvent,
+  ) => void;
   onEdgeContextMenu: (id: string, event: MouseEvent) => void;
   onNodeContextMenu: (id: string, event: MouseEvent) => void;
 }
@@ -97,6 +113,7 @@ export function RoadmapCanvas({
   onDropFiles,
   onDeleteElements,
   onConnectNodes,
+  onConnectToEmpty,
   onEdgeContextMenu,
   onNodeContextMenu,
 }: RoadmapCanvasProps) {
@@ -198,6 +215,39 @@ export function RoadmapCanvas({
       }
     },
     [onConnectNodes],
+  );
+
+  const nodeAtPoint = useCallback(
+    (point: { x: number; y: number }): boolean => {
+      return getNodes().some((node) => {
+        const w = node.measured?.width ?? node.width ?? 0;
+        const h = node.measured?.height ?? node.height ?? 0;
+
+        return (
+          point.x >= node.position.x &&
+          point.x <= node.position.x + w &&
+          point.y >= node.position.y &&
+          point.y <= node.position.y + h
+        );
+      });
+    },
+    [getNodes],
+  );
+
+  const onConnectEnd = useCallback(
+    (event: MouseEvent | TouchEvent, connection: FinalConnectionState) => {
+      const fromNodeId = connection.fromHandle?.nodeId;
+      const client = clientPoint(event);
+      if (fromNodeId === undefined || client === null) {
+        return;
+      }
+      const point = screenToFlowPosition(client);
+      if (connection.toNode !== null || nodeAtPoint(point)) {
+        return;
+      }
+      onConnectToEmpty(fromNodeId, connection.fromHandle?.id ?? null, point, event as MouseEvent);
+    },
+    [screenToFlowPosition, nodeAtPoint, onConnectToEmpty],
   );
 
   const positionsOf = useCallback(
@@ -359,6 +409,7 @@ export function RoadmapCanvas({
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
+          onConnectEnd={onConnectEnd}
           onNodeDragStart={onNodeDragStart}
           onNodeDragStop={onNodeDragStop}
           onSelectionDragStart={onSelectionDragStart}

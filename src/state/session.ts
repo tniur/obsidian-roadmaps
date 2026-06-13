@@ -112,6 +112,21 @@ export class RoadmapSession {
     this.contentValue = writeState(content, this.stateValue);
   }
 
+  addNodeWithEdge(
+    node: RoadmapNode,
+    fromNodeId: string,
+    fromHandle?: string | null,
+    toHandle?: string | null,
+  ): void {
+    this.begin();
+    const nodes = { ...this.stateValue.nodes, [node.id]: node };
+    const content = insertNodeBlock(this.contentValue, node);
+    const edge = createEdge(fromNodeId, node.id, asSide(fromHandle), asSide(toHandle));
+    const edges = { ...this.stateValue.edges, [edge.id]: edge };
+    this.stateValue = { ...this.stateValue, nodes, edges };
+    this.contentValue = writeRelations(writeState(content, this.stateValue), this.stateValue);
+  }
+
   moveNode(id: string, x: number, y: number): void {
     this.moveNodes([{ id, x, y }]);
   }

@@ -2,7 +2,7 @@ import { Menu, TextFileView, TFile, type App, type WorkspaceLeaf } from "obsidia
 import { ReactFlowProvider } from "@xyflow/react";
 import { StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { VIEW_TYPE_ROADMAP } from "../constants";
+import { DEFAULT_NODE_HEIGHT, DEFAULT_NODE_WIDTH, VIEW_TYPE_ROADMAP } from "../constants";
 import { copyNode, createNoteNode, type NodePlacement } from "../domain/create";
 import { facingSide } from "../domain/edges";
 import { nodeOpenTarget } from "../domain/openTarget";
@@ -290,6 +290,58 @@ export class RoadmapView extends TextFileView {
     this.commit();
   };
 
+  private readonly handleConnectToEmpty = (
+    source: string,
+    sourceHandle: string | null,
+    placement: NodePlacement,
+    event: MouseEvent,
+  ): void => {
+    const centered: NodePlacement = {
+      x: placement.x - DEFAULT_NODE_WIDTH / 2,
+      y: placement.y - DEFAULT_NODE_HEIGHT / 2,
+    };
+    const menu = new Menu();
+    menu.addItem((item) =>
+      item
+        .setTitle("Create new note")
+        .setIcon("file-plus")
+        .onClick(() => {
+          void this.createNoteWithEdge(source, sourceHandle, centered);
+        }),
+    );
+    menu.addItem((item) =>
+      item
+        .setTitle("Add existing note")
+        .setIcon("search")
+        .onClick(() => {
+          new NoteSuggestModal(this.app, (file) => {
+            this.session?.addNodeWithEdge(
+              createNoteNode(file.path, centered),
+              source,
+              sourceHandle,
+              null,
+            );
+            this.commit();
+          }).open();
+        }),
+    );
+    menu.showAtMouseEvent(event);
+  };
+
+  private async createNoteWithEdge(
+    source: string,
+    sourceHandle: string | null,
+    placement: NodePlacement,
+  ): Promise<void> {
+    if (this.session === null) {
+      return;
+    }
+    const path = this.availableNotePath("Untitled Node");
+    const file = await this.app.vault.create(path, "");
+    this.session.addNodeWithEdge(createNoteNode(file.path, placement), source, sourceHandle, null);
+    this.commit();
+  }
+
   private readonly handleEdgeContextMenu = (id: string, event: MouseEvent): void => {
     const edge = this.session?.state.edges[id];
     if (edge === undefined) {
@@ -551,6 +603,7 @@ export class RoadmapView extends TextFileView {
               onDropFiles={this.handleDropFiles}
               onDeleteElements={this.handleDeleteElements}
               onConnectNodes={this.handleConnectNodes}
+              onConnectToEmpty={this.handleConnectToEmpty}
               onEdgeContextMenu={this.handleEdgeContextMenu}
               onNodeContextMenu={this.handleNodeContextMenu}
             />
