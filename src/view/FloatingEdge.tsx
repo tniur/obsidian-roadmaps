@@ -1,4 +1,11 @@
-import { BaseEdge, getBezierPath, Position, useInternalNode, type EdgeProps } from "@xyflow/react";
+import {
+  BaseEdge,
+  EdgeLabelRenderer,
+  getBezierPath,
+  Position,
+  useInternalNode,
+  type EdgeProps,
+} from "@xyflow/react";
 import type { CSSProperties } from "react";
 import type { EdgeDirection, EdgeLine, EdgeSide } from "../domain/types";
 import { getFloatingEdgeParams } from "./edgeParams";
@@ -42,6 +49,7 @@ interface EdgeMeta {
   line?: EdgeLine;
   fromSide?: EdgeSide;
   toSide?: EdgeSide;
+  label?: string;
 }
 
 export function FloatingEdge(props: EdgeProps) {
@@ -63,7 +71,7 @@ export function FloatingEdge(props: EdgeProps) {
         targetPos: props.targetPosition,
       }
     : getFloatingEdgeParams(sourceNode, targetNode);
-  const [path] = getBezierPath({
+  const [path, labelX, labelY] = getBezierPath({
     sourceX: sx,
     sourceY: sy,
     sourcePosition: sourcePos,
@@ -73,6 +81,7 @@ export function FloatingEdge(props: EdgeProps) {
   });
   const direction = meta?.direction ?? "forward";
   const line = meta?.line;
+  const label = meta?.label;
   const edgeStyle: CSSProperties =
     line === "dotted"
       ? {
@@ -93,6 +102,16 @@ export function FloatingEdge(props: EdgeProps) {
       ) : null}
       {direction === "both" ? (
         <path className="rm-edge-arrow" d={arrowPath(sx, sy, inwardDirection(sourcePos))} />
+      ) : null}
+      {label !== undefined && label.length > 0 ? (
+        <EdgeLabelRenderer>
+          <div
+            className="rm-edge-label nodrag nopan"
+            style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)` }}
+          >
+            {label}
+          </div>
+        </EdgeLabelRenderer>
       ) : null}
     </>
   );

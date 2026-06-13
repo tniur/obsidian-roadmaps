@@ -92,6 +92,7 @@ export function stateToFlowEdges(state: RoadmapState): Edge[] {
         line: edge.style?.line,
         fromSide: edge.fromSide,
         toSide: edge.toSide,
+        label: edge.label,
       },
     }));
 }

@@ -16,6 +16,7 @@ import {
 } from "../state/document";
 import { RoadmapSession } from "../state/session";
 import { NoteSuggestModal } from "./NoteSuggestModal";
+import { PromptModal } from "./PromptModal";
 import { RoadmapCanvas } from "./RoadmapCanvas";
 
 export interface RoadmapViewHost {
@@ -324,6 +325,21 @@ export class RoadmapView extends TextFileView {
           .onClick(() => this.reverseEdge(id)),
       );
     }
+    menu.addSeparator();
+    menu.addItem((item) =>
+      item
+        .setTitle(edge.label === undefined ? "Add label" : "Edit label")
+        .setIcon("type")
+        .onClick(() => this.editEdgeLabel(id)),
+    );
+    if (edge.label !== undefined) {
+      menu.addItem((item) =>
+        item
+          .setTitle("Remove label")
+          .setIcon("x")
+          .onClick(() => this.updateEdge(id, { label: "" })),
+      );
+    }
     menu.showAtMouseEvent(event);
   };
 
@@ -332,9 +348,23 @@ export class RoadmapView extends TextFileView {
     this.commit();
   }
 
+  private editEdgeLabel(id: string): void {
+    const edge = this.session?.state.edges[id];
+    if (edge === undefined) {
+      return;
+    }
+    new PromptModal(this.app, {
+      title: edge.label === undefined ? "Add edge label" : "Edit edge label",
+      placeholder: "Label text",
+      initialValue: edge.label ?? "",
+      cta: "Save",
+      onSubmit: (value) => this.updateEdge(id, { label: value }),
+    }).open();
+  }
+
   private updateEdge(
     id: string,
-    patch: { direction?: EdgeDirection; line?: EdgeLine | "solid" },
+    patch: { direction?: EdgeDirection; line?: EdgeLine | "solid"; label?: string },
   ): void {
     this.session?.updateEdge(id, patch);
     this.commit();

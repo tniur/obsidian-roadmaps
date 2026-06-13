@@ -43,7 +43,8 @@ export function renderRelationsSection(state: RoadmapState): string | null {
       continue;
     }
     const arrow = edge.direction === "both" ? "<->" : edge.direction === "forward" ? "->" : "--";
-    lines.push(`- ${from} ${arrow} ${to} <!-- roadmap-edge:id=${edge.id} -->`);
+    const label = edge.label !== undefined && edge.label.length > 0 ? `: ${edge.label}` : "";
+    lines.push(`- ${from} ${arrow} ${to}${label} <!-- roadmap-edge:id=${edge.id} -->`);
   }
   if (lines.length === 0) {
     return null;

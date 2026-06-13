@@ -302,3 +302,15 @@
 .rm-canvas .react-flow__edge.selected .rm-edge-arrow {
   stroke: var(--rm-accent);
 }
+
+.rm-canvas .rm-edge-label {
+  position: absolute;
+  padding: 0 var(--rm-space-1);
+  background: var(--rm-surface);
+  color: var(--rm-text-muted);
+  border: var(--rm-border-width) solid var(--rm-border);
+  border-radius: var(--rm-radius-s);
+  font-size: var(--font-ui-smaller);
+  white-space: nowrap;
+  pointer-events: none;
+}

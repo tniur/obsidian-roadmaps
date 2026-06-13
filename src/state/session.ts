@@ -264,7 +264,10 @@ export class RoadmapSession {
     this.contentValue = writeRelations(writeState(content, this.stateValue), this.stateValue);
   }
 
-  updateEdge(id: string, patch: { direction?: EdgeDirection; line?: EdgeLine | "solid" }): void {
+  updateEdge(
+    id: string,
+    patch: { direction?: EdgeDirection; line?: EdgeLine | "solid"; label?: string },
+  ): void {
     const edge = this.stateValue.edges[id];
     if (edge === undefined) {
       return;
@@ -273,6 +276,13 @@ export class RoadmapSession {
     const next: RoadmapEdge = { ...edge };
     if (patch.direction !== undefined) {
       next.direction = patch.direction;
+    }
+    if (patch.label !== undefined) {
+      if (patch.label.length === 0) {
+        delete next.label;
+      } else {
+        next.label = patch.label;
+      }
     }
     if (patch.line !== undefined) {
       const style = { ...edge.style };

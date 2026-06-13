@@ -149,6 +149,26 @@ describe("roadmap session", () => {
     expect(session.content).toContain("<->");
   });
 
+  it("sets and clears an edge label in state and ## Relations", () => {
+    const session = newSession();
+    const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
+    const b = createNoteNode("notes/b.md", { x: 0, y: 0 });
+    session.addNode(a);
+    session.addNode(b);
+    session.addEdge(a.id, b.id);
+    const edgeId = Object.keys(session.state.edges)[0];
+
+    session.updateEdge(edgeId, { label: "depends on" });
+
+    expect(readState(session.content)?.edges[edgeId]?.label).toBe("depends on");
+    expect(session.content).toContain(`: depends on <!-- roadmap-edge:id=${edgeId} -->`);
+
+    session.updateEdge(edgeId, { label: "" });
+
+    expect(session.state.edges[edgeId]?.label).toBeUndefined();
+    expect(session.content).not.toContain("depends on");
+  });
+
   it("reverses an edge, swapping endpoints and sides in state and ## Relations", () => {
     const session = newSession();
     const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
