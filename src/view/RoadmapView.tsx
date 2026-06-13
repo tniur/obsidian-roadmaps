@@ -4,9 +4,17 @@ import { StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { VIEW_TYPE_ROADMAP } from "../constants";
 import { copyNode, createNoteNode, type NodePlacement } from "../domain/create";
+import { facingSide } from "../domain/edges";
 import { nodeOpenTarget } from "../domain/openTarget";
 import { sourceFile } from "../domain/source";
-import type { EdgeDirection, EdgeLine, RoadmapNode, TextAlignH, TextAlignV } from "../domain/types";
+import type {
+  EdgeDirection,
+  EdgeLine,
+  EdgeSide,
+  RoadmapNode,
+  TextAlignH,
+  TextAlignV,
+} from "../domain/types";
 import {
   emptyState,
   reconcileState,
@@ -340,8 +348,42 @@ export class RoadmapView extends TextFileView {
           .onClick(() => this.updateEdge(id, { label: "" })),
       );
     }
+    menu.addSeparator();
+    menu.addItem((item) =>
+      item
+        .setTitle("Float source")
+        .setChecked(edge.fromSide === undefined)
+        .onClick(() => this.toggleEdgeFloat(id, "from")),
+    );
+    menu.addItem((item) =>
+      item
+        .setTitle("Float target")
+        .setChecked(edge.toSide === undefined)
+        .onClick(() => this.toggleEdgeFloat(id, "to")),
+    );
     menu.showAtMouseEvent(event);
   };
+
+  private toggleEdgeFloat(id: string, end: "from" | "to"): void {
+    const edge = this.session?.state.edges[id];
+    if (edge === undefined) {
+      return;
+    }
+    const floating = end === "from" ? edge.fromSide === undefined : edge.toSide === undefined;
+    let side: EdgeSide | undefined;
+    if (floating) {
+      const self = edge[end];
+      const other = end === "from" ? edge.to : edge.from;
+      const selfNode = self.type === "node" ? this.session?.state.nodes[self.id] : undefined;
+      const otherNode = other.type === "node" ? this.session?.state.nodes[other.id] : undefined;
+      side =
+        selfNode !== undefined && otherNode !== undefined
+          ? facingSide(selfNode.layout, otherNode.layout)
+          : "top";
+    }
+    this.session?.setEdgeEndpointSide(id, end, side);
+    this.commit();
+  }
 
   private reverseEdge(id: string): void {
     this.session?.reverseEdge(id);

@@ -2,6 +2,7 @@ import { asSide, createEdge } from "../domain/create";
 import type {
   EdgeDirection,
   EdgeLine,
+  EdgeSide,
   RoadmapEdge,
   RoadmapNode,
   RoadmapState,
@@ -322,6 +323,30 @@ export class RoadmapSession {
       writeState(this.contentValue, this.stateValue),
       this.stateValue,
     );
+  }
+
+  setEdgeEndpointSide(id: string, end: "from" | "to", side: EdgeSide | undefined): void {
+    const edge = this.stateValue.edges[id];
+    if (edge === undefined) {
+      return;
+    }
+    this.begin();
+    const next: RoadmapEdge = { ...edge };
+    if (end === "from") {
+      if (side === undefined) {
+        delete next.fromSide;
+      } else {
+        next.fromSide = side;
+      }
+    } else {
+      if (side === undefined) {
+        delete next.toSide;
+      } else {
+        next.toSide = side;
+      }
+    }
+    this.stateValue = { ...this.stateValue, edges: { ...this.stateValue.edges, [id]: next } };
+    this.contentValue = writeState(this.contentValue, this.stateValue);
   }
 }
 

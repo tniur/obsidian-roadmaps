@@ -169,6 +169,29 @@ describe("roadmap session", () => {
     expect(session.content).not.toContain("depends on");
   });
 
+  it("toggles an edge endpoint between a fixed side and floating", () => {
+    const session = newSession();
+    const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
+    const b = createNoteNode("notes/b.md", { x: 0, y: 0 });
+    session.addNode(a);
+    session.addNode(b);
+    session.addEdge(a.id, b.id, "right", "left");
+    const edgeId = Object.keys(session.state.edges)[0];
+
+    session.setEdgeEndpointSide(edgeId, "to", undefined);
+
+    expect(session.state.edges[edgeId]?.toSide).toBeUndefined();
+    expect(session.state.edges[edgeId]?.fromSide).toBe("right");
+
+    session.setEdgeEndpointSide(edgeId, "from", "bottom");
+
+    expect(readState(session.content)?.edges[edgeId]?.fromSide).toBe("bottom");
+
+    session.undo();
+
+    expect(session.state.edges[edgeId]?.fromSide).toBe("right");
+  });
+
   it("reverses an edge, swapping endpoints and sides in state and ## Relations", () => {
     const session = newSession();
     const a = createNoteNode("notes/a.md", { x: 0, y: 0 });

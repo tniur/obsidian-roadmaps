@@ -8,7 +8,7 @@ import {
 } from "@xyflow/react";
 import type { CSSProperties } from "react";
 import type { EdgeDirection, EdgeLine, EdgeSide } from "../domain/types";
-import { getFloatingEdgeParams } from "./edgeParams";
+import { getEdgeEndpoints } from "./edgeParams";
 
 const ARROW_LENGTH = 6;
 const ARROW_SPREAD = 3.375;
@@ -60,17 +60,12 @@ export function FloatingEdge(props: EdgeProps) {
     return null;
   }
   const meta = data as EdgeMeta | undefined;
-  const anchored = meta?.fromSide !== undefined && meta?.toSide !== undefined;
-  const { sx, sy, tx, ty, sourcePos, targetPos } = anchored
-    ? {
-        sx: props.sourceX,
-        sy: props.sourceY,
-        tx: props.targetX,
-        ty: props.targetY,
-        sourcePos: props.sourcePosition,
-        targetPos: props.targetPosition,
-      }
-    : getFloatingEdgeParams(sourceNode, targetNode);
+  const { sx, sy, tx, ty, sourcePos, targetPos } = getEdgeEndpoints(
+    sourceNode,
+    targetNode,
+    meta?.fromSide,
+    meta?.toSide,
+  );
   const [path, labelX, labelY] = getBezierPath({
     sourceX: sx,
     sourceY: sy,
