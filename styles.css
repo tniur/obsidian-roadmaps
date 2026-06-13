@@ -36,6 +36,8 @@
   --rm-node-min-width: 140px;
   --rm-node-max-width: 260px;
   --rm-handle-size: 6px;
+  --rm-resize-handle: 16px;
+  --rm-resize-edge: 8px;
   --rm-edge-color: var(--rm-text-muted);
   --rm-edge-width: 1.25px;
   --rm-edge-dash: 6 4;
@@ -203,14 +205,24 @@
 }
 
 .rm-canvas .react-flow__resize-control.handle {
-  width: 10px;
-  height: 10px;
+  width: var(--rm-resize-handle);
+  height: var(--rm-resize-handle);
   border: none;
   background: transparent;
 }
 
 .rm-canvas .react-flow__resize-control.line {
   border-color: transparent;
+}
+
+.rm-canvas .react-flow__resize-control.line.left,
+.rm-canvas .react-flow__resize-control.line.right {
+  width: var(--rm-resize-edge);
+}
+
+.rm-canvas .react-flow__resize-control.line.top,
+.rm-canvas .react-flow__resize-control.line.bottom {
+  height: var(--rm-resize-edge);
 }
 
 .rm-node__header {

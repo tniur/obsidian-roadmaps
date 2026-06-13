@@ -14,13 +14,29 @@ export function RoadmapNodeView({ id, data, selected }: NodeProps) {
   const align = node.align ?? { h: "left", v: "middle" };
 
   return (
-    <div
-      className="rm-node"
-      data-selected={selected === true}
-      data-missing={node.missing === true}
-      data-align-h={align.h}
-      data-align-v={align.v}
-    >
+    <>
+      <div
+        className="rm-node"
+        data-selected={selected === true}
+        data-missing={node.missing === true}
+        data-align-h={align.h}
+        data-align-v={align.v}
+      >
+        {node.missing === true ? (
+          <span
+            className="rm-node__broken"
+            aria-label="Source file is missing"
+            title="Source file is missing"
+          >
+            <Icon name="alert-triangle" />
+          </span>
+        ) : null}
+        {Body !== null ? (
+          <Body data={node} />
+        ) : (
+          <span className="rm-node__title">{node.label}</span>
+        )}
+      </div>
       <NodeResizer
         minWidth={MIN_NODE_WIDTH}
         minHeight={MIN_NODE_HEIGHT}
@@ -32,16 +48,6 @@ export function RoadmapNodeView({ id, data, selected }: NodeProps) {
       {HANDLE_SIDES.map((side) => (
         <Handle key={side} id={side} type="source" position={side} className="rm-handle" />
       ))}
-      {node.missing === true ? (
-        <span
-          className="rm-node__broken"
-          aria-label="Source file is missing"
-          title="Source file is missing"
-        >
-          <Icon name="alert-triangle" />
-        </span>
-      ) : null}
-      {Body !== null ? <Body data={node} /> : <span className="rm-node__title">{node.label}</span>}
-    </div>
+    </>
   );
 }
