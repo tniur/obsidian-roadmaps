@@ -74,6 +74,7 @@ interface RoadmapCanvasProps {
   onSelectionChange: (ids: string[]) => void;
   onCreateNote: (placement: NodePlacement) => void;
   onAddNote: (placement: NodePlacement) => void;
+  onCreateNodeAt: (placement: NodePlacement, event: MouseEvent) => void;
   onDropFiles: (placement: NodePlacement, dataTransfer: DataTransfer | null) => void;
   onDeleteElements: (nodeIds: string[], edgeIds: string[]) => void;
   onConnectNodes: (
@@ -110,6 +111,7 @@ export function RoadmapCanvas({
   onSelectionChange,
   onCreateNote,
   onAddNote,
+  onCreateNodeAt,
   onDropFiles,
   onDeleteElements,
   onConnectNodes,
@@ -355,6 +357,16 @@ export function RoadmapCanvas({
     [onNodeContextMenu],
   );
 
+  const onPaneContextMenuInternal = useCallback(
+    (event: ReactMouseEvent | MouseEvent) => {
+      event.preventDefault();
+      const native = "nativeEvent" in event ? event.nativeEvent : event;
+      const placement = screenToFlowPosition({ x: native.clientX, y: native.clientY });
+      onCreateNodeAt(placement, native);
+    },
+    [screenToFlowPosition, onCreateNodeAt],
+  );
+
   const onDeleteInternal = useCallback(
     ({ nodes: deletedNodes, edges: deletedEdges }: { nodes: RoadmapFlowNode[]; edges: Edge[] }) => {
       onDeleteElements(
@@ -418,6 +430,7 @@ export function RoadmapCanvas({
           onNodeDoubleClick={onNodeDoubleClick}
           onNodeContextMenu={onNodeContextMenuInternal}
           onEdgeContextMenu={onEdgeContextMenuInternal}
+          onPaneContextMenu={onPaneContextMenuInternal}
           onDelete={onDeleteInternal}
           deleteKeyCode={locked ? null : ["Backspace", "Delete"]}
           multiSelectionKeyCode="Shift"

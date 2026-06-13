@@ -272,6 +272,27 @@ export class RoadmapView extends TextFileView {
     void this.createNote(placement);
   };
 
+  private readonly handleCreateNodeAt = (placement: NodePlacement, event: MouseEvent): void => {
+    const centered: NodePlacement = {
+      x: placement.x - DEFAULT_NODE_WIDTH / 2,
+      y: placement.y - DEFAULT_NODE_HEIGHT / 2,
+    };
+    const menu = new Menu();
+    menu.addItem((item) =>
+      item
+        .setTitle("Create new note")
+        .setIcon("file-plus")
+        .onClick(() => this.handleCreateNote(centered)),
+    );
+    menu.addItem((item) =>
+      item
+        .setTitle("Add existing note")
+        .setIcon("search")
+        .onClick(() => this.handleAddNote(centered)),
+    );
+    menu.showAtMouseEvent(event);
+  };
+
   private readonly handleDeleteElements = (nodeIds: string[], edgeIds: string[]): void => {
     if (this.session === null || (nodeIds.length === 0 && edgeIds.length === 0)) {
       return;
@@ -600,6 +621,7 @@ export class RoadmapView extends TextFileView {
               onSelectionChange={this.handleSelectionChange}
               onCreateNote={this.handleCreateNote}
               onAddNote={this.handleAddNote}
+              onCreateNodeAt={this.handleCreateNodeAt}
               onDropFiles={this.handleDropFiles}
               onDeleteElements={this.handleDeleteElements}
               onConnectNodes={this.handleConnectNodes}
