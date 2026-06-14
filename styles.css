@@ -35,6 +35,7 @@
 
   --rm-node-min-width: 140px;
   --rm-node-max-width: 260px;
+  --rm-preview-width: 360px;
   --rm-handle-size: 6px;
   --rm-resize-handle: 16px;
   --rm-resize-edge: 8px;
@@ -49,6 +50,7 @@
   --rm-guide-color: var(--rm-accent);
   --rm-guide-width: 1px;
 
+  position: relative;
   height: 100%;
   background: var(--rm-surface);
   color: var(--rm-text);
@@ -57,6 +59,47 @@
 .rm-canvas {
   width: 100%;
   height: 100%;
+}
+
+.rm-preview {
+  position: absolute;
+  inset: 0 0 0 auto;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  width: var(--rm-preview-width);
+  max-width: 100%;
+  background: var(--rm-surface);
+  border-left: var(--rm-border-width) solid var(--rm-border);
+  box-shadow: var(--shadow-l);
+}
+
+.rm-preview__header {
+  display: flex;
+  align-items: center;
+  gap: var(--rm-space-2);
+  padding: var(--rm-space-2) var(--rm-space-3);
+  border-bottom: var(--rm-border-width) solid var(--rm-border);
+}
+
+.rm-preview__title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-weight: var(--font-semibold);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.rm-preview__body {
+  flex: 1;
+  overflow: auto;
+  padding: var(--rm-space-3);
+}
+
+.rm-preview__image {
+  max-width: 100%;
+  height: auto;
 }
 
 .rm-toolbar {

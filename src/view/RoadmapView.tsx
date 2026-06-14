@@ -1,4 +1,13 @@
-import { Menu, TextFileView, TFile, type App, type WorkspaceLeaf } from "obsidian";
+import {
+  Component,
+  MarkdownRenderer,
+  Menu,
+  TextFileView,
+  TFile,
+  type App,
+  type TAbstractFile,
+  type WorkspaceLeaf,
+} from "obsidian";
 import { ReactFlowProvider } from "@xyflow/react";
 import { StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -25,9 +34,12 @@ import {
   writeState,
 } from "../state/document";
 import { RoadmapSession, type NodeMetaPatch } from "../state/session";
+import { NodePreviewPanel } from "./NodePreviewPanel";
 import { NoteSuggestModal } from "./NoteSuggestModal";
 import { PromptModal } from "./PromptModal";
 import { RoadmapCanvas } from "./RoadmapCanvas";
+
+const IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "gif", "svg", "webp", "bmp", "avif"]);
 
 export interface RoadmapViewHost {
   openAsMarkdown: (leaf: WorkspaceLeaf, file: TFile) => void;
@@ -49,6 +61,8 @@ export class RoadmapView extends TextFileView {
   private pasteOffset = 0;
   private focusIds: string[] = [];
   private focusNonce = 0;
+  private previewNodeId: string | null = null;
+  private previewRefreshNonce = 0;
 
   constructor(
     leaf: WorkspaceLeaf,
@@ -106,8 +120,20 @@ export class RoadmapView extends TextFileView {
   protected async onOpen(): Promise<void> {
     this.root = createRoot(this.contentEl);
     this.registerDomEvent(this.contentEl.ownerDocument, "keydown", this.handleKeyDown);
+    this.registerEvent(this.app.vault.on("modify", this.handleVaultModify));
     this.renderApp();
   }
+
+  private readonly handleVaultModify = (file: TAbstractFile): void => {
+    if (this.previewNodeId === null || this.session === null) {
+      return;
+    }
+    const node = this.session.state.nodes[this.previewNodeId];
+    if (node !== undefined && sourceFile(node.source) === file.path) {
+      this.previewRefreshNonce += 1;
+      this.renderApp();
+    }
+  };
 
   private readonly handleKeyDown = (event: KeyboardEvent): void => {
     if (!(event.metaKey || event.ctrlKey)) {
@@ -261,6 +287,55 @@ export class RoadmapView extends TextFileView {
       return;
     }
     void this.app.workspace.openLinkText(target.linktext, this.file?.path ?? "", newLeaf);
+  };
+
+  private readonly handleNodePreview = (id: string): void => {
+    if (this.session?.state.nodes[id] === undefined) {
+      return;
+    }
+    this.previewNodeId = id;
+    this.renderApp();
+  };
+
+  private readonly handleClosePreview = (): void => {
+    this.previewNodeId = null;
+    this.renderApp();
+  };
+
+  private readonly handleEditPreview = (): void => {
+    if (this.previewNodeId !== null) {
+      this.handleNodeOpen(this.previewNodeId, true);
+    }
+  };
+
+  private readonly renderPreviewContent = (node: RoadmapNode, el: HTMLElement): (() => void) => {
+    const component = new Component();
+    component.load();
+    if (node.source.type === "url") {
+      el.createEl("a", { text: node.source.url, href: node.source.url });
+
+      return () => component.unload();
+    }
+    const path = sourceFile(node.source);
+    const file = path === null ? null : this.app.vault.getAbstractFileByPath(path);
+    if (!(file instanceof TFile)) {
+      el.setText("Source file not found.");
+
+      return () => component.unload();
+    }
+    if (IMAGE_EXTENSIONS.has(file.extension.toLowerCase())) {
+      el.createEl("img", {
+        cls: "rm-preview__image",
+        attr: { src: this.app.vault.getResourcePath(file) },
+      });
+
+      return () => component.unload();
+    }
+    void this.app.vault.cachedRead(file).then((markdown) => {
+      void MarkdownRenderer.render(this.app, markdown, el, file.path, component);
+    });
+
+    return () => component.unload();
   };
 
   private readonly handleAddNote = (placement: NodePlacement): void => {
@@ -700,6 +775,8 @@ export class RoadmapView extends TextFileView {
     if (this.root === null || this.session === null) {
       return;
     }
+    const previewNode =
+      this.previewNodeId === null ? undefined : this.session.state.nodes[this.previewNodeId];
     this.root.render(
       <StrictMode>
         <div className="rm-view">
@@ -719,6 +796,7 @@ export class RoadmapView extends TextFileView {
               onNodesDuplicate={this.handleNodesDuplicated}
               onNodeResized={this.handleNodeResized}
               onNodeOpen={this.handleNodeOpen}
+              onNodePreview={this.handleNodePreview}
               onSelectionChange={this.handleSelectionChange}
               onCreateNote={this.handleCreateNote}
               onAddNote={this.handleAddNote}
@@ -731,6 +809,16 @@ export class RoadmapView extends TextFileView {
               onNodeContextMenu={this.handleNodeContextMenu}
             />
           </ReactFlowProvider>
+          {previewNode !== undefined ? (
+            <NodePreviewPanel
+              key={previewNode.id}
+              node={previewNode}
+              mount={this.renderPreviewContent}
+              refreshNonce={this.previewRefreshNonce}
+              onEdit={this.handleEditPreview}
+              onClose={this.handleClosePreview}
+            />
+          ) : null}
         </div>
       </StrictMode>,
     );

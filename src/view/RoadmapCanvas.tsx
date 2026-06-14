@@ -71,6 +71,7 @@ interface RoadmapCanvasProps {
   onNodesDuplicate: (items: ReadonlyArray<{ id: string; x: number; y: number }>) => void;
   onNodeResized: (id: string, width: number, height: number, x: number, y: number) => void;
   onNodeOpen: (id: string, newLeaf: boolean) => void;
+  onNodePreview: (id: string) => void;
   onSelectionChange: (ids: string[]) => void;
   onCreateNote: (placement: NodePlacement) => void;
   onAddNote: (placement: NodePlacement) => void;
@@ -108,6 +109,7 @@ export function RoadmapCanvas({
   onNodesDuplicate,
   onNodeResized,
   onNodeOpen,
+  onNodePreview,
   onSelectionChange,
   onCreateNote,
   onAddNote,
@@ -336,9 +338,13 @@ export function RoadmapCanvas({
 
   const onNodeDoubleClick = useCallback(
     (event: ReactMouseEvent, node: RoadmapFlowNode) => {
-      onNodeOpen(node.id, event.ctrlKey || event.metaKey);
+      if (event.ctrlKey || event.metaKey) {
+        onNodeOpen(node.id, true);
+      } else {
+        onNodePreview(node.id);
+      }
     },
-    [onNodeOpen],
+    [onNodeOpen, onNodePreview],
   );
 
   const onEdgeContextMenuInternal = useCallback(
