@@ -233,6 +233,18 @@ export class RoadmapSession {
     this.contentValue = content;
   }
 
+  setNodeUrl(id: string, url: string): void {
+    const node = this.stateValue.nodes[id];
+    if (node === undefined || node.source.type !== "url") {
+      return;
+    }
+    this.begin();
+    const next: RoadmapNode = { ...node, source: { type: "url", url } };
+    this.stateValue = { ...this.stateValue, nodes: { ...this.stateValue.nodes, [id]: next } };
+    const content = writeState(updateNodeBlock(this.contentValue, next), this.stateValue);
+    this.contentValue = writeRelations(content, this.stateValue);
+  }
+
   deleteNode(id: string): void {
     this.deleteNodes([id]);
   }

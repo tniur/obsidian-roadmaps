@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { copyNode, createNoteNode } from "../src/domain/create";
+import { copyNode, createNoteNode, createUrlNode } from "../src/domain/create";
 import { createRoadmapDocument, readState } from "../src/state/document";
 import { RoadmapSession } from "../src/state/session";
 
@@ -27,6 +27,34 @@ describe("roadmap session", () => {
       type: "note",
       file: "notes/a.md",
     });
+  });
+
+  it("adds a url node rendered as a markdown link in the body", () => {
+    const session = newSession();
+    const node = createUrlNode("https://example.com/docs", { x: 0, y: 0 });
+    session.addNode(node);
+
+    expect(session.state.nodes[node.id]?.source).toEqual({
+      type: "url",
+      url: "https://example.com/docs",
+    });
+    expect(session.content).toContain("[example.com](https://example.com/docs)");
+    expect(readState(session.content)?.nodes[node.id]?.kind).toBe("url");
+  });
+
+  it("updates a url node's address in state and the body link", () => {
+    const session = newSession();
+    const node = createUrlNode("https://example.com", { x: 0, y: 0 });
+    session.addNode(node);
+
+    session.setNodeUrl(node.id, "https://docs.rs/page");
+
+    expect(readState(session.content)?.nodes[node.id]?.source).toEqual({
+      type: "url",
+      url: "https://docs.rs/page",
+    });
+    expect(session.content).toContain("(https://docs.rs/page)");
+    expect(session.content).not.toContain("https://example.com");
   });
 
   it("deletes a node from state, body and state block", () => {

@@ -12,7 +12,7 @@ import { ReactFlowProvider } from "@xyflow/react";
 import { StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { DEFAULT_NODE_HEIGHT, DEFAULT_NODE_WIDTH, VIEW_TYPE_ROADMAP } from "../constants";
-import { copyNode, createNoteNode, type NodePlacement } from "../domain/create";
+import { copyNode, createNoteNode, createUrlNode, type NodePlacement } from "../domain/create";
 import { facingSide } from "../domain/edges";
 import { nodeOpenTarget } from "../domain/openTarget";
 import { sourceFile } from "../domain/source";
@@ -290,7 +290,13 @@ export class RoadmapView extends TextFileView {
   };
 
   private readonly handleNodePreview = (id: string): void => {
-    if (this.session?.state.nodes[id] === undefined) {
+    const node = this.session?.state.nodes[id];
+    if (node === undefined) {
+      return;
+    }
+    if (node.source.type === "url") {
+      this.handleNodeOpen(id, false);
+
       return;
     }
     this.previewNodeId = id;
@@ -349,6 +355,45 @@ export class RoadmapView extends TextFileView {
     void this.createNote(placement);
   };
 
+  private normalizeUrl(value: string): string {
+    return /^[a-z][\w+.-]*:\/\//i.test(value) ? value : `https://${value}`;
+  }
+
+  private readonly handleAddUrl = (placement: NodePlacement): void => {
+    new PromptModal(this.app, {
+      title: "Add URL",
+      placeholder: "https://example.com",
+      cta: "Add",
+      onSubmit: (value) => {
+        if (value.length === 0 || this.session === null) {
+          return;
+        }
+        this.session.addNode(createUrlNode(this.normalizeUrl(value), placement));
+        this.commit();
+      },
+    }).open();
+  };
+
+  private editNodeUrl(id: string): void {
+    const node = this.session?.state.nodes[id];
+    if (node === undefined || node.source.type !== "url") {
+      return;
+    }
+    new PromptModal(this.app, {
+      title: "Node URL",
+      placeholder: "https://example.com",
+      initialValue: node.source.url,
+      cta: "Save",
+      onSubmit: (value) => {
+        if (value.length === 0) {
+          return;
+        }
+        this.session?.setNodeUrl(id, this.normalizeUrl(value));
+        this.commit();
+      },
+    }).open();
+  }
+
   private readonly handleCreateNodeAt = (placement: NodePlacement, event: MouseEvent): void => {
     const centered: NodePlacement = {
       x: placement.x - DEFAULT_NODE_WIDTH / 2,
@@ -366,6 +411,12 @@ export class RoadmapView extends TextFileView {
         .setTitle("Add existing note")
         .setIcon("search")
         .onClick(() => this.handleAddNote(centered)),
+    );
+    menu.addItem((item) =>
+      item
+        .setTitle("Add URL")
+        .setIcon("link")
+        .onClick(() => this.handleAddUrl(centered)),
     );
     menu.showAtMouseEvent(event);
   };
@@ -676,6 +727,14 @@ export class RoadmapView extends TextFileView {
         .setIcon("text")
         .onClick(() => this.editNodeText(id, "description")),
     );
+    if (node.source.type === "url") {
+      menu.addItem((item) =>
+        item
+          .setTitle("Set URL…")
+          .setIcon("link")
+          .onClick(() => this.editNodeUrl(id)),
+      );
+    }
     menu.showAtMouseEvent(event);
   };
 
@@ -800,6 +859,7 @@ export class RoadmapView extends TextFileView {
               onSelectionChange={this.handleSelectionChange}
               onCreateNote={this.handleCreateNote}
               onAddNote={this.handleAddNote}
+              onAddUrl={this.handleAddUrl}
               onCreateNodeAt={this.handleCreateNodeAt}
               onDropFiles={this.handleDropFiles}
               onDeleteElements={this.handleDeleteElements}

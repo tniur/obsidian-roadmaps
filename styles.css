@@ -279,6 +279,20 @@
   overflow-wrap: anywhere;
 }
 
+.rm-node__title-row {
+  display: flex;
+  align-items: center;
+  gap: var(--rm-space-1);
+  min-width: 0;
+}
+
+.rm-node__type-icon {
+  --icon-size: var(--rm-icon-size);
+
+  flex: 0 0 auto;
+  color: var(--rm-text-muted);
+}
+
 .rm-node__desc {
   margin: 0;
   color: var(--rm-text-muted);

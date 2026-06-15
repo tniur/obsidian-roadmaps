@@ -75,6 +75,7 @@ interface RoadmapCanvasProps {
   onSelectionChange: (ids: string[]) => void;
   onCreateNote: (placement: NodePlacement) => void;
   onAddNote: (placement: NodePlacement) => void;
+  onAddUrl: (placement: NodePlacement) => void;
   onCreateNodeAt: (placement: NodePlacement, event: MouseEvent) => void;
   onDropFiles: (placement: NodePlacement, dataTransfer: DataTransfer | null) => void;
   onDeleteElements: (nodeIds: string[], edgeIds: string[]) => void;
@@ -113,6 +114,7 @@ export function RoadmapCanvas({
   onSelectionChange,
   onCreateNote,
   onAddNote,
+  onAddUrl,
   onCreateNodeAt,
   onDropFiles,
   onDeleteElements,
@@ -450,7 +452,7 @@ export function RoadmapCanvas({
         >
           {dotsVisible ? <Background variant={BackgroundVariant.Dots} /> : null}
           <HelperLines horizontal={helperLines.horizontal} vertical={helperLines.vertical} />
-          <NodeToolbar onCreateNote={onCreateNote} onAddNote={onAddNote} />
+          <NodeToolbar onCreateNote={onCreateNote} onAddNote={onAddNote} onAddUrl={onAddUrl} />
           <RoadmapToolbar
             dotsVisible={dotsVisible}
             onToggleDots={toggleDots}
