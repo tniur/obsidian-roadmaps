@@ -15,6 +15,7 @@ export const ROADMAP_EDGE_TYPE = "floating";
 
 export interface RoadmapNodeData {
   label: string;
+  title?: string;
   description?: string;
   kind: RoadmapNodeKind;
   status?: RoadmapStatus;
@@ -22,6 +23,7 @@ export interface RoadmapNodeData {
   color?: string;
   align?: TextAlign;
   missing?: boolean;
+  imageSrc?: string;
   [key: string]: unknown;
 }
 
@@ -29,9 +31,12 @@ export type RoadmapFlowNode = Node<RoadmapNodeData>;
 
 export type NodeMissingPredicate = (node: RoadmapNode) => boolean;
 
+export type NodeImageResolver = (node: RoadmapNode) => string | null;
+
 export function stateToFlowNodes(
   state: RoadmapState,
   isMissing?: NodeMissingPredicate,
+  resolveImageSrc?: NodeImageResolver,
 ): RoadmapFlowNode[] {
   return Object.values(state.nodes).map((node) => ({
     id: node.id,
@@ -41,6 +46,7 @@ export function stateToFlowNodes(
     height: node.layout.height,
     data: {
       label: nodeTitle(node),
+      title: node.title,
       description: node.description,
       kind: node.kind,
       status: node.status,
@@ -48,6 +54,7 @@ export function stateToFlowNodes(
       color: node.style?.color,
       align: node.align,
       missing: isMissing?.(node) ?? false,
+      imageSrc: resolveImageSrc?.(node) ?? undefined,
     },
   }));
 }

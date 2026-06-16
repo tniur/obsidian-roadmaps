@@ -12,7 +12,13 @@ import { ReactFlowProvider } from "@xyflow/react";
 import { StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { DEFAULT_NODE_HEIGHT, DEFAULT_NODE_WIDTH, VIEW_TYPE_ROADMAP } from "../constants";
-import { copyNode, createNoteNode, createUrlNode, type NodePlacement } from "../domain/create";
+import {
+  copyNode,
+  createImageNode,
+  createNoteNode,
+  createUrlNode,
+  type NodePlacement,
+} from "../domain/create";
 import { facingSide } from "../domain/edges";
 import { nodeOpenTarget } from "../domain/openTarget";
 import { sourceFile } from "../domain/source";
@@ -34,8 +40,8 @@ import {
   writeState,
 } from "../state/document";
 import { RoadmapSession, type NodeMetaPatch } from "../state/session";
+import { FileSuggestModal } from "./FileSuggestModal";
 import { NodePreviewPanel } from "./NodePreviewPanel";
-import { NoteSuggestModal } from "./NoteSuggestModal";
 import { PromptModal } from "./PromptModal";
 import { RoadmapCanvas } from "./RoadmapCanvas";
 
@@ -219,6 +225,27 @@ export class RoadmapView extends TextFileView {
     return path !== null && this.app.vault.getAbstractFileByPath(path) === null;
   };
 
+  private readonly resolveImageSrc = (node: RoadmapNode): string | null => {
+    if (node.source.type !== "image") {
+      return null;
+    }
+    const file = this.app.vault.getAbstractFileByPath(node.source.file);
+
+    return file instanceof TFile ? this.app.vault.getResourcePath(file) : null;
+  };
+
+  private imageFiles(): TFile[] {
+    return this.app.vault
+      .getFiles()
+      .filter((file) => IMAGE_EXTENSIONS.has(file.extension.toLowerCase()));
+  }
+
+  private nodeForFile(file: TFile, placement: NodePlacement): RoadmapNode {
+    return IMAGE_EXTENSIONS.has(file.extension.toLowerCase())
+      ? createImageNode(file.path, placement)
+      : createNoteNode(file.path, placement);
+  }
+
   private readonly handleNodesDuplicated = (
     items: ReadonlyArray<{ id: string; x: number; y: number }>,
   ): void => {
@@ -345,8 +372,20 @@ export class RoadmapView extends TextFileView {
   };
 
   private readonly handleAddNote = (placement: NodePlacement): void => {
-    new NoteSuggestModal(this.app, (file) => {
-      this.session?.addNode(createNoteNode(file.path, placement));
+    new FileSuggestModal(
+      this.app,
+      this.app.vault.getMarkdownFiles(),
+      "Select a note to add",
+      (file) => {
+        this.session?.addNode(createNoteNode(file.path, placement));
+        this.commit();
+      },
+    ).open();
+  };
+
+  private readonly handleAddImage = (placement: NodePlacement): void => {
+    new FileSuggestModal(this.app, this.imageFiles(), "Select an image to add", (file) => {
+      this.session?.addNode(createImageNode(file.path, placement));
       this.commit();
     }).open();
   };
@@ -418,6 +457,12 @@ export class RoadmapView extends TextFileView {
         .setIcon("link")
         .onClick(() => this.handleAddUrl(centered)),
     );
+    menu.addItem((item) =>
+      item
+        .setTitle("Add image")
+        .setIcon("image")
+        .onClick(() => this.handleAddImage(centered)),
+    );
     menu.showAtMouseEvent(event);
   };
 
@@ -463,15 +508,20 @@ export class RoadmapView extends TextFileView {
         .setTitle("Add existing note")
         .setIcon("search")
         .onClick(() => {
-          new NoteSuggestModal(this.app, (file) => {
-            this.session?.addNodeWithEdge(
-              createNoteNode(file.path, centered),
-              source,
-              sourceHandle,
-              null,
-            );
-            this.commit();
-          }).open();
+          new FileSuggestModal(
+            this.app,
+            this.app.vault.getMarkdownFiles(),
+            "Select a note to add",
+            (file) => {
+              this.session?.addNodeWithEdge(
+                createNoteNode(file.path, centered),
+                source,
+                sourceHandle,
+                null,
+              );
+              this.commit();
+            },
+          ).open();
         }),
     );
     menu.showAtMouseEvent(event);
@@ -775,7 +825,7 @@ export class RoadmapView extends TextFileView {
     }
     files.forEach((file, index) => {
       this.session?.addNode(
-        createNoteNode(file.path, { x: placement.x + index * 24, y: placement.y + index * 24 }),
+        this.nodeForFile(file, { x: placement.x + index * 24, y: placement.y + index * 24 }),
       );
     });
     this.commit();
@@ -843,6 +893,7 @@ export class RoadmapView extends TextFileView {
             <RoadmapCanvas
               state={this.session.state}
               isNodeMissing={this.isNodeMissing}
+              resolveImageSrc={this.resolveImageSrc}
               initialDotsVisible={this.host.getShowBackgroundDots()}
               onDotsVisibleChange={this.host.setShowBackgroundDots}
               canUndo={this.session.canUndo}
@@ -860,6 +911,7 @@ export class RoadmapView extends TextFileView {
               onCreateNote={this.handleCreateNote}
               onAddNote={this.handleAddNote}
               onAddUrl={this.handleAddUrl}
+              onAddImage={this.handleAddImage}
               onCreateNodeAt={this.handleCreateNodeAt}
               onDropFiles={this.handleDropFiles}
               onDeleteElements={this.handleDeleteElements}

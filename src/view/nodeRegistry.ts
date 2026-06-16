@@ -1,6 +1,7 @@
 import type { ComponentType } from "react";
 import type { RoadmapNodeKind } from "../domain/types";
 import type { RoadmapNodeData } from "./flow";
+import { ImageNodeBody } from "./ImageNodeBody";
 import { NoteNodeBody } from "./NoteNodeBody";
 import { UrlNodeBody } from "./UrlNodeBody";
 
@@ -23,3 +24,4 @@ export function getNodeRenderer(kind: RoadmapNodeKind): ComponentType<NodeBodyPr
 
 registerNodeRenderer("note", NoteNodeBody);
 registerNodeRenderer("url", UrlNodeBody);
+registerNodeRenderer("image", ImageNodeBody);

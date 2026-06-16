@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { copyNode, createNoteNode, createUrlNode } from "../src/domain/create";
+import { copyNode, createImageNode, createNoteNode, createUrlNode } from "../src/domain/create";
 import { createRoadmapDocument, readState } from "../src/state/document";
 import { RoadmapSession } from "../src/state/session";
 
@@ -40,6 +40,30 @@ describe("roadmap session", () => {
     });
     expect(session.content).toContain("[example.com](https://example.com/docs)");
     expect(readState(session.content)?.nodes[node.id]?.kind).toBe("url");
+  });
+
+  it("adds an image node embedded as a wikilink image in the body", () => {
+    const session = newSession();
+    const node = createImageNode("assets/diagram.png", { x: 0, y: 0 });
+    session.addNode(node);
+
+    expect(session.state.nodes[node.id]?.source).toEqual({
+      type: "image",
+      file: "assets/diagram.png",
+    });
+    expect(session.content).toContain("![[assets/diagram.png]]");
+    expect(readState(session.content)?.nodes[node.id]?.kind).toBe("image");
+  });
+
+  it("writes image node title and description into the readable body", () => {
+    const session = newSession();
+    const node = createImageNode("assets/diagram.png", { x: 0, y: 0 });
+    session.addNode(node);
+    session.updateNodeMeta(node.id, { title: "My diagram", description: "A flow chart" });
+
+    expect(session.content).toContain("**My diagram**");
+    expect(session.content).toContain("A flow chart");
+    expect(session.content).toContain("![[assets/diagram.png]]");
   });
 
   it("updates a url node's address in state and the body link", () => {

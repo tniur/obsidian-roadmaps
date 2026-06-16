@@ -35,6 +35,20 @@ export function createUrlNode(url: string, placement: NodePlacement): RoadmapNod
   };
 }
 
+export function createImageNode(filePath: string, placement: NodePlacement): RoadmapNode {
+  return {
+    id: nanoid(),
+    kind: "image",
+    source: { type: "image", file: filePath },
+    layout: {
+      x: placement.x,
+      y: placement.y,
+      width: DEFAULT_NODE_WIDTH,
+      height: DEFAULT_NODE_HEIGHT,
+    },
+  };
+}
+
 export function copyNode(node: RoadmapNode, x: number, y: number): RoadmapNode {
   return { ...node, id: nanoid(), layout: { ...node.layout, x, y } };
 }

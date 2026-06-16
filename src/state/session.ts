@@ -224,7 +224,8 @@ export class RoadmapSession {
       next.style = Object.keys(style).length > 0 ? style : undefined;
     }
     this.stateValue = { ...this.stateValue, nodes: { ...this.stateValue.nodes, [id]: next } };
-    const touchesBody = "status" in patch || "priority" in patch || "title" in patch;
+    const touchesBody =
+      "status" in patch || "priority" in patch || "title" in patch || "description" in patch;
     let content = touchesBody ? updateNodeBlock(this.contentValue, next) : this.contentValue;
     content = writeState(content, this.stateValue);
     if ("title" in patch) {

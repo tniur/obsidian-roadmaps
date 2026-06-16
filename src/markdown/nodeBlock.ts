@@ -39,7 +39,15 @@ function tags(node: RoadmapNode): string {
 function representation(node: RoadmapNode): string {
   const title = nodeTitle(node);
   if (node.source.type === "image") {
-    return sourceLink(node.source, title);
+    const lines = [sourceLink(node.source, title)];
+    if (node.title !== undefined && node.title.length > 0) {
+      lines.push(`**${node.title}**`);
+    }
+    if (node.description !== undefined && node.description.length > 0) {
+      lines.push(node.description);
+    }
+
+    return lines.join("\n");
   }
   const link = sourceLink(node.source, title);
   const suffix = tags(node);

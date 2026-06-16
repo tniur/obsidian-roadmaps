@@ -286,6 +286,14 @@
   min-width: 0;
 }
 
+.rm-node__image {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  object-fit: contain;
+  border-radius: var(--rm-radius-s);
+}
+
 .rm-node__type-icon {
   --icon-size: var(--rm-icon-size);
 

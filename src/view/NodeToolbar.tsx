@@ -7,9 +7,10 @@ interface NodeToolbarProps {
   onCreateNote: (placement: NodePlacement) => void;
   onAddNote: (placement: NodePlacement) => void;
   onAddUrl: (placement: NodePlacement) => void;
+  onAddImage: (placement: NodePlacement) => void;
 }
 
-export function NodeToolbar({ onCreateNote, onAddNote, onAddUrl }: NodeToolbarProps) {
+export function NodeToolbar({ onCreateNote, onAddNote, onAddUrl, onAddImage }: NodeToolbarProps) {
   const { getViewport } = useReactFlow();
   const width = useStore((s) => s.width);
   const height = useStore((s) => s.height);
@@ -29,6 +30,7 @@ export function NodeToolbar({ onCreateNote, onAddNote, onAddUrl }: NodeToolbarPr
         onClick={() => onAddNote(placement())}
       />
       <ToolbarButton icon="link" label="Add URL" onClick={() => onAddUrl(placement())} />
+      <ToolbarButton icon="image" label="Add image" onClick={() => onAddImage(placement())} />
     </Panel>
   );
 }

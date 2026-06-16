@@ -36,6 +36,7 @@ import {
   ROADMAP_NODE_TYPE,
   stateToFlowEdges,
   stateToFlowNodes,
+  type NodeImageResolver,
   type NodeMissingPredicate,
   type RoadmapFlowNode,
 } from "./flow";
@@ -59,6 +60,7 @@ function clientPoint(event: MouseEvent | TouchEvent): { x: number; y: number } |
 interface RoadmapCanvasProps {
   state: RoadmapState;
   isNodeMissing: NodeMissingPredicate;
+  resolveImageSrc: NodeImageResolver;
   initialDotsVisible: boolean;
   onDotsVisibleChange: (value: boolean) => void;
   canUndo: boolean;
@@ -76,6 +78,7 @@ interface RoadmapCanvasProps {
   onCreateNote: (placement: NodePlacement) => void;
   onAddNote: (placement: NodePlacement) => void;
   onAddUrl: (placement: NodePlacement) => void;
+  onAddImage: (placement: NodePlacement) => void;
   onCreateNodeAt: (placement: NodePlacement, event: MouseEvent) => void;
   onDropFiles: (placement: NodePlacement, dataTransfer: DataTransfer | null) => void;
   onDeleteElements: (nodeIds: string[], edgeIds: string[]) => void;
@@ -98,6 +101,7 @@ interface RoadmapCanvasProps {
 export function RoadmapCanvas({
   state,
   isNodeMissing,
+  resolveImageSrc,
   initialDotsVisible,
   onDotsVisibleChange,
   canUndo,
@@ -115,6 +119,7 @@ export function RoadmapCanvas({
   onCreateNote,
   onAddNote,
   onAddUrl,
+  onAddImage,
   onCreateNodeAt,
   onDropFiles,
   onDeleteElements,
@@ -128,7 +133,7 @@ export function RoadmapCanvas({
   const [dotsVisible, setDotsVisible] = useState(initialDotsVisible);
   const [locked, setLocked] = useState(false);
   const [nodes, setNodes] = useState<RoadmapFlowNode[]>(() =>
-    stateToFlowNodes(state, isNodeMissing),
+    stateToFlowNodes(state, isNodeMissing, resolveImageSrc),
   );
   const [edges, setEdges] = useState<Edge[]>(() => stateToFlowEdges(state));
   const [helperLines, setHelperLines] = useState<{ horizontal?: number; vertical?: number }>({});
@@ -138,9 +143,11 @@ export function RoadmapCanvas({
   } | null>(null);
 
   useEffect(() => {
-    setNodes((current) => reconcileFlowNodes(current, stateToFlowNodes(state, isNodeMissing)));
+    setNodes((current) =>
+      reconcileFlowNodes(current, stateToFlowNodes(state, isNodeMissing, resolveImageSrc)),
+    );
     setEdges(stateToFlowEdges(state));
-  }, [state, isNodeMissing]);
+  }, [state, isNodeMissing, resolveImageSrc]);
 
   useEffect(() => {
     if (focusNonce === 0) {
@@ -452,7 +459,12 @@ export function RoadmapCanvas({
         >
           {dotsVisible ? <Background variant={BackgroundVariant.Dots} /> : null}
           <HelperLines horizontal={helperLines.horizontal} vertical={helperLines.vertical} />
-          <NodeToolbar onCreateNote={onCreateNote} onAddNote={onAddNote} onAddUrl={onAddUrl} />
+          <NodeToolbar
+            onCreateNote={onCreateNote}
+            onAddNote={onAddNote}
+            onAddUrl={onAddUrl}
+            onAddImage={onAddImage}
+          />
           <RoadmapToolbar
             dotsVisible={dotsVisible}
             onToggleDots={toggleDots}
