@@ -38,6 +38,9 @@ function tags(node: RoadmapNode): string {
 
 function representation(node: RoadmapNode): string {
   const title = nodeTitle(node);
+  if (node.source.type === "text") {
+    return title;
+  }
   const lines: string[] = [];
   if (node.source.type === "image") {
     lines.push(sourceLink(node.source, title));

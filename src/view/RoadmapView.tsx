@@ -16,6 +16,7 @@ import {
   copyNode,
   createImageNode,
   createNoteNode,
+  createTextNode,
   createUrlNode,
   type NodePlacement,
 } from "../domain/create";
@@ -326,6 +327,11 @@ export class RoadmapView extends TextFileView {
 
       return;
     }
+    if (node.source.type === "text") {
+      this.editTextNode(id);
+
+      return;
+    }
     this.previewNodeId = id;
     this.renderApp();
   };
@@ -413,6 +419,41 @@ export class RoadmapView extends TextFileView {
     }).open();
   };
 
+  private readonly handleAddText = (placement: NodePlacement): void => {
+    new PromptModal(this.app, {
+      title: "Add text",
+      placeholder: "Text",
+      cta: "Add",
+      onSubmit: (value) => {
+        if (value.length === 0 || this.session === null) {
+          return;
+        }
+        this.session.addNode(createTextNode(value, placement));
+        this.commit();
+      },
+    }).open();
+  };
+
+  private editTextNode(id: string): void {
+    const node = this.session?.state.nodes[id];
+    if (node === undefined || node.source.type !== "text") {
+      return;
+    }
+    new PromptModal(this.app, {
+      title: "Edit text",
+      placeholder: "Text",
+      initialValue: node.title ?? "",
+      cta: "Save",
+      onSubmit: (value) => {
+        if (value.length === 0) {
+          return;
+        }
+        this.session?.updateNodeMeta(id, { title: value });
+        this.commit();
+      },
+    }).open();
+  }
+
   private editNodeUrl(id: string): void {
     const node = this.session?.state.nodes[id];
     if (node === undefined || node.source.type !== "url") {
@@ -462,6 +503,12 @@ export class RoadmapView extends TextFileView {
         .setTitle("Add image")
         .setIcon("image")
         .onClick(() => this.handleAddImage(centered)),
+    );
+    menu.addItem((item) =>
+      item
+        .setTitle("Add text")
+        .setIcon("type")
+        .onClick(() => this.handleAddText(centered)),
     );
     menu.showAtMouseEvent(event);
   };
@@ -785,6 +832,14 @@ export class RoadmapView extends TextFileView {
           .onClick(() => this.editNodeUrl(id)),
       );
     }
+    if (node.source.type === "text") {
+      menu.addItem((item) =>
+        item
+          .setTitle("Edit text…")
+          .setIcon("type")
+          .onClick(() => this.editTextNode(id)),
+      );
+    }
     menu.showAtMouseEvent(event);
   };
 
@@ -912,6 +967,7 @@ export class RoadmapView extends TextFileView {
               onAddNote={this.handleAddNote}
               onAddUrl={this.handleAddUrl}
               onAddImage={this.handleAddImage}
+              onAddText={this.handleAddText}
               onCreateNodeAt={this.handleCreateNodeAt}
               onDropFiles={this.handleDropFiles}
               onDeleteElements={this.handleDeleteElements}

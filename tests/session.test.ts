@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { copyNode, createImageNode, createNoteNode, createUrlNode } from "../src/domain/create";
+import {
+  copyNode,
+  createImageNode,
+  createNoteNode,
+  createTextNode,
+  createUrlNode,
+} from "../src/domain/create";
 import { createRoadmapDocument, readState } from "../src/state/document";
 import { RoadmapSession } from "../src/state/session";
 
@@ -65,6 +71,17 @@ describe("roadmap session", () => {
     expect(session.content.indexOf("Why this matters")).toBeLessThan(
       session.content.indexOf("%% roadmap:state"),
     );
+  });
+
+  it("adds an inline text node with its text in the readable body and state", () => {
+    const session = newSession();
+    const node = createTextNode("Free-form note", { x: 0, y: 0 });
+    session.addNode(node);
+
+    expect(session.content).toContain("Free-form note");
+    expect(readState(session.content)?.nodes[node.id]?.kind).toBe("text");
+    expect(readState(session.content)?.nodes[node.id]?.title).toBe("Free-form note");
+    expect(session.content).not.toContain(`- [ ] Free-form note`);
   });
 
   it("writes image node title and description into the readable body", () => {

@@ -71,6 +71,26 @@ describe("roadmap document", () => {
     expect(reconciled.nodes[node.id]).toBeUndefined();
   });
 
+  it("reconciles inline text edited by hand in the body back into state", () => {
+    const textNode: RoadmapNode = {
+      id: "t1",
+      kind: "text",
+      source: { type: "text", markdownNodeId: "m1" },
+      title: "AAA",
+      layout: { x: 0, y: 0, width: 200, height: 80 },
+    };
+    const doc = insertNodeBlock(createRoadmapDocument("My Roadmap"), textNode);
+    const base = readState(doc);
+    if (base === null) {
+      throw new Error("expected a state block");
+    }
+    const content = writeState(doc, { ...base, nodes: { t1: textNode } });
+    const edited = content.replace("AAA", "BBB");
+    const reconciled = reconcileState(readState(edited) ?? emptyState(), edited);
+
+    expect(reconciled.nodes.t1?.title).toBe("BBB");
+  });
+
   it("reconcile keeps nodes that still have a body marker", () => {
     const doc = insertNodeBlock(createRoadmapDocument("My Roadmap"), node);
     const base = readState(doc);

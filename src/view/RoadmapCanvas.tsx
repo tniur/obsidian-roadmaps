@@ -79,6 +79,7 @@ interface RoadmapCanvasProps {
   onAddNote: (placement: NodePlacement) => void;
   onAddUrl: (placement: NodePlacement) => void;
   onAddImage: (placement: NodePlacement) => void;
+  onAddText: (placement: NodePlacement) => void;
   onCreateNodeAt: (placement: NodePlacement, event: MouseEvent) => void;
   onDropFiles: (placement: NodePlacement, dataTransfer: DataTransfer | null) => void;
   onDeleteElements: (nodeIds: string[], edgeIds: string[]) => void;
@@ -120,6 +121,7 @@ export function RoadmapCanvas({
   onAddNote,
   onAddUrl,
   onAddImage,
+  onAddText,
   onCreateNodeAt,
   onDropFiles,
   onDeleteElements,
@@ -464,6 +466,7 @@ export function RoadmapCanvas({
             onAddNote={onAddNote}
             onAddUrl={onAddUrl}
             onAddImage={onAddImage}
+            onAddText={onAddText}
           />
           <RoadmapToolbar
             dotsVisible={dotsVisible}

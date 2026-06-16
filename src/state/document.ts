@@ -163,6 +163,24 @@ export function updateNodeBlock(content: string, node: RoadmapNode): string {
   return after.length === 0 ? `${before}\n\n${block}\n` : `${before}\n\n${block}\n\n${after}`;
 }
 
+/**
+ * Readable text between a node marker and the next block boundary, trimmed. For inline
+ * text nodes this is the canonical content, so hand-edits in the Markdown body are
+ * honored on load (see `reconcileState`).
+ */
+export function nodeBlockBody(content: string, id: string): string | null {
+  const marker = new RegExp(`<!-- roadmap-node:id=${escapeRegExp(id)} type=\\w+ -->`);
+  const match = marker.exec(content);
+  if (match === null) {
+    return null;
+  }
+  const afterMarker = match.index + match[0].length;
+  const boundary = NODE_BOUNDARY_RE.exec(content.slice(afterMarker));
+  const end = boundary === null ? content.length : afterMarker + boundary.index;
+
+  return content.slice(afterMarker, end).trim();
+}
+
 export function bodyNodeIds(content: string): Set<string> {
   const ids = new Set<string>();
   for (const match of content.matchAll(NODE_MARKER_RE)) {
@@ -186,11 +204,20 @@ export function reconcileState(state: RoadmapState, content: string): RoadmapSta
   const nodes: Record<string, RoadmapNode> = {};
   let changed = false;
   for (const [id, node] of Object.entries(state.nodes)) {
-    if (presentNodes.has(id)) {
-      nodes[id] = node;
-    } else {
+    if (!presentNodes.has(id)) {
       changed = true;
+      continue;
     }
+    if (node.source.type === "text") {
+      const bodyText = nodeBlockBody(content, id);
+      const nextTitle = bodyText !== null && bodyText.length > 0 ? bodyText : undefined;
+      if (nextTitle !== node.title) {
+        nodes[id] = { ...node, title: nextTitle };
+        changed = true;
+        continue;
+      }
+    }
+    nodes[id] = node;
   }
   const presentEdges = bodyEdgeIds(content);
   const trackEdges = presentEdges.size > 0;
