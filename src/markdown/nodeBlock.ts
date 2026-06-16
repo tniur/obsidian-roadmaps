@@ -38,21 +38,22 @@ function tags(node: RoadmapNode): string {
 
 function representation(node: RoadmapNode): string {
   const title = nodeTitle(node);
+  const lines: string[] = [];
   if (node.source.type === "image") {
-    const lines = [sourceLink(node.source, title)];
+    lines.push(sourceLink(node.source, title));
     if (node.title !== undefined && node.title.length > 0) {
       lines.push(`**${node.title}**`);
     }
-    if (node.description !== undefined && node.description.length > 0) {
-      lines.push(node.description);
-    }
-
-    return lines.join("\n");
+  } else {
+    const link = sourceLink(node.source, title);
+    const suffix = tags(node);
+    lines.push(suffix.length > 0 ? `- [ ] ${link} ${suffix}` : `- [ ] ${link}`);
   }
-  const link = sourceLink(node.source, title);
-  const suffix = tags(node);
+  if (node.description !== undefined && node.description.length > 0) {
+    lines.push(node.description);
+  }
 
-  return suffix.length > 0 ? `- [ ] ${link} ${suffix}` : `- [ ] ${link}`;
+  return lines.join("\n");
 }
 
 export function renderNodeBlock(node: RoadmapNode): string {

@@ -55,6 +55,18 @@ describe("roadmap session", () => {
     expect(readState(session.content)?.nodes[node.id]?.kind).toBe("image");
   });
 
+  it("writes a node description into the readable body for any kind", () => {
+    const session = newSession();
+    const node = createNoteNode("notes/a.md", { x: 0, y: 0 });
+    session.addNode(node);
+    session.updateNodeMeta(node.id, { description: "Why this matters" });
+
+    expect(session.content).toContain("Why this matters");
+    expect(session.content.indexOf("Why this matters")).toBeLessThan(
+      session.content.indexOf("%% roadmap:state"),
+    );
+  });
+
   it("writes image node title and description into the readable body", () => {
     const session = newSession();
     const node = createImageNode("assets/diagram.png", { x: 0, y: 0 });
