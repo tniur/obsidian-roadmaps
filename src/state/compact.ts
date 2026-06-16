@@ -22,6 +22,8 @@ const nodeSchema = z
     k: kindSchema,
     s: sourceSchema,
     l: layoutSchema,
+    t: z.string().optional(),
+    d: z.string().optional(),
     st: statusSchema.optional(),
     p: prioritySchema.optional(),
     ah: z.enum(["left", "center", "right"]).optional(),

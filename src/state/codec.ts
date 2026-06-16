@@ -60,6 +60,8 @@ function decodeNode(id: string, c: CompactNode): RoadmapNode {
     source: decodeSource(c.s),
     layout: { x: c.l[0], y: c.l[1], width: c.l[2], height: c.l[3] },
   };
+  if (c.t !== undefined) node.title = c.t;
+  if (c.d !== undefined) node.description = c.d;
   if (c.st !== undefined) node.status = c.st;
   if (c.p !== undefined) node.priority = c.p;
   if (c.ah !== undefined || c.av !== undefined) {
@@ -81,6 +83,8 @@ function encodeNode(node: RoadmapNode): CompactNode {
     s: encodeSource(node.source),
     l: [node.layout.x, node.layout.y, node.layout.width, node.layout.height],
   };
+  if (node.title !== undefined) c.t = node.title;
+  if (node.description !== undefined) c.d = node.description;
   if (node.status !== undefined) c.st = node.status;
   if (node.priority !== undefined) c.p = node.priority;
   if (node.align !== undefined) {

@@ -12,6 +12,8 @@ function sample(): RoadmapState {
         kind: "note",
         source: { type: "note", file: "notes/a.md" },
         layout: { x: 10, y: 20, width: 200, height: 80 },
+        title: "Custom title",
+        description: "Some description",
         status: "in-progress",
         priority: "high",
         align: { h: "center", v: "bottom" },
