@@ -1,10 +1,10 @@
 import type { ComponentType } from "react";
 import type { RoadmapNodeKind } from "../domain/types";
 import type { RoadmapNodeData } from "./flow";
+import { iconTitleNodeBody } from "./IconTitleNodeBody";
 import { ImageNodeBody } from "./ImageNodeBody";
 import { NoteNodeBody } from "./NoteNodeBody";
 import { TextNodeBody } from "./TextNodeBody";
-import { UrlNodeBody } from "./UrlNodeBody";
 
 export interface NodeBodyProps {
   data: RoadmapNodeData;
@@ -24,6 +24,7 @@ export function getNodeRenderer(kind: RoadmapNodeKind): ComponentType<NodeBodyPr
 }
 
 registerNodeRenderer("note", NoteNodeBody);
-registerNodeRenderer("url", UrlNodeBody);
+registerNodeRenderer("url", iconTitleNodeBody("link"));
 registerNodeRenderer("image", ImageNodeBody);
 registerNodeRenderer("text", TextNodeBody);
+registerNodeRenderer("attachment", iconTitleNodeBody("paperclip"));

@@ -14,6 +14,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { DEFAULT_NODE_HEIGHT, DEFAULT_NODE_WIDTH, VIEW_TYPE_ROADMAP } from "../constants";
 import {
   copyNode,
+  createAttachmentNode,
   createImageNode,
   createNoteNode,
   createTextNode,
@@ -241,10 +242,24 @@ export class RoadmapView extends TextFileView {
       .filter((file) => IMAGE_EXTENSIONS.has(file.extension.toLowerCase()));
   }
 
+  private attachmentFiles(): TFile[] {
+    return this.app.vault.getFiles().filter((file) => {
+      const ext = file.extension.toLowerCase();
+
+      return ext !== "md" && !IMAGE_EXTENSIONS.has(ext);
+    });
+  }
+
   private nodeForFile(file: TFile, placement: NodePlacement): RoadmapNode {
-    return IMAGE_EXTENSIONS.has(file.extension.toLowerCase())
-      ? createImageNode(file.path, placement)
-      : createNoteNode(file.path, placement);
+    const ext = file.extension.toLowerCase();
+    if (IMAGE_EXTENSIONS.has(ext)) {
+      return createImageNode(file.path, placement);
+    }
+    if (ext === "md") {
+      return createNoteNode(file.path, placement);
+    }
+
+    return createAttachmentNode(file.path, placement);
   }
 
   private readonly handleNodesDuplicated = (
@@ -362,11 +377,16 @@ export class RoadmapView extends TextFileView {
 
       return () => component.unload();
     }
-    if (IMAGE_EXTENSIONS.has(file.extension.toLowerCase())) {
+    if (node.source.type === "image" || IMAGE_EXTENSIONS.has(file.extension.toLowerCase())) {
       el.createEl("img", {
         cls: "rm-preview__image",
         attr: { src: this.app.vault.getResourcePath(file) },
       });
+
+      return () => component.unload();
+    }
+    if (node.source.type === "attachment") {
+      void MarkdownRenderer.render(this.app, `![[${file.path}]]`, el, file.path, component);
 
       return () => component.unload();
     }
@@ -394,6 +414,18 @@ export class RoadmapView extends TextFileView {
       this.session?.addNode(createImageNode(file.path, placement));
       this.commit();
     }).open();
+  };
+
+  private readonly handleAddAttachment = (placement: NodePlacement): void => {
+    new FileSuggestModal(
+      this.app,
+      this.attachmentFiles(),
+      "Select an attachment to add",
+      (file) => {
+        this.session?.addNode(createAttachmentNode(file.path, placement));
+        this.commit();
+      },
+    ).open();
   };
 
   private readonly handleCreateNote = (placement: NodePlacement): void => {
@@ -509,6 +541,12 @@ export class RoadmapView extends TextFileView {
         .setTitle("Add text")
         .setIcon("type")
         .onClick(() => this.handleAddText(centered)),
+    );
+    menu.addItem((item) =>
+      item
+        .setTitle("Add attachment")
+        .setIcon("paperclip")
+        .onClick(() => this.handleAddAttachment(centered)),
     );
     menu.showAtMouseEvent(event);
   };
@@ -968,6 +1006,7 @@ export class RoadmapView extends TextFileView {
               onAddUrl={this.handleAddUrl}
               onAddImage={this.handleAddImage}
               onAddText={this.handleAddText}
+              onAddAttachment={this.handleAddAttachment}
               onCreateNodeAt={this.handleCreateNodeAt}
               onDropFiles={this.handleDropFiles}
               onDeleteElements={this.handleDeleteElements}

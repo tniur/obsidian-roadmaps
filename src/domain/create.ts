@@ -49,6 +49,20 @@ export function createImageNode(filePath: string, placement: NodePlacement): Roa
   };
 }
 
+export function createAttachmentNode(filePath: string, placement: NodePlacement): RoadmapNode {
+  return {
+    id: nanoid(),
+    kind: "attachment",
+    source: { type: "attachment", file: filePath },
+    layout: {
+      x: placement.x,
+      y: placement.y,
+      width: DEFAULT_NODE_WIDTH,
+      height: DEFAULT_NODE_HEIGHT,
+    },
+  };
+}
+
 export function createTextNode(text: string, placement: NodePlacement): RoadmapNode {
   return {
     id: nanoid(),

@@ -9,6 +9,7 @@ interface NodeToolbarProps {
   onAddUrl: (placement: NodePlacement) => void;
   onAddImage: (placement: NodePlacement) => void;
   onAddText: (placement: NodePlacement) => void;
+  onAddAttachment: (placement: NodePlacement) => void;
 }
 
 export function NodeToolbar({
@@ -17,6 +18,7 @@ export function NodeToolbar({
   onAddUrl,
   onAddImage,
   onAddText,
+  onAddAttachment,
 }: NodeToolbarProps) {
   const { getViewport } = useReactFlow();
   const width = useStore((s) => s.width);
@@ -39,6 +41,11 @@ export function NodeToolbar({
       <ToolbarButton icon="link" label="Add URL" onClick={() => onAddUrl(placement())} />
       <ToolbarButton icon="image" label="Add image" onClick={() => onAddImage(placement())} />
       <ToolbarButton icon="type" label="Add text" onClick={() => onAddText(placement())} />
+      <ToolbarButton
+        icon="paperclip"
+        label="Add attachment"
+        onClick={() => onAddAttachment(placement())}
+      />
     </Panel>
   );
 }

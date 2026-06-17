@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   copyNode,
+  createAttachmentNode,
   createImageNode,
   createNoteNode,
   createTextNode,
@@ -71,6 +72,19 @@ describe("roadmap session", () => {
     expect(session.content.indexOf("Why this matters")).toBeLessThan(
       session.content.indexOf("%% roadmap:state"),
     );
+  });
+
+  it("adds an attachment node rendered as a wikilink in the body", () => {
+    const session = newSession();
+    const node = createAttachmentNode("files/report.pdf", { x: 0, y: 0 });
+    session.addNode(node);
+
+    expect(session.state.nodes[node.id]?.source).toEqual({
+      type: "attachment",
+      file: "files/report.pdf",
+    });
+    expect(session.content).toContain("[[files/report.pdf|report]]");
+    expect(readState(session.content)?.nodes[node.id]?.kind).toBe("attachment");
   });
 
   it("adds an inline text node with its text in the readable body and state", () => {
