@@ -4,6 +4,7 @@ export type NodeOpenTarget = { kind: "link"; linktext: string } | { kind: "url";
 
 export function nodeOpenTarget(node: RoadmapNode): NodeOpenTarget | null {
   const source = node.source;
+
   switch (source.type) {
     case "note":
     case "image":

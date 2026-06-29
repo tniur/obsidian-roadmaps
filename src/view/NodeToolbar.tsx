@@ -33,19 +33,11 @@ export function NodeToolbar({
   return (
     <Panel position="top-left" className="rm-node-toolbar">
       <ToolbarButton icon="plus" label="Create note" onClick={() => onCreateNote(placement())} />
-      <ToolbarButton
-        icon="search"
-        label="Add note from vault"
-        onClick={() => onAddNote(placement())}
-      />
+      <ToolbarButton icon="search" label="Add note from vault" onClick={() => onAddNote(placement())} />
       <ToolbarButton icon="link" label="Add URL" onClick={() => onAddUrl(placement())} />
       <ToolbarButton icon="image" label="Add image" onClick={() => onAddImage(placement())} />
       <ToolbarButton icon="type" label="Add text" onClick={() => onAddText(placement())} />
-      <ToolbarButton
-        icon="paperclip"
-        label="Add attachment"
-        onClick={() => onAddAttachment(placement())}
-      />
+      <ToolbarButton icon="paperclip" label="Add attachment" onClick={() => onAddAttachment(placement())} />
     </Panel>
   );
 }

@@ -35,13 +35,7 @@ import type {
   TextAlignH,
   TextAlignV,
 } from "../domain/types";
-import {
-  emptyState,
-  reconcileState,
-  readState,
-  writeRelations,
-  writeState,
-} from "../state/document";
+import { emptyState, reconcileState, readState, writeRelations, writeState } from "../state/document";
 import { RoadmapSession, type NodeMetaPatch } from "../state/session";
 import { FileSuggestModal } from "./FileSuggestModal";
 import { NodePreviewPanel } from "./NodePreviewPanel";
@@ -106,13 +100,15 @@ export class RoadmapView extends TextFileView {
   setViewData(data: string): void {
     const parsed = readState(data) ?? emptyState();
     const reconciled = reconcileState(parsed, data);
-    const content =
-      reconciled === parsed ? data : writeRelations(writeState(data, reconciled), reconciled);
+    const content = reconciled === parsed ? data : writeRelations(writeState(data, reconciled), reconciled);
+
     this.data = content;
     this.session = new RoadmapSession(reconciled, content);
+
     if (content !== data) {
       this.requestSave();
     }
+
     this.renderApp();
   }
 
@@ -123,6 +119,7 @@ export class RoadmapView extends TextFileView {
 
   onPaneMenu(menu: Menu, source: string): void {
     const file = this.file;
+
     if (file !== null) {
       menu.addItem((item) =>
         item
@@ -134,6 +131,7 @@ export class RoadmapView extends TextFileView {
           }),
       );
     }
+
     super.onPaneMenu(menu, source);
   }
 
@@ -148,7 +146,9 @@ export class RoadmapView extends TextFileView {
     if (this.previewNodeId === null || this.session === null) {
       return;
     }
+
     const node = this.session.state.nodes[this.previewNodeId];
+
     if (node !== undefined && sourceFile(node.source) === file.path) {
       this.previewRefreshNonce += 1;
       this.renderApp();
@@ -159,13 +159,17 @@ export class RoadmapView extends TextFileView {
     if (!(event.metaKey || event.ctrlKey)) {
       return;
     }
+
     if (this.app.workspace.getActiveViewOfType(RoadmapView) !== this) {
       return;
     }
+
     const key = event.key.toLowerCase();
+
     if (key === "z") {
       event.preventDefault();
       event.stopPropagation();
+
       if (event.shiftKey) {
         this.redoEdit();
       } else {
@@ -198,13 +202,17 @@ export class RoadmapView extends TextFileView {
     if (this.session === null) {
       return;
     }
+
     const nodes: RoadmapNode[] = [];
+
     for (const id of this.selectedNodeIds) {
       const node = this.session.state.nodes[id];
+
       if (node !== undefined) {
         nodes.push(node);
       }
     }
+
     if (nodes.length > 0) {
       this.clipboard = nodes;
       this.pasteOffset = 0;
@@ -215,10 +223,12 @@ export class RoadmapView extends TextFileView {
     if (this.session === null || this.clipboard.length === 0) {
       return;
     }
+
     this.pasteOffset += PASTE_OFFSET;
     const clones = this.clipboard.map((node) =>
       copyNode(node, node.layout.x + this.pasteOffset, node.layout.y + this.pasteOffset),
     );
+
     this.session.addNodes(clones);
     this.focusNodes(clones.map((node) => node.id));
     this.commit();
@@ -243,15 +253,14 @@ export class RoadmapView extends TextFileView {
     if (node.source.type !== "image") {
       return null;
     }
+
     const file = this.app.vault.getAbstractFileByPath(node.source.file);
 
     return file instanceof TFile ? this.app.vault.getResourcePath(file) : null;
   };
 
   private imageFiles(): TFile[] {
-    return this.app.vault
-      .getFiles()
-      .filter((file) => IMAGE_EXTENSIONS.has(file.extension.toLowerCase()));
+    return this.app.vault.getFiles().filter((file) => IMAGE_EXTENSIONS.has(file.extension.toLowerCase()));
   }
 
   private attachmentFiles(): TFile[] {
@@ -264,9 +273,11 @@ export class RoadmapView extends TextFileView {
 
   private nodeForFile(file: TFile, placement: NodePlacement): RoadmapNode {
     const ext = file.extension.toLowerCase();
+
     if (IMAGE_EXTENSIONS.has(ext)) {
       return createImageNode(file.path, placement);
     }
+
     if (ext === "md") {
       return createNoteNode(file.path, placement);
     }
@@ -274,19 +285,21 @@ export class RoadmapView extends TextFileView {
     return createAttachmentNode(file.path, placement);
   }
 
-  private readonly handleNodesDuplicated = (
-    items: ReadonlyArray<{ id: string; x: number; y: number }>,
-  ): void => {
+  private readonly handleNodesDuplicated = (items: ReadonlyArray<{ id: string; x: number; y: number }>): void => {
     if (this.session === null || items.length === 0) {
       return;
     }
+
     const clones: RoadmapNode[] = [];
+
     for (const { id, x, y } of items) {
       const node = this.session.state.nodes[id];
+
       if (node !== undefined) {
         clones.push(copyNode(node, x, y));
       }
     }
+
     this.session.addNodes(clones);
     this.focusNodes(clones.map((node) => node.id));
     this.commit();
@@ -301,27 +314,28 @@ export class RoadmapView extends TextFileView {
     if (this.session === null) {
       return;
     }
+
     this.data = this.session.content;
     this.requestSave();
     this.renderApp();
   }
 
-  private readonly handleNodesMoved = (
-    moves: ReadonlyArray<{ id: string; x: number; y: number }>,
-  ): void => {
+  private readonly handleNodesMoved = (moves: ReadonlyArray<{ id: string; x: number; y: number }>): void => {
     if (this.session === null || moves.length === 0) {
       return;
     }
-    const clusterMoves = moves.filter(
-      (move) => this.session?.state.clusters[move.id] !== undefined,
-    );
+
+    const clusterMoves = moves.filter((move) => this.session?.state.clusters[move.id] !== undefined);
     const nodeMoves = moves.filter((move) => this.session?.state.nodes[move.id] !== undefined);
+
     if (clusterMoves.length > 0) {
       this.session.moveClusters(clusterMoves);
     }
+
     if (nodeMoves.length > 0) {
       this.session.moveNodes(nodeMoves);
     }
+
     this.commit();
   };
 
@@ -331,25 +345,22 @@ export class RoadmapView extends TextFileView {
     if (this.session === null || items.length === 0) {
       return;
     }
+
     this.session.setNodesCluster(items);
     this.commit();
   };
 
-  private readonly handleNodeResized = (
-    id: string,
-    width: number,
-    height: number,
-    x: number,
-    y: number,
-  ): void => {
+  private readonly handleNodeResized = (id: string, width: number, height: number, x: number, y: number): void => {
     if (this.session === null) {
       return;
     }
+
     if (this.session.state.clusters[id] !== undefined) {
       this.session.resizeCluster(id, width, height, x, y);
     } else {
       this.session.resizeNode(id, width, height, x, y);
     }
+
     this.commit();
   };
 
@@ -367,12 +378,14 @@ export class RoadmapView extends TextFileView {
     const id = cluster.id;
     const collapsed = cluster.collapsed === true;
     const menu = new Menu();
+
     menu.addItem((item) =>
       item
         .setTitle(collapsed ? "Expand" : "Collapse")
         .setIcon(collapsed ? "chevron-down" : "chevron-right")
         .onClick(() => this.handleClusterToggleCollapse(id)),
     );
+
     if (!collapsed) {
       menu.addItem((item) =>
         item
@@ -381,6 +394,7 @@ export class RoadmapView extends TextFileView {
           .onClick(() => this.handleClusterArrange(id)),
       );
     }
+
     menu.addSeparator();
     menu.addItem((item) =>
       item
@@ -394,6 +408,7 @@ export class RoadmapView extends TextFileView {
         .setChecked(cluster.style?.color === undefined)
         .onClick(() => this.setClusterColor(id, null)),
     );
+
     for (const { title, value } of COLOR_OPTIONS) {
       menu.addItem((item) =>
         item
@@ -402,6 +417,7 @@ export class RoadmapView extends TextFileView {
           .onClick(() => this.setClusterColor(id, value)),
       );
     }
+
     menu.addSeparator();
     menu.addItem((item) =>
       item
@@ -439,6 +455,7 @@ export class RoadmapView extends TextFileView {
         if (value.length === 0) {
           return;
         }
+
         this.session?.renameCluster(cluster.id, value);
         this.commit();
       },
@@ -447,36 +464,45 @@ export class RoadmapView extends TextFileView {
 
   private readonly handleNodeOpen = (id: string, newLeaf: boolean): void => {
     const node = this.session?.state.nodes[id];
+
     if (node === undefined) {
       return;
     }
+
     const target = nodeOpenTarget(node);
+
     if (target === null) {
       return;
     }
+
     if (target.kind === "url") {
       window.open(target.url);
 
       return;
     }
+
     void this.app.workspace.openLinkText(target.linktext, this.file?.path ?? "", newLeaf);
   };
 
   private readonly handleNodePreview = (id: string): void => {
     const node = this.session?.state.nodes[id];
+
     if (node === undefined) {
       return;
     }
+
     if (node.source.type === "url") {
       this.handleNodeOpen(id, false);
 
       return;
     }
+
     if (node.source.type === "text") {
       this.editTextNode(id);
 
       return;
     }
+
     this.previewNodeId = id;
     this.renderApp();
   };
@@ -494,19 +520,24 @@ export class RoadmapView extends TextFileView {
 
   private readonly renderPreviewContent = (node: RoadmapNode, el: HTMLElement): (() => void) => {
     const component = new Component();
+
     component.load();
+
     if (node.source.type === "url") {
       el.createEl("a", { text: node.source.url, href: node.source.url });
 
       return () => component.unload();
     }
+
     const path = sourceFile(node.source);
     const file = path === null ? null : this.app.vault.getAbstractFileByPath(path);
+
     if (!(file instanceof TFile)) {
       el.setText("Source file not found.");
 
       return () => component.unload();
     }
+
     if (node.source.type === "image" || IMAGE_EXTENSIONS.has(file.extension.toLowerCase())) {
       el.createEl("img", {
         cls: "rm-preview__image",
@@ -515,11 +546,13 @@ export class RoadmapView extends TextFileView {
 
       return () => component.unload();
     }
+
     if (node.source.type === "attachment") {
       void MarkdownRenderer.render(this.app, `![[${file.path}]]`, el, file.path, component);
 
       return () => component.unload();
     }
+
     void this.app.vault.cachedRead(file).then((markdown) => {
       void MarkdownRenderer.render(this.app, markdown, el, file.path, component);
     });
@@ -528,15 +561,10 @@ export class RoadmapView extends TextFileView {
   };
 
   private readonly handleAddNote = (placement: NodePlacement): void => {
-    new FileSuggestModal(
-      this.app,
-      this.app.vault.getMarkdownFiles(),
-      "Select a note to add",
-      (file) => {
-        this.session?.addNode(createNoteNode(file.path, placement));
-        this.commit();
-      },
-    ).open();
+    new FileSuggestModal(this.app, this.app.vault.getMarkdownFiles(), "Select a note to add", (file) => {
+      this.session?.addNode(createNoteNode(file.path, placement));
+      this.commit();
+    }).open();
   };
 
   private readonly handleAddImage = (placement: NodePlacement): void => {
@@ -547,15 +575,10 @@ export class RoadmapView extends TextFileView {
   };
 
   private readonly handleAddAttachment = (placement: NodePlacement): void => {
-    new FileSuggestModal(
-      this.app,
-      this.attachmentFiles(),
-      "Select an attachment to add",
-      (file) => {
-        this.session?.addNode(createAttachmentNode(file.path, placement));
-        this.commit();
-      },
-    ).open();
+    new FileSuggestModal(this.app, this.attachmentFiles(), "Select an attachment to add", (file) => {
+      this.session?.addNode(createAttachmentNode(file.path, placement));
+      this.commit();
+    }).open();
   };
 
   private readonly handleCreateNote = (placement: NodePlacement): void => {
@@ -575,6 +598,7 @@ export class RoadmapView extends TextFileView {
         if (value.length === 0 || this.session === null) {
           return;
         }
+
         this.session.addNode(createUrlNode(this.normalizeUrl(value), placement));
         this.commit();
       },
@@ -590,6 +614,7 @@ export class RoadmapView extends TextFileView {
         if (value.length === 0 || this.session === null) {
           return;
         }
+
         this.session.addNode(createTextNode(value, placement));
         this.commit();
       },
@@ -598,9 +623,11 @@ export class RoadmapView extends TextFileView {
 
   private editTextNode(id: string): void {
     const node = this.session?.state.nodes[id];
+
     if (node === undefined || node.source.type !== "text") {
       return;
     }
+
     new PromptModal(this.app, {
       title: "Edit text",
       placeholder: "Text",
@@ -610,6 +637,7 @@ export class RoadmapView extends TextFileView {
         if (value.length === 0) {
           return;
         }
+
         this.session?.updateNodeMeta(id, { title: value });
         this.commit();
       },
@@ -618,9 +646,11 @@ export class RoadmapView extends TextFileView {
 
   private editNodeUrl(id: string): void {
     const node = this.session?.state.nodes[id];
+
     if (node === undefined || node.source.type !== "url") {
       return;
     }
+
     new PromptModal(this.app, {
       title: "Node URL",
       placeholder: "https://example.com",
@@ -630,6 +660,7 @@ export class RoadmapView extends TextFileView {
         if (value.length === 0) {
           return;
         }
+
         this.session?.setNodeUrl(id, this.normalizeUrl(value));
         this.commit();
       },
@@ -642,6 +673,7 @@ export class RoadmapView extends TextFileView {
       y: placement.y - DEFAULT_NODE_HEIGHT / 2,
     };
     const menu = new Menu();
+
     menu.addItem((item) =>
       item
         .setTitle("Create new note")
@@ -685,6 +717,7 @@ export class RoadmapView extends TextFileView {
     if (this.session === null || (nodeIds.length === 0 && edgeIds.length === 0)) {
       return;
     }
+
     this.session.deleteElements(nodeIds, edgeIds);
     this.commit();
   };
@@ -710,6 +743,7 @@ export class RoadmapView extends TextFileView {
       y: placement.y - DEFAULT_NODE_HEIGHT / 2,
     };
     const menu = new Menu();
+
     menu.addItem((item) =>
       item
         .setTitle("Create new note")
@@ -723,20 +757,10 @@ export class RoadmapView extends TextFileView {
         .setTitle("Add existing note")
         .setIcon("search")
         .onClick(() => {
-          new FileSuggestModal(
-            this.app,
-            this.app.vault.getMarkdownFiles(),
-            "Select a note to add",
-            (file) => {
-              this.session?.addNodeWithEdge(
-                createNoteNode(file.path, centered),
-                source,
-                sourceHandle,
-                null,
-              );
-              this.commit();
-            },
-          ).open();
+          new FileSuggestModal(this.app, this.app.vault.getMarkdownFiles(), "Select a note to add", (file) => {
+            this.session?.addNodeWithEdge(createNoteNode(file.path, centered), source, sourceHandle, null);
+            this.commit();
+          }).open();
         }),
     );
     menu.showAtMouseEvent(event);
@@ -750,17 +774,21 @@ export class RoadmapView extends TextFileView {
     if (this.session === null) {
       return;
     }
+
     const path = this.availableNotePath("Untitled Node");
     const file = await this.app.vault.create(path, "");
+
     this.session.addNodeWithEdge(createNoteNode(file.path, placement), source, sourceHandle, null);
     this.commit();
   }
 
   private readonly handleEdgeContextMenu = (id: string, event: MouseEvent): void => {
     const edge = this.session?.state.edges[id];
+
     if (edge === undefined) {
       return;
     }
+
     const line = edge.style?.line ?? "solid";
     const menu = new Menu();
     const lines: { title: string; value: EdgeLine | "solid" }[] = [
@@ -768,6 +796,7 @@ export class RoadmapView extends TextFileView {
       { title: "Dashed line", value: "dashed" },
       { title: "Dotted line", value: "dotted" },
     ];
+
     for (const { title, value } of lines) {
       menu.addItem((item) =>
         item
@@ -776,12 +805,14 @@ export class RoadmapView extends TextFileView {
           .onClick(() => this.updateEdge(id, { line: value })),
       );
     }
+
     menu.addSeparator();
     const directions: { title: string; value: EdgeDirection }[] = [
       { title: "Undirected", value: "none" },
       { title: "Directed", value: "forward" },
       { title: "Bidirectional", value: "both" },
     ];
+
     for (const { title, value } of directions) {
       menu.addItem((item) =>
         item
@@ -790,6 +821,7 @@ export class RoadmapView extends TextFileView {
           .onClick(() => this.updateEdge(id, { direction: value })),
       );
     }
+
     if (edge.direction === "forward") {
       menu.addSeparator();
       menu.addItem((item) =>
@@ -799,6 +831,7 @@ export class RoadmapView extends TextFileView {
           .onClick(() => this.reverseEdge(id)),
       );
     }
+
     menu.addSeparator();
     menu.addItem((item) =>
       item
@@ -806,6 +839,7 @@ export class RoadmapView extends TextFileView {
         .setIcon("type")
         .onClick(() => this.editEdgeLabel(id)),
     );
+
     if (edge.label !== undefined) {
       menu.addItem((item) =>
         item
@@ -814,6 +848,7 @@ export class RoadmapView extends TextFileView {
           .onClick(() => this.updateEdge(id, { label: "" })),
       );
     }
+
     menu.addSeparator();
     menu.addItem((item) =>
       item
@@ -832,21 +867,23 @@ export class RoadmapView extends TextFileView {
 
   private toggleEdgeFloat(id: string, end: "from" | "to"): void {
     const edge = this.session?.state.edges[id];
+
     if (edge === undefined) {
       return;
     }
+
     const floating = end === "from" ? edge.fromSide === undefined : edge.toSide === undefined;
     let side: EdgeSide | undefined;
+
     if (floating) {
       const self = edge[end];
       const other = end === "from" ? edge.to : edge.from;
       const selfNode = self.type === "node" ? this.session?.state.nodes[self.id] : undefined;
       const otherNode = other.type === "node" ? this.session?.state.nodes[other.id] : undefined;
-      side =
-        selfNode !== undefined && otherNode !== undefined
-          ? facingSide(selfNode.layout, otherNode.layout)
-          : "top";
+
+      side = selfNode !== undefined && otherNode !== undefined ? facingSide(selfNode.layout, otherNode.layout) : "top";
     }
+
     this.session?.setEdgeEndpointSide(id, end, side);
     this.commit();
   }
@@ -858,9 +895,11 @@ export class RoadmapView extends TextFileView {
 
   private editEdgeLabel(id: string): void {
     const edge = this.session?.state.edges[id];
+
     if (edge === undefined) {
       return;
     }
+
     new PromptModal(this.app, {
       title: edge.label === undefined ? "Add edge label" : "Edit edge label",
       placeholder: "Label text",
@@ -880,15 +919,19 @@ export class RoadmapView extends TextFileView {
 
   private readonly handleNodeContextMenu = (id: string, event: MouseEvent): void => {
     const cluster = this.session?.state.clusters[id];
+
     if (cluster !== undefined) {
       this.showClusterContextMenu(cluster, event);
 
       return;
     }
+
     const node = this.session?.state.nodes[id];
+
     if (node === undefined) {
       return;
     }
+
     const align = node.align ?? { h: "left", v: "middle" };
     const menu = new Menu();
     const statuses: { title: string; value: RoadmapStatus }[] = [
@@ -897,12 +940,14 @@ export class RoadmapView extends TextFileView {
       { title: "Done", value: "done" },
       { title: "Archived", value: "archived" },
     ];
+
     menu.addItem((item) =>
       item
         .setTitle("No status")
         .setChecked(node.status === undefined)
         .onClick(() => this.updateNodeMeta(id, { status: null })),
     );
+
     for (const { title, value } of statuses) {
       menu.addItem((item) =>
         item
@@ -911,6 +956,7 @@ export class RoadmapView extends TextFileView {
           .onClick(() => this.updateNodeMeta(id, { status: value })),
       );
     }
+
     menu.addSeparator();
     const priorities: { title: string; value: RoadmapPriority }[] = [
       { title: "Low priority", value: "low" },
@@ -918,12 +964,14 @@ export class RoadmapView extends TextFileView {
       { title: "High priority", value: "high" },
       { title: "Critical priority", value: "critical" },
     ];
+
     menu.addItem((item) =>
       item
         .setTitle("No priority")
         .setChecked(node.priority === undefined)
         .onClick(() => this.updateNodeMeta(id, { priority: null })),
     );
+
     for (const { title, value } of priorities) {
       menu.addItem((item) =>
         item
@@ -932,12 +980,14 @@ export class RoadmapView extends TextFileView {
           .onClick(() => this.updateNodeMeta(id, { priority: value })),
       );
     }
+
     menu.addSeparator();
     const horizontal: { title: string; value: TextAlignH }[] = [
       { title: "Align left", value: "left" },
       { title: "Align center", value: "center" },
       { title: "Align right", value: "right" },
     ];
+
     for (const { title, value } of horizontal) {
       menu.addItem((item) =>
         item
@@ -946,12 +996,14 @@ export class RoadmapView extends TextFileView {
           .onClick(() => this.updateNodeAlign(id, { h: value })),
       );
     }
+
     menu.addSeparator();
     const vertical: { title: string; value: TextAlignV }[] = [
       { title: "Align top", value: "top" },
       { title: "Align middle", value: "middle" },
       { title: "Align bottom", value: "bottom" },
     ];
+
     for (const { title, value } of vertical) {
       menu.addItem((item) =>
         item
@@ -960,6 +1012,7 @@ export class RoadmapView extends TextFileView {
           .onClick(() => this.updateNodeAlign(id, { v: value })),
       );
     }
+
     menu.addSeparator();
     menu.addItem((item) =>
       item
@@ -967,6 +1020,7 @@ export class RoadmapView extends TextFileView {
         .setChecked(node.style?.color === undefined)
         .onClick(() => this.updateNodeMeta(id, { color: null })),
     );
+
     for (const { title, value } of COLOR_OPTIONS) {
       menu.addItem((item) =>
         item
@@ -975,6 +1029,7 @@ export class RoadmapView extends TextFileView {
           .onClick(() => this.updateNodeMeta(id, { color: value })),
       );
     }
+
     menu.addSeparator();
     menu.addItem((item) =>
       item
@@ -988,6 +1043,7 @@ export class RoadmapView extends TextFileView {
         .setIcon("text")
         .onClick(() => this.editNodeText(id, "description")),
     );
+
     if (node.source.type === "url") {
       menu.addItem((item) =>
         item
@@ -996,6 +1052,7 @@ export class RoadmapView extends TextFileView {
           .onClick(() => this.editNodeUrl(id)),
       );
     }
+
     if (node.source.type === "text") {
       menu.addItem((item) =>
         item
@@ -1004,8 +1061,10 @@ export class RoadmapView extends TextFileView {
           .onClick(() => this.editTextNode(id)),
       );
     }
+
     if (node.clusterId == null) {
       const groupIds = this.selectedNodeIds.includes(id) ? this.selectedNodeIds : [id];
+
       menu.addSeparator();
       menu.addItem((item) =>
         item
@@ -1014,15 +1073,19 @@ export class RoadmapView extends TextFileView {
           .onClick(() => this.groupNodes(groupIds)),
       );
     }
+
     menu.showAtMouseEvent(event);
   };
 
   private readonly handleSelectionContextMenu = (ids: string[], event: MouseEvent): void => {
     const targets = ids.filter((id) => this.session?.state.nodes[id]?.clusterId == null);
+
     if (targets.length === 0) {
       return;
     }
+
     const menu = new Menu();
+
     menu.addItem((item) =>
       item
         .setTitle("Group into cluster")
@@ -1034,9 +1097,11 @@ export class RoadmapView extends TextFileView {
 
   private groupNodes(ids: readonly string[]): void {
     const targets = ids.filter((id) => this.session?.state.nodes[id]?.clusterId == null);
+
     if (this.session === null || targets.length === 0) {
       return;
     }
+
     new PromptModal(this.app, {
       title: "Cluster name",
       placeholder: "Cluster",
@@ -1050,9 +1115,11 @@ export class RoadmapView extends TextFileView {
 
   private editNodeText(id: string, field: "title" | "description"): void {
     const node = this.session?.state.nodes[id];
+
     if (node === undefined) {
       return;
     }
+
     new PromptModal(this.app, {
       title: field === "title" ? "Node title" : "Node description",
       placeholder: field === "title" ? "Title (empty uses the file name)" : "Description",
@@ -1072,45 +1139,49 @@ export class RoadmapView extends TextFileView {
     this.commit();
   }
 
-  private readonly handleDropFiles = (
-    placement: NodePlacement,
-    dataTransfer: DataTransfer | null,
-  ): void => {
+  private readonly handleDropFiles = (placement: NodePlacement, dataTransfer: DataTransfer | null): void => {
     if (this.session === null) {
       return;
     }
+
     const files = this.draggedFiles(dataTransfer);
+
     if (files.length === 0) {
       return;
     }
+
     files.forEach((file, index) => {
-      this.session?.addNode(
-        this.nodeForFile(file, { x: placement.x + index * 24, y: placement.y + index * 24 }),
-      );
+      this.session?.addNode(this.nodeForFile(file, { x: placement.x + index * 24, y: placement.y + index * 24 }));
     });
     this.commit();
   };
 
   private draggedFiles(dataTransfer: DataTransfer | null): TFile[] {
     const draggable = (this.app as AppWithDragManager).dragManager?.draggable;
+
     if (draggable?.file instanceof TFile) {
       return [draggable.file];
     }
+
     if (Array.isArray(draggable?.files)) {
       const files = draggable.files.filter((entry): entry is TFile => entry instanceof TFile);
+
       if (files.length > 0) {
         return files;
       }
     }
+
     const linkpath = (dataTransfer?.getData("text/plain") ?? "")
       .replace(/^!?\[\[/, "")
       .replace(/\]\]$/, "")
       .split("|")[0]
       .split("#")[0]
       .trim();
+
     if (linkpath.length === 0) {
       return [];
     }
+
     const file = this.app.metadataCache.getFirstLinkpathDest(linkpath, this.file?.path ?? "");
 
     return file === null ? [] : [file];
@@ -1120,8 +1191,10 @@ export class RoadmapView extends TextFileView {
     if (this.session === null) {
       return;
     }
+
     const path = this.availableNotePath("Untitled Node");
     const file = await this.app.vault.create(path, "");
+
     this.session.addNode(createNoteNode(file.path, placement));
     this.commit();
   }
@@ -1129,10 +1202,13 @@ export class RoadmapView extends TextFileView {
   private availableNotePath(base: string): string {
     const folder = this.file?.parent?.path;
     const prefix = folder === undefined || folder === "" || folder === "/" ? "" : `${folder}/`;
+
     if (this.app.vault.getAbstractFileByPath(`${prefix}${base}.md`) === null) {
       return `${prefix}${base}.md`;
     }
+
     let index = 1;
+
     while (this.app.vault.getAbstractFileByPath(`${prefix}${base} ${index}.md`) !== null) {
       index += 1;
     }
@@ -1144,8 +1220,9 @@ export class RoadmapView extends TextFileView {
     if (this.root === null || this.session === null) {
       return;
     }
-    const previewNode =
-      this.previewNodeId === null ? undefined : this.session.state.nodes[this.previewNodeId];
+
+    const previewNode = this.previewNodeId === null ? undefined : this.session.state.nodes[this.previewNodeId];
+
     this.root.render(
       <StrictMode>
         <div className="rm-view">

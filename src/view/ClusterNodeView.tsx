@@ -23,9 +23,7 @@ export function ClusterNodeView({ id, data, selected }: NodeProps) {
   const callbacks = useNodeCallbacks();
   const collapsed = cluster.collapsed === true;
   const colorStyle =
-    cluster.color !== undefined
-      ? ({ "--rm-cluster-color": cluster.color } as CSSProperties)
-      : undefined;
+    cluster.color !== undefined ? ({ "--rm-cluster-color": cluster.color } as CSSProperties) : undefined;
   const showResize = selected === true && callbacks?.locked !== true && !collapsed;
   const onResizeEnd = (_event: unknown, params: ResizeParams): void => {
     callbacks?.onResizeEnd(id, params.width, params.height, params.x, params.y);
@@ -59,12 +57,7 @@ export function ClusterNodeView({ id, data, selected }: NodeProps) {
           </button>
           <span className="rm-cluster__title">{cluster.label}</span>
           {!collapsed ? (
-            <button
-              type="button"
-              className="rm-cluster__action nodrag"
-              aria-label="Arrange nodes"
-              onClick={onArrange}
-            >
+            <button type="button" className="rm-cluster__action nodrag" aria-label="Arrange nodes" onClick={onArrange}>
               <Icon name="layout-grid" />
             </button>
           ) : null}
@@ -75,11 +68,7 @@ export function ClusterNodeView({ id, data, selected }: NodeProps) {
             <NodeResizeControl
               key={position}
               position={position}
-              variant={
-                position === "bottom-right"
-                  ? ResizeControlVariant.Handle
-                  : ResizeControlVariant.Line
-              }
+              variant={position === "bottom-right" ? ResizeControlVariant.Handle : ResizeControlVariant.Line}
               minWidth={MIN_CLUSTER_WIDTH}
               minHeight={MIN_CLUSTER_HEIGHT}
               onResizeEnd={onResizeEnd}

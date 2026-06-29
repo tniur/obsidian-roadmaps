@@ -16,22 +16,19 @@ interface NodePreviewPanelProps {
  * Markdown/image rendering is delegated to mount, which owns the Obsidian lifecycle and
  * returns a cleanup run on unmount or when the previewed node changes.
  */
-export function NodePreviewPanel({
-  node,
-  mount,
-  refreshNonce,
-  onEdit,
-  onClose,
-}: NodePreviewPanelProps) {
+export function NodePreviewPanel({ node, mount, refreshNonce, onEdit, onClose }: NodePreviewPanelProps) {
   const bodyRef = useRef<HTMLDivElement>(null);
   const nodeRef = useRef(node);
+
   nodeRef.current = node;
 
   useEffect(() => {
     const el = bodyRef.current;
+
     if (el === null) {
       return;
     }
+
     el.replaceChildren();
     const cleanup = mount(nodeRef.current, el);
 

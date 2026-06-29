@@ -17,28 +17,35 @@ export function HelperLines({ horizontal, vertical }: HelperLinesProps) {
   useEffect(() => {
     const canvas = ref.current;
     const ctx = canvas?.getContext("2d");
+
     if (canvas === null || ctx === null || ctx === undefined) {
       return;
     }
+
     const dpi = window.devicePixelRatio || 1;
+
     canvas.width = width * dpi;
     canvas.height = height * dpi;
     ctx.scale(dpi, dpi);
     ctx.clearRect(0, 0, width, height);
 
     const styles = window.getComputedStyle(canvas);
+
     ctx.strokeStyle = styles.getPropertyValue("--rm-guide-color").trim();
     ctx.lineWidth = Number.parseFloat(styles.getPropertyValue("--rm-guide-width")) || 1;
 
     if (typeof vertical === "number") {
       const x = vertical * zoom + offsetX;
+
       ctx.beginPath();
       ctx.moveTo(x, 0);
       ctx.lineTo(x, height);
       ctx.stroke();
     }
+
     if (typeof horizontal === "number") {
       const y = horizontal * zoom + offsetY;
+
       ctx.beginPath();
       ctx.moveTo(0, y);
       ctx.lineTo(width, y);

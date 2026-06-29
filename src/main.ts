@@ -53,9 +53,11 @@ export default class RoadmapPlugin extends Plugin {
         if (!(file instanceof TFile) || !this.isRoadmapFile(file)) {
           return;
         }
+
         if (!(leaf?.view instanceof MarkdownView)) {
           return;
         }
+
         menu.addItem((item) =>
           item
             .setSection("pane")
@@ -82,6 +84,7 @@ export default class RoadmapPlugin extends Plugin {
 
   private async loadSettings(): Promise<void> {
     const data = (await this.loadData()) as Partial<RoadmapSettings> | null;
+
     this.displaySettings = { ...DEFAULT_SETTINGS, ...data };
   }
 
@@ -93,6 +96,7 @@ export default class RoadmapPlugin extends Plugin {
     if (file.extension !== "md") {
       return false;
     }
+
     const frontmatter = this.app.metadataCache.getFileCache(file)?.frontmatter;
 
     return frontmatter?.[ROADMAP_FRONTMATTER_KEY] === ROADMAP_FRONTMATTER_VALUE;
@@ -102,6 +106,7 @@ export default class RoadmapPlugin extends Plugin {
     if (!path.endsWith(".md")) {
       return false;
     }
+
     const frontmatter = this.app.metadataCache.getCache(path)?.frontmatter;
 
     return frontmatter?.[ROADMAP_FRONTMATTER_KEY] === ROADMAP_FRONTMATTER_VALUE;
@@ -114,14 +119,12 @@ export default class RoadmapPlugin extends Plugin {
     const originalSetViewState = proto.setViewState;
     const originalDetach = proto.detach;
 
-    const patchedSetViewState = function (
-      this: WorkspaceLeaf,
-      viewState: ViewState,
-      eState?: unknown,
-    ): Promise<void> {
+    const patchedSetViewState = function (this: WorkspaceLeaf, viewState: ViewState, eState?: unknown): Promise<void> {
       const file = viewState.state?.file;
+
       if (viewState.type === MARKDOWN_VIEW_TYPE && typeof file === "string") {
         const key = (this as LeafWithId).id ?? file;
+
         if (fileModes[key] !== MARKDOWN_VIEW_TYPE && isRoadmapPath(file)) {
           fileModes[file] = VIEW_TYPE_ROADMAP;
 
@@ -134,6 +137,7 @@ export default class RoadmapPlugin extends Plugin {
 
     const patchedDetach = function (this: WorkspaceLeaf): void {
       const file = this.view?.getState()?.file;
+
       if (typeof file === "string") {
         delete fileModes[(this as LeafWithId).id ?? file];
       }
@@ -148,6 +152,7 @@ export default class RoadmapPlugin extends Plugin {
       if (proto.setViewState === patchedSetViewState) {
         proto.setViewState = originalSetViewState;
       }
+
       if (proto.detach === patchedDetach) {
         proto.detach = originalDetach;
       }
@@ -177,6 +182,7 @@ export default class RoadmapPlugin extends Plugin {
     const title = path.replace(/\.md$/, "");
     const file = await this.app.vault.create(path, createRoadmapDocument(title));
     const leaf = this.app.workspace.getLeaf(true);
+
     this.openAsRoadmap(leaf, file);
     await this.app.workspace.revealLeaf(leaf);
   }
@@ -185,7 +191,9 @@ export default class RoadmapPlugin extends Plugin {
     if (this.app.vault.getAbstractFileByPath(`${base}.md`) === null) {
       return `${base}.md`;
     }
+
     let index = 1;
+
     while (this.app.vault.getAbstractFileByPath(`${base} ${index}.md`) !== null) {
       index += 1;
     }

@@ -13,8 +13,7 @@ export function RoadmapNodeView({ id, data, selected }: NodeProps) {
   const Body = getNodeRenderer(node.kind);
   const callbacks = useNodeCallbacks();
   const align = node.align ?? { h: "left", v: "middle" };
-  const colorStyle =
-    node.color !== undefined ? ({ "--rm-node-color": node.color } as CSSProperties) : undefined;
+  const colorStyle = node.color !== undefined ? ({ "--rm-node-color": node.color } as CSSProperties) : undefined;
 
   return (
     <>
@@ -28,19 +27,11 @@ export function RoadmapNodeView({ id, data, selected }: NodeProps) {
         style={colorStyle}
       >
         {node.missing === true ? (
-          <span
-            className="rm-node__broken"
-            aria-label="Source file is missing"
-            title="Source file is missing"
-          >
+          <span className="rm-node__broken" aria-label="Source file is missing" title="Source file is missing">
             <Icon name="alert-triangle" />
           </span>
         ) : null}
-        {Body !== null ? (
-          <Body data={node} />
-        ) : (
-          <span className="rm-node__title">{node.label}</span>
-        )}
+        {Body !== null ? <Body data={node} /> : <span className="rm-node__title">{node.label}</span>}
       </div>
       <NodeResizer
         minWidth={MIN_NODE_WIDTH}

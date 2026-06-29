@@ -30,6 +30,7 @@ function sourceLink(source: RoadmapNodeSource, title: string): string {
 
 function tags(node: RoadmapNode): string {
   const parts: string[] = [];
+
   if (node.status !== undefined) parts.push(`#${node.status}`);
   if (node.priority !== undefined) parts.push(`#${node.priority}`);
 
@@ -38,20 +39,26 @@ function tags(node: RoadmapNode): string {
 
 function representation(node: RoadmapNode): string {
   const title = nodeTitle(node);
+
   if (node.source.type === "text") {
     return title;
   }
+
   const lines: string[] = [];
+
   if (node.source.type === "image") {
     lines.push(sourceLink(node.source, title));
+
     if (node.title !== undefined && node.title.length > 0) {
       lines.push(`**${node.title}**`);
     }
   } else {
     const link = sourceLink(node.source, title);
     const suffix = tags(node);
+
     lines.push(suffix.length > 0 ? `- [ ] ${link} ${suffix}` : `- [ ] ${link}`);
   }
+
   if (node.description !== undefined && node.description.length > 0) {
     lines.push(node.description);
   }

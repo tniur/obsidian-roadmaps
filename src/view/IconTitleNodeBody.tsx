@@ -14,9 +14,7 @@ export function iconTitleNodeBody(icon: string): ComponentType<NodeBodyProps> {
           </span>
           <span className="rm-node__title">{data.label}</span>
         </div>
-        {data.description !== undefined ? (
-          <p className="rm-node__desc">{data.description}</p>
-        ) : null}
+        {data.description !== undefined ? <p className="rm-node__desc">{data.description}</p> : null}
         <NodeBadges data={data} />
       </>
     );

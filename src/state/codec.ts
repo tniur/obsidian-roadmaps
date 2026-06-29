@@ -60,14 +60,18 @@ function decodeNode(id: string, c: CompactNode): RoadmapNode {
     source: decodeSource(c.s),
     layout: { x: c.l[0], y: c.l[1], width: c.l[2], height: c.l[3] },
   };
+
   if (c.t !== undefined) node.title = c.t;
   if (c.d !== undefined) node.description = c.d;
   if (c.st !== undefined) node.status = c.st;
   if (c.p !== undefined) node.priority = c.p;
+
   if (c.ah !== undefined || c.av !== undefined) {
     node.align = { h: c.ah ?? "left", v: c.av ?? "middle" };
   }
+
   if (c.cl !== undefined) node.clusterId = c.cl;
+
   if (c.col !== undefined || c.i !== undefined) {
     node.style = {};
     if (c.col !== undefined) node.style.color = c.col;
@@ -83,14 +87,17 @@ function encodeNode(node: RoadmapNode): CompactNode {
     s: encodeSource(node.source),
     l: [node.layout.x, node.layout.y, node.layout.width, node.layout.height],
   };
+
   if (node.title !== undefined) c.t = node.title;
   if (node.description !== undefined) c.d = node.description;
   if (node.status !== undefined) c.st = node.status;
   if (node.priority !== undefined) c.p = node.priority;
+
   if (node.align !== undefined) {
     c.ah = node.align.h;
     c.av = node.align.v;
   }
+
   if (node.clusterId !== undefined) c.cl = node.clusterId;
   if (node.style?.color !== undefined) c.col = node.style.color;
   if (node.style?.icon !== undefined) c.i = node.style.icon;
@@ -104,6 +111,7 @@ function decodeCluster(id: string, c: CompactCluster): RoadmapCluster {
     title: c.h,
     layout: { x: c.l[0], y: c.l[1], width: c.l[2], height: c.l[3] },
   };
+
   if (c.col !== undefined) cluster.style = { color: c.col };
   if (c.collapsed !== undefined) cluster.collapsed = c.collapsed;
 
@@ -115,6 +123,7 @@ function encodeCluster(cluster: RoadmapCluster): CompactCluster {
     h: cluster.title,
     l: [cluster.layout.x, cluster.layout.y, cluster.layout.width, cluster.layout.height],
   };
+
   if (cluster.style?.color !== undefined) c.col = cluster.style.color;
   if (cluster.collapsed !== undefined) c.collapsed = cluster.collapsed;
 
@@ -138,16 +147,19 @@ function decodeEdge(id: string, c: CompactEdge): RoadmapEdge {
       direction: dirFromCode(c[2]),
     };
   }
+
   const edge: RoadmapEdge = {
     id,
     from: { type: c.from[0], id: c.from[1] },
     to: { type: c.to[0], id: c.to[1] },
     direction: dirFromCode(c.dir ?? 1),
   };
+
   if (c.sh !== undefined) edge.fromSide = c.sh;
   if (c.th !== undefined) edge.toSide = c.th;
   if (c.lbl !== undefined) edge.label = c.lbl;
   const line = c.ln ?? (c.dash === true ? "dashed" : undefined);
+
   if (c.col !== undefined || line !== undefined) {
     edge.style = {};
     if (c.col !== undefined) edge.style.color = c.col;
@@ -160,17 +172,17 @@ function decodeEdge(id: string, c: CompactEdge): RoadmapEdge {
 function encodeEdge(edge: RoadmapEdge): CompactEdge {
   const bothNodes = edge.from.type === "node" && edge.to.type === "node";
   const plain =
-    edge.label === undefined &&
-    edge.style === undefined &&
-    edge.fromSide === undefined &&
-    edge.toSide === undefined;
+    edge.label === undefined && edge.style === undefined && edge.fromSide === undefined && edge.toSide === undefined;
+
   if (bothNodes && plain) {
     return [edge.from.id, edge.to.id, dirToCode(edge.direction)];
   }
+
   const c: Exclude<CompactEdge, unknown[]> = {
     from: [edge.from.type, edge.from.id],
     to: [edge.to.type, edge.to.id],
   };
+
   if (edge.direction !== "forward") c.dir = dirToCode(edge.direction);
   if (edge.fromSide !== undefined) c.sh = edge.fromSide;
   if (edge.toSide !== undefined) c.th = edge.toSide;
@@ -189,15 +201,19 @@ export function decodeState(c: CompactState): RoadmapState {
     clusters: {},
     edges: {},
   };
+
   for (const [id, node] of Object.entries(c.n)) {
     state.nodes[id] = decodeNode(id, node);
   }
+
   for (const [id, cluster] of Object.entries(c.c)) {
     state.clusters[id] = decodeCluster(id, cluster);
   }
+
   for (const [id, edge] of Object.entries(c.e)) {
     state.edges[id] = decodeEdge(id, edge);
   }
+
   if (c.vp !== undefined) {
     state.viewport = { x: c.vp[0], y: c.vp[1], zoom: c.vp[2] };
   }
@@ -213,15 +229,19 @@ export function encodeState(state: RoadmapState): CompactState {
     c: {},
     e: {},
   };
+
   for (const [id, node] of Object.entries(state.nodes)) {
     c.n[id] = encodeNode(node);
   }
+
   for (const [id, cluster] of Object.entries(state.clusters)) {
     c.c[id] = encodeCluster(cluster);
   }
+
   for (const [id, edge] of Object.entries(state.edges)) {
     c.e[id] = encodeEdge(edge);
   }
+
   if (state.viewport !== undefined) {
     c.vp = [state.viewport.x, state.viewport.y, state.viewport.zoom];
   }
@@ -233,9 +253,11 @@ function sortKeysDeep(value: unknown): unknown {
   if (Array.isArray(value)) {
     return value.map(sortKeysDeep);
   }
+
   if (value !== null && typeof value === "object") {
     const source = value as Record<string, unknown>;
     const sorted: Record<string, unknown> = {};
+
     for (const key of Object.keys(source).sort()) {
       sorted[key] = sortKeysDeep(source[key]);
     }

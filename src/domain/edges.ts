@@ -8,6 +8,7 @@ export function facingSide(self: RoadmapLayout, other: RoadmapLayout): EdgeSide 
   const oy = other.y + other.height / 2;
   const dx = ox - sx;
   const dy = oy - sy;
+
   if (Math.abs(dx) * self.height >= Math.abs(dy) * self.width) {
     return dx >= 0 ? "right" : "left";
   }

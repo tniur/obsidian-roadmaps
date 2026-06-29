@@ -1,11 +1,4 @@
-export type RoadmapNodeKind =
-  | "note"
-  | "heading"
-  | "block"
-  | "text"
-  | "image"
-  | "attachment"
-  | "url";
+export type RoadmapNodeKind = "note" | "heading" | "block" | "text" | "image" | "attachment" | "url";
 
 export type RoadmapNodeSource =
   | { type: "note"; file: string }

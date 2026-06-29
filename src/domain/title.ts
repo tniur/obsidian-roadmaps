@@ -18,7 +18,9 @@ export function nodeTitle(node: RoadmapNode): string {
   if (node.title !== undefined && node.title.length > 0) {
     return node.title;
   }
+
   const source = node.source;
+
   switch (source.type) {
     case "note":
       return basename(source.file);

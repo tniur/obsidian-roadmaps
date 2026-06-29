@@ -13,6 +13,7 @@ import { RoadmapSession } from "../src/state/session";
 function newSession(): RoadmapSession {
   const content = createRoadmapDocument("R");
   const state = readState(content);
+
   if (state === null) {
     throw new Error("expected a state block");
   }
@@ -25,6 +26,7 @@ describe("roadmap session", () => {
     const session = newSession();
     const before = session.state;
     const node = createNoteNode("notes/a.md", { x: 1, y: 2 });
+
     session.addNode(node);
 
     expect(session.state.nodes[node.id]).toBeDefined();
@@ -39,6 +41,7 @@ describe("roadmap session", () => {
   it("adds a url node rendered as a markdown link in the body", () => {
     const session = newSession();
     const node = createUrlNode("https://example.com/docs", { x: 0, y: 0 });
+
     session.addNode(node);
 
     expect(session.state.nodes[node.id]?.source).toEqual({
@@ -52,6 +55,7 @@ describe("roadmap session", () => {
   it("adds an image node embedded as a wikilink image in the body", () => {
     const session = newSession();
     const node = createImageNode("assets/diagram.png", { x: 0, y: 0 });
+
     session.addNode(node);
 
     expect(session.state.nodes[node.id]?.source).toEqual({
@@ -65,18 +69,18 @@ describe("roadmap session", () => {
   it("writes a node description into the readable body for any kind", () => {
     const session = newSession();
     const node = createNoteNode("notes/a.md", { x: 0, y: 0 });
+
     session.addNode(node);
     session.updateNodeMeta(node.id, { description: "Why this matters" });
 
     expect(session.content).toContain("Why this matters");
-    expect(session.content.indexOf("Why this matters")).toBeLessThan(
-      session.content.indexOf("%% roadmap:state"),
-    );
+    expect(session.content.indexOf("Why this matters")).toBeLessThan(session.content.indexOf("%% roadmap:state"));
   });
 
   it("adds an attachment node rendered as a wikilink in the body", () => {
     const session = newSession();
     const node = createAttachmentNode("files/report.pdf", { x: 0, y: 0 });
+
     session.addNode(node);
 
     expect(session.state.nodes[node.id]?.source).toEqual({
@@ -90,6 +94,7 @@ describe("roadmap session", () => {
   it("adds an inline text node with its text in the readable body and state", () => {
     const session = newSession();
     const node = createTextNode("Free-form note", { x: 0, y: 0 });
+
     session.addNode(node);
 
     expect(session.content).toContain("Free-form note");
@@ -101,6 +106,7 @@ describe("roadmap session", () => {
   it("writes image node title and description into the readable body", () => {
     const session = newSession();
     const node = createImageNode("assets/diagram.png", { x: 0, y: 0 });
+
     session.addNode(node);
     session.updateNodeMeta(node.id, { title: "My diagram", description: "A flow chart" });
 
@@ -112,6 +118,7 @@ describe("roadmap session", () => {
   it("updates a url node's address in state and the body link", () => {
     const session = newSession();
     const node = createUrlNode("https://example.com", { x: 0, y: 0 });
+
     session.addNode(node);
 
     session.setNodeUrl(node.id, "https://docs.rs/page");
@@ -127,6 +134,7 @@ describe("roadmap session", () => {
   it("deletes a node from state, body and state block", () => {
     const session = newSession();
     const node = createNoteNode("notes/a.md", { x: 1, y: 2 });
+
     session.addNode(node);
     session.deleteNode(node.id);
 
@@ -138,8 +146,10 @@ describe("roadmap session", () => {
   it("moves a node without touching the readable body", () => {
     const session = newSession();
     const node = createNoteNode("notes/a.md", { x: 1, y: 2 });
+
     session.addNode(node);
     const bodyBefore = session.content.split("%% roadmap:state")[0];
+
     session.moveNode(node.id, 40, 50);
 
     expect(session.state.nodes[node.id]?.layout).toMatchObject({ x: 40, y: 50 });
@@ -150,8 +160,10 @@ describe("roadmap session", () => {
   it("sets text alignment per axis, merging with the default", () => {
     const session = newSession();
     const node = createNoteNode("notes/a.md", { x: 0, y: 0 });
+
     session.addNode(node);
     const bodyBefore = session.content.split("%% roadmap:state")[0];
+
     session.setNodeAlign(node.id, { h: "center" });
 
     expect(session.state.nodes[node.id]?.align).toEqual({ h: "center", v: "middle" });
@@ -166,6 +178,7 @@ describe("roadmap session", () => {
   it("sets and clears node status in state and the body block", () => {
     const session = newSession();
     const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
+
     session.addNode(a);
 
     session.updateNodeMeta(a.id, { status: "done" });
@@ -187,6 +200,7 @@ describe("roadmap session", () => {
   it("sets node priority in state and the body block", () => {
     const session = newSession();
     const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
+
     session.addNode(a);
 
     session.updateNodeMeta(a.id, { priority: "high" });
@@ -199,6 +213,7 @@ describe("roadmap session", () => {
   it("sets node color in state without touching the readable body", () => {
     const session = newSession();
     const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
+
     session.addNode(a);
     const bodyBefore = session.content.split("%% roadmap:state")[0];
 
@@ -215,6 +230,7 @@ describe("roadmap session", () => {
   it("sets a node title and reflects it in the body link alias", () => {
     const session = newSession();
     const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
+
     session.addNode(a);
 
     session.updateNodeMeta(a.id, { title: "Custom" });
@@ -232,6 +248,7 @@ describe("roadmap session", () => {
     const session = newSession();
     const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
     const b = createNoteNode("notes/b.md", { x: 0, y: 0 });
+
     session.addNode(a);
     session.addNode(b);
     session.addEdge(a.id, b.id);
@@ -247,6 +264,7 @@ describe("roadmap session", () => {
     const session = newSession();
     const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
     const b = createNoteNode("notes/b.md", { x: 0, y: 0 });
+
     session.addNode(a);
     session.addNode(b);
     session.addEdge(a.id, b.id, "bottom", "left");
@@ -260,6 +278,7 @@ describe("roadmap session", () => {
     const session = newSession();
     const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
     const b = createNoteNode("notes/b.md", { x: 0, y: 0 });
+
     session.addNode(a);
     session.addNode(b);
     session.addEdge(a.id, b.id);
@@ -272,6 +291,7 @@ describe("roadmap session", () => {
     const session = newSession();
     const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
     const b = createNoteNode("notes/b.md", { x: 0, y: 0 });
+
     session.addNode(a);
     session.addNode(b);
     session.addEdge(a.id, b.id);
@@ -285,6 +305,7 @@ describe("roadmap session", () => {
     const session = newSession();
     const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
     const b = createNoteNode("notes/b.md", { x: 0, y: 0 });
+
     session.addNode(a);
     session.addNode(b);
     session.addEdge(a.id, b.id);
@@ -297,10 +318,12 @@ describe("roadmap session", () => {
     const session = newSession();
     const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
     const b = createNoteNode("notes/b.md", { x: 0, y: 0 });
+
     session.addNode(a);
     session.addNode(b);
     session.addEdge(a.id, b.id);
     const edgeId = Object.keys(session.state.edges)[0];
+
     session.updateEdge(edgeId, { direction: "both", line: "dotted" });
     const edge = readState(session.content)?.edges[edgeId];
 
@@ -313,6 +336,7 @@ describe("roadmap session", () => {
     const session = newSession();
     const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
     const b = createNoteNode("notes/b.md", { x: 0, y: 0 });
+
     session.addNode(a);
     session.addNode(b);
     session.addEdge(a.id, b.id);
@@ -332,8 +356,10 @@ describe("roadmap session", () => {
   it("adds a node and a connecting edge atomically, with a floating target by default", () => {
     const session = newSession();
     const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
+
     session.addNode(a);
     const b = createNoteNode("notes/b.md", { x: 50, y: 50 });
+
     session.addNodeWithEdge(b, a.id, "right", null);
     const edgeId = Object.keys(session.state.edges)[0];
 
@@ -353,6 +379,7 @@ describe("roadmap session", () => {
     const session = newSession();
     const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
     const b = createNoteNode("notes/b.md", { x: 0, y: 0 });
+
     session.addNode(a);
     session.addNode(b);
     session.addEdge(a.id, b.id, "right", "left");
@@ -376,10 +403,12 @@ describe("roadmap session", () => {
     const session = newSession();
     const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
     const b = createNoteNode("notes/b.md", { x: 0, y: 0 });
+
     session.addNode(a);
     session.addNode(b);
     session.addEdge(a.id, b.id, "right", "left");
     const edgeId = Object.keys(session.state.edges)[0];
+
     session.reverseEdge(edgeId);
     const reversed = readState(session.content)?.edges[edgeId];
 
@@ -401,10 +430,12 @@ describe("roadmap session", () => {
     const session = newSession();
     const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
     const b = createNoteNode("notes/b.md", { x: 0, y: 0 });
+
     session.addNode(a);
     session.addNode(b);
     session.addEdge(a.id, b.id, "right", null);
     const edgeId = Object.keys(session.state.edges)[0];
+
     session.reverseEdge(edgeId);
     const reversed = readState(session.content)?.edges[edgeId];
 
@@ -416,6 +447,7 @@ describe("roadmap session", () => {
     const session = newSession();
     const emptyContent = session.content;
     const node = createNoteNode("notes/a.md", { x: 1, y: 2 });
+
     session.addNode(node);
 
     expect(session.canUndo).toBe(true);
@@ -432,6 +464,7 @@ describe("roadmap session", () => {
     const session = newSession();
     const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
     const b = createNoteNode("notes/b.md", { x: 0, y: 0 });
+
     session.addNode(a);
     session.addNode(b);
     session.deleteNodes([a.id, b.id]);
@@ -448,6 +481,7 @@ describe("roadmap session", () => {
     const session = newSession();
     const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
     const b = createNoteNode("notes/b.md", { x: 0, y: 0 });
+
     session.addNode(a);
     session.addNode(b);
     session.addEdge(a.id, b.id);
@@ -468,8 +502,10 @@ describe("roadmap session", () => {
   it("adds copied nodes with new ids and offset positions", () => {
     const session = newSession();
     const a = createNoteNode("notes/a.md", { x: 10, y: 20 });
+
     session.addNode(a);
     const clone = copyNode(a, a.layout.x + 24, a.layout.y + 24);
+
     session.addNodes([clone]);
 
     expect(clone.id).not.toBe(a.id);

@@ -13,12 +13,16 @@ function endpointLink(state: RoadmapState, endpoint: RoadmapEndpoint): string | 
 
     return cluster === undefined ? null : `[[#${cluster.title}]]`;
   }
+
   const node = state.nodes[endpoint.id];
+
   if (node === undefined) {
     return null;
   }
+
   const title = nodeTitle(node);
   const source = node.source;
+
   switch (source.type) {
     case "note":
       return `[[${stripExtension(source.file)}|${title}]]`;
@@ -38,16 +42,21 @@ function endpointLink(state: RoadmapState, endpoint: RoadmapEndpoint): string | 
 
 export function renderRelationsSection(state: RoadmapState): string | null {
   const lines: string[] = [];
+
   for (const edge of Object.values(state.edges)) {
     const from = endpointLink(state, edge.from);
     const to = endpointLink(state, edge.to);
+
     if (from === null || to === null) {
       continue;
     }
+
     const arrow = edge.direction === "both" ? "<->" : edge.direction === "forward" ? "->" : "--";
     const label = edge.label !== undefined && edge.label.length > 0 ? `: ${edge.label}` : "";
+
     lines.push(`- ${from} ${arrow} ${to}${label} <!-- roadmap-edge:id=${edge.id} -->`);
   }
+
   if (lines.length === 0) {
     return null;
   }

@@ -12,10 +12,7 @@ export interface NodeBodyProps {
 
 const registry = new Map<RoadmapNodeKind, ComponentType<NodeBodyProps>>();
 
-export function registerNodeRenderer(
-  kind: RoadmapNodeKind,
-  renderer: ComponentType<NodeBodyProps>,
-): void {
+export function registerNodeRenderer(kind: RoadmapNodeKind, renderer: ComponentType<NodeBodyProps>): void {
   registry.set(kind, renderer);
 }
 

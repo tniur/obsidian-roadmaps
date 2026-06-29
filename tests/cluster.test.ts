@@ -17,9 +17,11 @@ import { stateToFlowEdges } from "../src/view/flow";
 function sessionWithTwoNodes(): RoadmapSession {
   const doc = createRoadmapDocument("R");
   const base = readState(doc);
+
   if (base === null) {
     throw new Error("expected a state block");
   }
+
   const n1: RoadmapNode = {
     id: "n1",
     kind: "note",
@@ -57,6 +59,7 @@ const nodeB: RoadmapNode = {
 function docWithNodes(): string {
   const doc = insertNodeBlock(insertNodeBlock(createRoadmapDocument("R"), nodeA), nodeB);
   const base = readState(doc);
+
   if (base === null) {
     throw new Error("expected a state block");
   }
@@ -87,10 +90,7 @@ describe("clusters storage", () => {
 
   it("excludes reserved sections even when a cluster marker is present", () => {
     const cluster = createCluster("Temp", { x: 0, y: 0, width: 400, height: 300 });
-    const content = writeClusterSection(docWithNodes(), cluster, ["a"]).replace(
-      "## Temp",
-      "## Archive",
-    );
+    const content = writeClusterSection(docWithNodes(), cluster, ["a"]).replace("## Temp", "## Archive");
     const reconciled = reconcileState(readState(content) ?? emptyState(), content);
 
     expect(reconciled.clusters[cluster.id]).toBeUndefined();
@@ -105,9 +105,11 @@ describe("clusters storage", () => {
     };
     const doc = docWithNodes();
     const base = readState(doc);
+
     if (base === null) {
       throw new Error("expected a state block");
     }
+
     const content = writeState(doc, { ...base, clusters: { c1: orphan } });
     const reconciled = reconcileState(readState(content) ?? emptyState(), content);
 
@@ -117,9 +119,11 @@ describe("clusters storage", () => {
   it("groups nodes into a cluster with bounding box and relative member layouts", () => {
     const doc = createRoadmapDocument("R");
     const base = readState(doc);
+
     if (base === null) {
       throw new Error("expected a state block");
     }
+
     const n1: RoadmapNode = {
       id: "n1",
       kind: "note",
@@ -133,12 +137,14 @@ describe("clusters storage", () => {
       layout: { x: 400, y: 300, width: 200, height: 80 },
     };
     let content = insertNodeBlock(insertNodeBlock(doc, n1), n2);
+
     content = writeState(content, { ...base, nodes: { n1, n2 } });
     const session = new RoadmapSession(readState(content) ?? emptyState(), content);
 
     session.createClusterFromNodes(["n1", "n2"], "Group");
 
     const clusterId = Object.keys(session.state.clusters)[0];
+
     expect(session.state.clusters[clusterId]?.layout).toEqual({
       x: 68,
       y: 68,
@@ -151,6 +157,7 @@ describe("clusters storage", () => {
     expect(session.content).toContain("## Group");
 
     const reconciled = reconcileState(readState(session.content) ?? emptyState(), session.content);
+
     expect(reconciled.nodes.n1?.clusterId).toBe(clusterId);
     expect(reconciled.nodes.n2?.clusterId).toBe(clusterId);
   });
@@ -158,9 +165,11 @@ describe("clusters storage", () => {
   it("moves and resizes a cluster, persisting only its layout", () => {
     const doc = createRoadmapDocument("R");
     const base = readState(doc);
+
     if (base === null) {
       throw new Error("expected a state block");
     }
+
     const n1: RoadmapNode = {
       id: "n1",
       kind: "note",
@@ -168,8 +177,10 @@ describe("clusters storage", () => {
       layout: { x: 100, y: 100, width: 200, height: 80 },
     };
     let content = insertNodeBlock(doc, n1);
+
     content = writeState(content, { ...base, nodes: { n1 } });
     const session = new RoadmapSession(readState(content) ?? emptyState(), content);
+
     session.createClusterFromNodes(["n1"], "Group");
     const clusterId = Object.keys(session.state.clusters)[0];
     const relX = session.state.nodes.n1?.layout.x;
@@ -192,9 +203,11 @@ describe("clusters storage", () => {
   it("toggles cluster collapsed in state and round-trips through the codec", () => {
     const doc = createRoadmapDocument("R");
     const base = readState(doc);
+
     if (base === null) {
       throw new Error("expected a state block");
     }
+
     const n1: RoadmapNode = {
       id: "n1",
       kind: "note",
@@ -202,8 +215,10 @@ describe("clusters storage", () => {
       layout: { x: 0, y: 0, width: 200, height: 80 },
     };
     let content = insertNodeBlock(doc, n1);
+
     content = writeState(content, { ...base, nodes: { n1 } });
     const session = new RoadmapSession(readState(content) ?? emptyState(), content);
+
     session.createClusterFromNodes(["n1"], "Group");
     const clusterId = Object.keys(session.state.clusters)[0];
 
@@ -218,17 +233,20 @@ describe("clusters storage", () => {
 
   it("creates a cluster↔node edge with a heading link in Relations", () => {
     const session = sessionWithTwoNodes();
+
     session.createClusterFromNodes(["n1"], "Group");
     const clusterId = Object.keys(session.state.clusters)[0];
 
     session.addEdge(clusterId, "n2");
 
     const edge = Object.values(session.state.edges)[0];
+
     expect(edge?.from).toEqual({ type: "cluster", id: clusterId });
     expect(edge?.to).toEqual({ type: "node", id: "n2" });
     expect(session.content).toContain("[[#Group]]");
 
     const flowEdges = stateToFlowEdges(session.state);
+
     expect(flowEdges).toHaveLength(1);
     expect(flowEdges[0]?.source).toBe(clusterId);
     expect(flowEdges[0]?.target).toBe("n2");
@@ -236,6 +254,7 @@ describe("clusters storage", () => {
 
   it("forbids direct edges inside one cluster (node↔node and node↔own cluster)", () => {
     const session = sessionWithTwoNodes();
+
     session.createClusterFromNodes(["n1", "n2"], "Group");
     const clusterId = Object.keys(session.state.clusters)[0];
 
@@ -248,8 +267,10 @@ describe("clusters storage", () => {
 
   it("dissolves a cluster, keeping nodes as unclustered with absolute layout", () => {
     const session = sessionWithTwoNodes();
+
     session.createClusterFromNodes(["n1"], "Group");
     const clusterId = Object.keys(session.state.clusters)[0];
+
     session.addEdge(clusterId, "n2");
     expect(Object.keys(session.state.edges)).toHaveLength(1);
 
@@ -263,14 +284,17 @@ describe("clusters storage", () => {
     expect(session.content).toContain("[[notes/a|a]]");
 
     const reconciled = reconcileState(readState(session.content) ?? emptyState(), session.content);
+
     expect(reconciled.nodes.n1?.clusterId ?? null).toBeNull();
     expect(reconciled.clusters[clusterId]).toBeUndefined();
   });
 
   it("deletes a cluster and its member nodes, keeping outside nodes", () => {
     const session = sessionWithTwoNodes();
+
     session.createClusterFromNodes(["n1"], "Group");
     const clusterId = Object.keys(session.state.clusters)[0];
+
     session.addEdge("n1", "n2");
     expect(Object.keys(session.state.edges)).toHaveLength(1);
 
@@ -287,10 +311,12 @@ describe("clusters storage", () => {
 
   it("arranges member nodes into a grid inside the cluster", () => {
     const session = sessionWithTwoNodes();
+
     session.createClusterFromNodes(["n1", "n2"], "Group");
     const clusterId = Object.keys(session.state.clusters)[0];
 
     const before = session.state.clusters[clusterId]?.layout.width ?? 0;
+
     session.arrangeCluster(clusterId);
 
     expect(session.state.nodes.n1?.layout).toMatchObject({ x: 32, y: 40 });
@@ -305,9 +331,11 @@ describe("clusters storage", () => {
   it("centers an incomplete last row when arranging", () => {
     const doc = createRoadmapDocument("R");
     const base = readState(doc);
+
     if (base === null) {
       throw new Error("expected a state block");
     }
+
     const mk = (id: string, x: number, y: number): RoadmapNode => ({
       id,
       kind: "note",
@@ -322,6 +350,7 @@ describe("clusters storage", () => {
       nodes: { n1, n2, n3 },
     });
     const session = new RoadmapSession(readState(content) ?? emptyState(), content);
+
     session.createClusterFromNodes(["n1", "n2", "n3"], "Group");
     const clusterId = Object.keys(session.state.clusters)[0];
 
@@ -335,9 +364,11 @@ describe("clusters storage", () => {
   it("centers a smaller node within its grid cell when arranging", () => {
     const doc = createRoadmapDocument("R");
     const base = readState(doc);
+
     if (base === null) {
       throw new Error("expected a state block");
     }
+
     const big: RoadmapNode = {
       id: "big",
       kind: "note",
@@ -355,6 +386,7 @@ describe("clusters storage", () => {
       nodes: { big, small },
     });
     const session = new RoadmapSession(readState(content) ?? emptyState(), content);
+
     session.createClusterFromNodes(["big", "small"], "Group");
     const clusterId = Object.keys(session.state.clusters)[0];
 
@@ -372,6 +404,7 @@ describe("clusters storage", () => {
 
   it("moves a node into a cluster by coordinates (relative layout, body under heading)", () => {
     const session = sessionWithTwoNodes();
+
     session.createClusterFromNodes(["n1"], "Group");
     const clusterId = Object.keys(session.state.clusters)[0];
     const cluster = session.state.clusters[clusterId];
@@ -384,11 +417,13 @@ describe("clusters storage", () => {
     expect(session.state.nodes.n2?.layout).toMatchObject({ x: 40, y: 50 });
 
     const reconciled = reconcileState(readState(session.content) ?? emptyState(), session.content);
+
     expect(reconciled.nodes.n2?.clusterId).toBe(clusterId);
   });
 
   it("moves a node out of a cluster by coordinates (absolute layout, unclustered)", () => {
     const session = sessionWithTwoNodes();
+
     session.createClusterFromNodes(["n1", "n2"], "Group");
     const clusterId = Object.keys(session.state.clusters)[0];
 
@@ -398,14 +433,17 @@ describe("clusters storage", () => {
     expect(session.state.nodes.n1?.layout).toMatchObject({ x: 800, y: 800 });
 
     const reconciled = reconcileState(readState(session.content) ?? emptyState(), session.content);
+
     expect(reconciled.nodes.n1?.clusterId ?? null).toBeNull();
     expect(reconciled.nodes.n2?.clusterId).toBe(clusterId);
   });
 
   it("renames a cluster in the heading, relations and state", () => {
     const session = sessionWithTwoNodes();
+
     session.createClusterFromNodes(["n1"], "Group");
     const clusterId = Object.keys(session.state.clusters)[0];
+
     session.addEdge(clusterId, "n2");
 
     session.renameCluster(clusterId, "Renamed");
@@ -416,11 +454,13 @@ describe("clusters storage", () => {
     expect(session.content).toContain("[[#Renamed]]");
 
     const reconciled = reconcileState(readState(session.content) ?? emptyState(), session.content);
+
     expect(reconciled.clusters[clusterId]?.title).toBe("Renamed");
   });
 
   it("sets and clears a cluster color, round-tripping through the codec", () => {
     const session = sessionWithTwoNodes();
+
     session.createClusterFromNodes(["n1"], "Group");
     const clusterId = Object.keys(session.state.clusters)[0];
 
@@ -436,9 +476,11 @@ describe("clusters storage", () => {
     const cluster = createCluster("Old title", { x: 10, y: 20, width: 500, height: 400 });
     let content = writeClusterSection(docWithNodes(), cluster, ["a"]);
     const base = readState(content);
+
     if (base === null) {
       throw new Error("expected a state block");
     }
+
     content = writeState(content, { ...base, clusters: { [cluster.id]: cluster } });
     content = content.replace("## Old title", "## New title");
     const reconciled = reconcileState(readState(content) ?? emptyState(), content);

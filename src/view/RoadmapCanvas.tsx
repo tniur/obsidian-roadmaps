@@ -57,6 +57,7 @@ function clientPoint(event: MouseEvent | TouchEvent): { x: number; y: number } |
   if ("clientX" in event) {
     return { x: event.clientX, y: event.clientY };
   }
+
   const touch = event.changedTouches[0];
 
   return touch === undefined ? null : { x: touch.clientX, y: touch.clientY };
@@ -75,9 +76,7 @@ interface RoadmapCanvasProps {
   focusIds: string[];
   focusNonce: number;
   onNodesMoved: (moves: ReadonlyArray<{ id: string; x: number; y: number }>) => void;
-  onNodesReparent: (
-    items: ReadonlyArray<{ id: string; clusterId: string | null; x: number; y: number }>,
-  ) => void;
+  onNodesReparent: (items: ReadonlyArray<{ id: string; clusterId: string | null; x: number; y: number }>) => void;
   onNodesDuplicate: (items: ReadonlyArray<{ id: string; x: number; y: number }>) => void;
   onNodeResized: (id: string, width: number, height: number, x: number, y: number) => void;
   onClusterToggleCollapse: (id: string) => void;
@@ -94,18 +93,8 @@ interface RoadmapCanvasProps {
   onCreateNodeAt: (placement: NodePlacement, event: MouseEvent) => void;
   onDropFiles: (placement: NodePlacement, dataTransfer: DataTransfer | null) => void;
   onDeleteElements: (nodeIds: string[], edgeIds: string[]) => void;
-  onConnectNodes: (
-    source: string,
-    target: string,
-    sourceHandle: string | null,
-    targetHandle: string | null,
-  ) => void;
-  onConnectToEmpty: (
-    source: string,
-    sourceHandle: string | null,
-    placement: NodePlacement,
-    event: MouseEvent,
-  ) => void;
+  onConnectNodes: (source: string, target: string, sourceHandle: string | null, targetHandle: string | null) => void;
+  onConnectToEmpty: (source: string, sourceHandle: string | null, placement: NodePlacement, event: MouseEvent) => void;
   onEdgeContextMenu: (id: string, event: MouseEvent) => void;
   onNodeContextMenu: (id: string, event: MouseEvent) => void;
   onSelectionContextMenu: (ids: string[], event: MouseEvent) => void;
@@ -151,9 +140,7 @@ export function RoadmapCanvas({
   const flowId = useId();
   const [dotsVisible, setDotsVisible] = useState(initialDotsVisible);
   const [locked, setLocked] = useState(false);
-  const [nodes, setNodes] = useState<RoadmapFlowNode[]>(() =>
-    stateToFlowNodes(state, isNodeMissing, resolveImageSrc),
-  );
+  const [nodes, setNodes] = useState<RoadmapFlowNode[]>(() => stateToFlowNodes(state, isNodeMissing, resolveImageSrc));
   const [edges, setEdges] = useState<Edge[]>(() => stateToFlowEdges(state));
   const [helperLines, setHelperLines] = useState<{ horizontal?: number; vertical?: number }>({});
   const altDragRef = useRef<{
@@ -162,9 +149,7 @@ export function RoadmapCanvas({
   } | null>(null);
 
   useEffect(() => {
-    setNodes((current) =>
-      reconcileFlowNodes(current, stateToFlowNodes(state, isNodeMissing, resolveImageSrc)),
-    );
+    setNodes((current) => reconcileFlowNodes(current, stateToFlowNodes(state, isNodeMissing, resolveImageSrc)));
     setEdges(stateToFlowEdges(state));
   }, [state, isNodeMissing, resolveImageSrc]);
 
@@ -172,24 +157,22 @@ export function RoadmapCanvas({
     if (focusNonce === 0) {
       return;
     }
-    setNodes((current) =>
-      current.map((node) => ({ ...node, selected: focusIds.includes(node.id) })),
-    );
+
+    setNodes((current) => current.map((node) => ({ ...node, selected: focusIds.includes(node.id) })));
   }, [focusNonce, focusIds]);
 
   const onNodesChange = useCallback(
     (changes: NodeChange<RoadmapFlowNode>[]) => {
       const alt = altDragRef.current;
+
       if (alt !== null) {
         const augmented: NodeChange<RoadmapFlowNode>[] = [];
+
         for (const change of changes) {
-          if (
-            change.type === "position" &&
-            change.position !== undefined &&
-            alt.map.has(change.id)
-          ) {
+          if (change.type === "position" && change.position !== undefined && alt.map.has(change.id)) {
             const copyId = alt.map.get(change.id) as string;
             const frozen = alt.frozen.get(change.id) as { x: number; y: number };
+
             augmented.push({
               id: copyId,
               type: "position",
@@ -206,14 +189,16 @@ export function RoadmapCanvas({
             augmented.push(change);
           }
         }
+
         setNodes((current) => applyNodeChanges(augmented, current));
 
         return;
       }
+
       let lines: { horizontal?: number; vertical?: number } = {};
       const [first] = changes;
-      const activeNode =
-        first?.type === "position" ? getNodes().find((node) => node.id === first.id) : undefined;
+      const activeNode = first?.type === "position" ? getNodes().find((node) => node.id === first.id) : undefined;
+
       if (
         changes.length === 1 &&
         first?.type === "position" &&
@@ -223,23 +208,25 @@ export function RoadmapCanvas({
       ) {
         const parentId = activeNode.parentId;
         const parent = parentId == null ? undefined : getNodes().find((n) => n.id === parentId);
-        const siblings = getNodes().filter((n) =>
-          parentId == null ? n.parentId == null : n.parentId === parentId,
-        );
+        const siblings = getNodes().filter((n) => (parentId == null ? n.parentId == null : n.parentId === parentId));
         const offsetX = parent?.position.x ?? 0;
         const offsetY = parent?.position.y ?? 0;
         const result = getHelperLines(first, siblings);
+
         if (result.snapX !== undefined) {
           first.position.x = result.snapX;
         }
+
         if (result.snapY !== undefined) {
           first.position.y = result.snapY;
         }
+
         lines = {
           horizontal: result.horizontal === undefined ? undefined : result.horizontal + offsetY,
           vertical: result.vertical === undefined ? undefined : result.vertical + offsetX,
         };
       }
+
       setHelperLines((prev) =>
         prev.horizontal === lines.horizontal && prev.vertical === lines.vertical ? prev : lines,
       );
@@ -255,6 +242,7 @@ export function RoadmapCanvas({
   const onConnect = useCallback(
     (connection: Connection) => {
       const { source, target, sourceHandle, targetHandle } = connection;
+
       if (source !== null && target !== null && source !== target) {
         onConnectNodes(source, target, sourceHandle, targetHandle);
       }
@@ -283,13 +271,17 @@ export function RoadmapCanvas({
     (event: MouseEvent | TouchEvent, connection: FinalConnectionState) => {
       const fromNodeId = connection.fromHandle?.nodeId;
       const client = clientPoint(event);
+
       if (fromNodeId === undefined || client === null) {
         return;
       }
+
       const point = screenToFlowPosition(client);
+
       if (connection.toNode !== null || nodeAtPoint(point)) {
         return;
       }
+
       onConnectToEmpty(fromNodeId, connection.fromHandle?.id ?? null, point, event as MouseEvent);
     },
     [screenToFlowPosition, nodeAtPoint, onConnectToEmpty],
@@ -299,36 +291,46 @@ export function RoadmapCanvas({
     const map = new Map<string, string>();
     const frozen = new Map<string, { x: number; y: number }>();
     const copies: RoadmapFlowNode[] = [];
+
     for (const node of dragged) {
       if (node.type === ROADMAP_CLUSTER_TYPE) {
         continue;
       }
+
       const copyId = `dup-${nanoid()}`;
+
       map.set(node.id, copyId);
       frozen.set(node.id, { x: node.position.x, y: node.position.y });
       copies.push({ ...node, id: copyId, selected: false, dragging: true });
     }
+
     if (copies.length === 0) {
       return;
     }
+
     altDragRef.current = { map, frozen };
     setNodes((current) => [...current, ...copies]);
   }, []);
 
   const finalizeAltDuplicate = useCallback((): boolean => {
     const alt = altDragRef.current;
+
     if (alt === null) {
       return false;
     }
+
     altDragRef.current = null;
     const all = getNodes();
     const items: { id: string; x: number; y: number }[] = [];
+
     for (const [originalId, copyId] of alt.map) {
       const copy = all.find((node) => node.id === copyId);
+
       if (copy !== undefined) {
         items.push({ id: originalId, x: copy.position.x, y: copy.position.y });
       }
     }
+
     onNodesDuplicate(items);
 
     return true;
@@ -358,6 +360,7 @@ export function RoadmapCanvas({
         if (node.type !== ROADMAP_CLUSTER_TYPE) {
           return false;
         }
+
         const w = node.measured?.width ?? node.width ?? 0;
         const h = node.measured?.height ?? node.height ?? 0;
 
@@ -378,27 +381,31 @@ export function RoadmapCanvas({
     (dragged: RoadmapFlowNode[]) => {
       const moves: { id: string; x: number; y: number }[] = [];
       const reparents: { id: string; clusterId: string | null; x: number; y: number }[] = [];
+
       for (const node of dragged) {
         if (node.type === ROADMAP_CLUSTER_TYPE) {
           moves.push({ id: node.id, x: node.position.x, y: node.position.y });
           continue;
         }
-        const parent =
-          node.parentId == null ? undefined : getNodes().find((n) => n.id === node.parentId);
+
+        const parent = node.parentId == null ? undefined : getNodes().find((n) => n.id === node.parentId);
         const absX = (parent?.position.x ?? 0) + node.position.x;
         const absY = (parent?.position.y ?? 0) + node.position.y;
         const w = node.measured?.width ?? node.width ?? 0;
         const h = node.measured?.height ?? node.height ?? 0;
         const target = clusterAtPoint({ x: absX + w / 2, y: absY + h / 2 });
+
         if (target !== (node.parentId ?? null)) {
           reparents.push({ id: node.id, clusterId: target, x: absX, y: absY });
         } else {
           moves.push({ id: node.id, x: node.position.x, y: node.position.y });
         }
       }
+
       if (reparents.length > 0) {
         onNodesReparent(reparents);
       }
+
       if (moves.length > 0) {
         onNodesMoved(moves);
       }
@@ -474,6 +481,7 @@ export function RoadmapCanvas({
       event.preventDefault();
       const native = "nativeEvent" in event ? event.nativeEvent : event;
       const placement = screenToFlowPosition({ x: native.clientX, y: native.clientY });
+
       onCreateNodeAt(placement, native);
     },
     [screenToFlowPosition, onCreateNodeAt],
@@ -498,6 +506,7 @@ export function RoadmapCanvas({
     (event: DragEvent<HTMLDivElement>) => {
       event.preventDefault();
       const placement = screenToFlowPosition({ x: event.clientX, y: event.clientY });
+
       onDropFiles(placement, event.dataTransfer);
     },
     [screenToFlowPosition, onDropFiles],
@@ -505,6 +514,7 @@ export function RoadmapCanvas({
 
   const toggleDots = useCallback(() => {
     const next = !dotsVisible;
+
     setDotsVisible(next);
     onDotsVisibleChange(next);
   }, [dotsVisible, onDotsVisibleChange]);

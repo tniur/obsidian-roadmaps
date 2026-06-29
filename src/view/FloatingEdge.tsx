@@ -1,11 +1,4 @@
-import {
-  BaseEdge,
-  EdgeLabelRenderer,
-  getBezierPath,
-  Position,
-  useInternalNode,
-  type EdgeProps,
-} from "@xyflow/react";
+import { BaseEdge, EdgeLabelRenderer, getBezierPath, Position, useInternalNode, type EdgeProps } from "@xyflow/react";
 import type { CSSProperties } from "react";
 import type { EdgeDirection, EdgeLine, EdgeSide } from "../domain/types";
 import { getEdgeEndpoints } from "./edgeParams";
@@ -22,9 +15,11 @@ function inwardDirection(position: Position): Vec {
   if (position === Position.Left) {
     return { x: 1, y: 0 };
   }
+
   if (position === Position.Right) {
     return { x: -1, y: 0 };
   }
+
   if (position === Position.Top) {
     return { x: 0, y: 1 };
   }
@@ -56,9 +51,11 @@ export function FloatingEdge(props: EdgeProps) {
   const { id, source, target, data, style } = props;
   const sourceNode = useInternalNode(source);
   const targetNode = useInternalNode(target);
+
   if (sourceNode === undefined || targetNode === undefined) {
     return null;
   }
+
   const meta = data as EdgeMeta | undefined;
   const { sx, sy, tx, ty, sourcePos, targetPos } = getEdgeEndpoints(
     sourceNode,

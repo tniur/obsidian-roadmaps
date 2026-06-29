@@ -10,6 +10,7 @@ export function Icon({ name }: IconProps) {
 
   useEffect(() => {
     const el = ref.current;
+
     if (el !== null) {
       setIcon(el, name);
     }

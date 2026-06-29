@@ -37,10 +37,7 @@ function sampleState(): RoadmapState {
 
 describe("stateToFlowNodes missing flag", () => {
   it("marks a node missing when the predicate reports its source as absent", () => {
-    const nodes = stateToFlowNodes(
-      sampleState(),
-      (node) => sourceFile(node.source) === "notes/b.md",
-    );
+    const nodes = stateToFlowNodes(sampleState(), (node) => sourceFile(node.source) === "notes/b.md");
     const byId = new Map(nodes.map((n) => [n.id, n]));
 
     expect(byId.get("a")?.data.missing).toBe(false);

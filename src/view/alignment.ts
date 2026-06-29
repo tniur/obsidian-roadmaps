@@ -43,22 +43,15 @@ interface Candidate {
  * top/bottom/center on the Y axis (horizontal guides), keeping the closest match within
  * `distance`. Returns the guide coordinate to render and the snapped top-left position.
  */
-export function getHelperLines(
-  change: NodePositionChange,
-  nodes: Node[],
-  distance = 5,
-): HelperLineResult {
+export function getHelperLines(change: NodePositionChange, nodes: Node[], distance = 5): HelperLineResult {
   const result: HelperLineResult = {};
   const active = nodes.find((node) => node.id === change.id);
+
   if (active === undefined || change.position === undefined) {
     return result;
   }
-  const a = bounds(
-    change.position.x,
-    change.position.y,
-    active.measured?.width ?? 0,
-    active.measured?.height ?? 0,
-  );
+
+  const a = bounds(change.position.x, change.position.y, active.measured?.width ?? 0, active.measured?.height ?? 0);
   let verticalDistance = distance;
   let horizontalDistance = distance;
 
@@ -66,12 +59,8 @@ export function getHelperLines(
     if (node.id === active.id) {
       continue;
     }
-    const b = bounds(
-      node.position.x,
-      node.position.y,
-      node.measured?.width ?? 0,
-      node.measured?.height ?? 0,
-    );
+
+    const b = bounds(node.position.x, node.position.y, node.measured?.width ?? 0, node.measured?.height ?? 0);
 
     const vertical: Candidate[] = [
       { d: Math.abs(a.left - b.left), guide: b.left, snap: b.left },
@@ -80,6 +69,7 @@ export function getHelperLines(
       { d: Math.abs(a.right - b.left), guide: b.left, snap: b.left - a.width },
       { d: Math.abs(a.centerX - b.centerX), guide: b.centerX, snap: b.centerX - a.width / 2 },
     ];
+
     for (const candidate of vertical) {
       if (candidate.d < verticalDistance) {
         verticalDistance = candidate.d;
@@ -95,6 +85,7 @@ export function getHelperLines(
       { d: Math.abs(a.bottom - b.top), guide: b.top, snap: b.top - a.height },
       { d: Math.abs(a.centerY - b.centerY), guide: b.centerY, snap: b.centerY - a.height / 2 },
     ];
+
     for (const candidate of horizontal) {
       if (candidate.d < horizontalDistance) {
         horizontalDistance = candidate.d;

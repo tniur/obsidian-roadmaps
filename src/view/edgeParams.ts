@@ -18,6 +18,7 @@ function sidePoint(node: InternalNode, side: EdgeSide): Point {
   const y = node.internals.positionAbsolute.y;
   const w = node.measured.width ?? 0;
   const h = node.measured.height ?? 0;
+
   switch (side) {
     case "top":
       return { x: x + w / 2, y };
@@ -64,12 +65,15 @@ function borderSide(node: InternalNode, point: Point): Position {
   const nx = Math.round(node.internals.positionAbsolute.x);
   const ny = Math.round(node.internals.positionAbsolute.y);
   const w = node.measured.width ?? 0;
+
   if (px <= nx + 1) {
     return Position.Left;
   }
+
   if (px >= nx + w - 1) {
     return Position.Right;
   }
+
   if (py <= ny + 1) {
     return Position.Top;
   }
@@ -101,6 +105,7 @@ export function getEdgeEndpoints(
   let tp: Point;
   let sourcePos: Position;
   let targetPos: Position;
+
   if (fromSide !== undefined && toSide !== undefined) {
     sp = sidePoint(source, fromSide);
     sourcePos = positionOfSide(fromSide);

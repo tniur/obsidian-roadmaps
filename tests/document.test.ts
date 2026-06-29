@@ -40,9 +40,11 @@ describe("roadmap document", () => {
   it("replaces only the state block, leaving the body intact", () => {
     const doc = createRoadmapDocument("My Roadmap");
     const state = readState(doc);
+
     if (state === null) {
       throw new Error("expected a state block");
     }
+
     const next = writeState(doc, { ...state, nodes: { [node.id]: node } });
 
     expect(next).toContain("# My Roadmap");
@@ -62,9 +64,11 @@ describe("roadmap document", () => {
   it("reconciles deletions: drops state nodes missing a body marker", () => {
     const doc = createRoadmapDocument("My Roadmap");
     const base = readState(doc);
+
     if (base === null) {
       throw new Error("expected a state block");
     }
+
     const withOrphan = writeState(doc, { ...base, nodes: { [node.id]: node } });
     const reconciled = reconcileState(readState(withOrphan) ?? emptyState(), withOrphan);
 
@@ -81,9 +85,11 @@ describe("roadmap document", () => {
     };
     const doc = insertNodeBlock(createRoadmapDocument("My Roadmap"), textNode);
     const base = readState(doc);
+
     if (base === null) {
       throw new Error("expected a state block");
     }
+
     const content = writeState(doc, { ...base, nodes: { t1: textNode } });
     const edited = content.replace("AAA", "BBB");
     const reconciled = reconcileState(readState(edited) ?? emptyState(), edited);
@@ -94,9 +100,11 @@ describe("roadmap document", () => {
   it("reconcile keeps nodes that still have a body marker", () => {
     const doc = insertNodeBlock(createRoadmapDocument("My Roadmap"), node);
     const base = readState(doc);
+
     if (base === null) {
       throw new Error("expected a state block");
     }
+
     const withBoth = writeState(doc, { ...base, nodes: { [node.id]: node } });
     const reconciled = reconcileState(readState(withBoth) ?? emptyState(), withBoth);
 
@@ -118,9 +126,11 @@ describe("roadmap document", () => {
     };
     const doc = createRoadmapDocument("My Roadmap");
     const base = readState(doc);
+
     if (base === null) {
       throw new Error("expected a state block");
     }
+
     const state = { ...base, nodes: { [node.id]: node, [nodeB.id]: nodeB }, edges: { e1: edge } };
     const next = writeRelations(writeState(doc, state), state);
 
@@ -144,9 +154,11 @@ describe("roadmap document", () => {
     };
     const docWithA = insertNodeBlock(createRoadmapDocument("My Roadmap"), node);
     const base = readState(docWithA);
+
     if (base === null) {
       throw new Error("expected a state block");
     }
+
     const content = writeState(docWithA, {
       ...base,
       nodes: { [node.id]: node, [nodeB.id]: nodeB },
@@ -174,9 +186,11 @@ describe("roadmap document", () => {
     };
     const doc = createRoadmapDocument("My Roadmap");
     const base = readState(doc);
+
     if (base === null) {
       throw new Error("expected a state block");
     }
+
     const state = { ...base, nodes: { [node.id]: node, [nodeB.id]: nodeB }, edges: { e1: edge } };
     const next = writeRelations(writeState(doc, state), state);
 
@@ -204,9 +218,11 @@ describe("roadmap document", () => {
     };
     const doc = insertNodeBlock(insertNodeBlock(createRoadmapDocument("My Roadmap"), node), nodeB);
     const base = readState(doc);
+
     if (base === null) {
       throw new Error("expected a state block");
     }
+
     const state = {
       ...base,
       nodes: { [node.id]: node, [nodeB.id]: nodeB },
@@ -235,9 +251,11 @@ describe("roadmap document", () => {
     };
     const doc = insertNodeBlock(insertNodeBlock(createRoadmapDocument("My Roadmap"), node), nodeB);
     const base = readState(doc);
+
     if (base === null) {
       throw new Error("expected a state block");
     }
+
     const content = writeState(doc, {
       ...base,
       nodes: { [node.id]: node, [nodeB.id]: nodeB },

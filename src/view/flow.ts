@@ -90,6 +90,7 @@ export function stateToFlowNodes(
         imageSrc: resolveImageSrc?.(node) ?? undefined,
       },
     };
+
     if (cluster !== undefined) {
       flow.parentId = node.clusterId as string;
       flow.hidden = cluster.collapsed === true;
@@ -101,17 +102,16 @@ export function stateToFlowNodes(
   return [...clusters, ...nodes];
 }
 
-export function reconcileFlowNodes(
-  current: RoadmapFlowNode[],
-  next: RoadmapFlowNode[],
-): RoadmapFlowNode[] {
+export function reconcileFlowNodes(current: RoadmapFlowNode[], next: RoadmapFlowNode[]): RoadmapFlowNode[] {
   const currentById = new Map(current.map((node) => [node.id, node]));
 
   return next.map((node) => {
     const existing = currentById.get(node.id);
+
     if (existing === undefined) {
       return node;
     }
+
     if (existing.dragging === true) {
       return { ...existing, data: node.data };
     }

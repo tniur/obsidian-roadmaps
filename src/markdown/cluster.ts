@@ -19,9 +19,11 @@ export interface ParsedClusterHeading {
 /** Parses a `## ...` line into a cluster heading, or null if it is not a `##` heading. */
 export function parseClusterHeading(line: string): ParsedClusterHeading | null {
   const heading = HEADING_RE.exec(line);
+
   if (heading === null) {
     return null;
   }
+
   const marker = CLUSTER_MARKER_RE.exec(line);
   const id = marker === null ? null : marker[1];
   const title = heading[1].replace(CLUSTER_MARKER_RE, "").trim();
