@@ -37,7 +37,6 @@ const nodeSchema = z
 const clusterSchema = z
   .object({
     h: z.string(),
-    src: sourceSchema.optional(),
     l: layoutSchema,
     col: z.string().optional(),
     collapsed: z.boolean().optional(),

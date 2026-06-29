@@ -28,6 +28,7 @@ import type {
   EdgeDirection,
   EdgeLine,
   EdgeSide,
+  RoadmapCluster,
   RoadmapNode,
   RoadmapPriority,
   RoadmapStatus,
@@ -48,6 +49,17 @@ import { PromptModal } from "./PromptModal";
 import { RoadmapCanvas } from "./RoadmapCanvas";
 
 const IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "gif", "svg", "webp", "bmp", "avif"]);
+
+const COLOR_OPTIONS: { title: string; value: string }[] = [
+  { title: "Red", value: "var(--color-red)" },
+  { title: "Orange", value: "var(--color-orange)" },
+  { title: "Yellow", value: "var(--color-yellow)" },
+  { title: "Green", value: "var(--color-green)" },
+  { title: "Cyan", value: "var(--color-cyan)" },
+  { title: "Blue", value: "var(--color-blue)" },
+  { title: "Purple", value: "var(--color-purple)" },
+  { title: "Pink", value: "var(--color-pink)" },
+];
 
 export interface RoadmapViewHost {
   openAsMarkdown: (leaf: WorkspaceLeaf, file: TFile) => void;
@@ -300,7 +312,26 @@ export class RoadmapView extends TextFileView {
     if (this.session === null || moves.length === 0) {
       return;
     }
-    this.session.moveNodes(moves);
+    const clusterMoves = moves.filter(
+      (move) => this.session?.state.clusters[move.id] !== undefined,
+    );
+    const nodeMoves = moves.filter((move) => this.session?.state.nodes[move.id] !== undefined);
+    if (clusterMoves.length > 0) {
+      this.session.moveClusters(clusterMoves);
+    }
+    if (nodeMoves.length > 0) {
+      this.session.moveNodes(nodeMoves);
+    }
+    this.commit();
+  };
+
+  private readonly handleNodesReparent = (
+    items: ReadonlyArray<{ id: string; clusterId: string | null; x: number; y: number }>,
+  ): void => {
+    if (this.session === null || items.length === 0) {
+      return;
+    }
+    this.session.setNodesCluster(items);
     this.commit();
   };
 
@@ -311,9 +342,108 @@ export class RoadmapView extends TextFileView {
     x: number,
     y: number,
   ): void => {
-    this.session?.resizeNode(id, width, height, x, y);
+    if (this.session === null) {
+      return;
+    }
+    if (this.session.state.clusters[id] !== undefined) {
+      this.session.resizeCluster(id, width, height, x, y);
+    } else {
+      this.session.resizeNode(id, width, height, x, y);
+    }
     this.commit();
   };
+
+  private readonly handleClusterToggleCollapse = (id: string): void => {
+    this.session?.toggleClusterCollapsed(id);
+    this.commit();
+  };
+
+  private readonly handleClusterArrange = (id: string): void => {
+    this.session?.arrangeCluster(id);
+    this.commit();
+  };
+
+  private showClusterContextMenu(cluster: RoadmapCluster, event: MouseEvent): void {
+    const id = cluster.id;
+    const collapsed = cluster.collapsed === true;
+    const menu = new Menu();
+    menu.addItem((item) =>
+      item
+        .setTitle(collapsed ? "Expand" : "Collapse")
+        .setIcon(collapsed ? "chevron-down" : "chevron-right")
+        .onClick(() => this.handleClusterToggleCollapse(id)),
+    );
+    if (!collapsed) {
+      menu.addItem((item) =>
+        item
+          .setTitle("Arrange nodes")
+          .setIcon("layout-grid")
+          .onClick(() => this.handleClusterArrange(id)),
+      );
+    }
+    menu.addSeparator();
+    menu.addItem((item) =>
+      item
+        .setTitle("Rename…")
+        .setIcon("pencil")
+        .onClick(() => this.renameCluster(cluster)),
+    );
+    menu.addItem((item) =>
+      item
+        .setTitle("No color")
+        .setChecked(cluster.style?.color === undefined)
+        .onClick(() => this.setClusterColor(id, null)),
+    );
+    for (const { title, value } of COLOR_OPTIONS) {
+      menu.addItem((item) =>
+        item
+          .setTitle(title)
+          .setChecked(cluster.style?.color === value)
+          .onClick(() => this.setClusterColor(id, value)),
+      );
+    }
+    menu.addSeparator();
+    menu.addItem((item) =>
+      item
+        .setTitle("Delete cluster (keep nodes)")
+        .setIcon("ungroup")
+        .onClick(() => {
+          this.session?.dissolveCluster(id);
+          this.commit();
+        }),
+    );
+    menu.addItem((item) =>
+      item
+        .setTitle("Delete cluster and its nodes")
+        .setIcon("trash-2")
+        .onClick(() => {
+          this.session?.deleteClusterAndNodes(id);
+          this.commit();
+        }),
+    );
+    menu.showAtMouseEvent(event);
+  }
+
+  private setClusterColor(id: string, color: string | null): void {
+    this.session?.setClusterColor(id, color);
+    this.commit();
+  }
+
+  private renameCluster(cluster: RoadmapCluster): void {
+    new PromptModal(this.app, {
+      title: "Cluster name",
+      placeholder: "Cluster",
+      initialValue: cluster.title,
+      cta: "Rename",
+      onSubmit: (value) => {
+        if (value.length === 0) {
+          return;
+        }
+        this.session?.renameCluster(cluster.id, value);
+        this.commit();
+      },
+    }).open();
+  }
 
   private readonly handleNodeOpen = (id: string, newLeaf: boolean): void => {
     const node = this.session?.state.nodes[id];
@@ -749,6 +879,12 @@ export class RoadmapView extends TextFileView {
   }
 
   private readonly handleNodeContextMenu = (id: string, event: MouseEvent): void => {
+    const cluster = this.session?.state.clusters[id];
+    if (cluster !== undefined) {
+      this.showClusterContextMenu(cluster, event);
+
+      return;
+    }
     const node = this.session?.state.nodes[id];
     if (node === undefined) {
       return;
@@ -825,23 +961,13 @@ export class RoadmapView extends TextFileView {
       );
     }
     menu.addSeparator();
-    const colors: { title: string; value: string }[] = [
-      { title: "Red", value: "var(--color-red)" },
-      { title: "Orange", value: "var(--color-orange)" },
-      { title: "Yellow", value: "var(--color-yellow)" },
-      { title: "Green", value: "var(--color-green)" },
-      { title: "Cyan", value: "var(--color-cyan)" },
-      { title: "Blue", value: "var(--color-blue)" },
-      { title: "Purple", value: "var(--color-purple)" },
-      { title: "Pink", value: "var(--color-pink)" },
-    ];
     menu.addItem((item) =>
       item
         .setTitle("No color")
         .setChecked(node.style?.color === undefined)
         .onClick(() => this.updateNodeMeta(id, { color: null })),
     );
-    for (const { title, value } of colors) {
+    for (const { title, value } of COLOR_OPTIONS) {
       menu.addItem((item) =>
         item
           .setTitle(title)
@@ -878,8 +1004,49 @@ export class RoadmapView extends TextFileView {
           .onClick(() => this.editTextNode(id)),
       );
     }
+    if (node.clusterId == null) {
+      const groupIds = this.selectedNodeIds.includes(id) ? this.selectedNodeIds : [id];
+      menu.addSeparator();
+      menu.addItem((item) =>
+        item
+          .setTitle("Group into cluster")
+          .setIcon("group")
+          .onClick(() => this.groupNodes(groupIds)),
+      );
+    }
     menu.showAtMouseEvent(event);
   };
+
+  private readonly handleSelectionContextMenu = (ids: string[], event: MouseEvent): void => {
+    const targets = ids.filter((id) => this.session?.state.nodes[id]?.clusterId == null);
+    if (targets.length === 0) {
+      return;
+    }
+    const menu = new Menu();
+    menu.addItem((item) =>
+      item
+        .setTitle("Group into cluster")
+        .setIcon("group")
+        .onClick(() => this.groupNodes(targets)),
+    );
+    menu.showAtMouseEvent(event);
+  };
+
+  private groupNodes(ids: readonly string[]): void {
+    const targets = ids.filter((id) => this.session?.state.nodes[id]?.clusterId == null);
+    if (this.session === null || targets.length === 0) {
+      return;
+    }
+    new PromptModal(this.app, {
+      title: "Cluster name",
+      placeholder: "Cluster",
+      cta: "Group",
+      onSubmit: (value) => {
+        this.session?.createClusterFromNodes(targets, value.length > 0 ? value : "Cluster");
+        this.commit();
+      },
+    }).open();
+  }
 
   private editNodeText(id: string, field: "title" | "description"): void {
     const node = this.session?.state.nodes[id];
@@ -996,8 +1163,11 @@ export class RoadmapView extends TextFileView {
               focusIds={this.focusIds}
               focusNonce={this.focusNonce}
               onNodesMoved={this.handleNodesMoved}
+              onNodesReparent={this.handleNodesReparent}
               onNodesDuplicate={this.handleNodesDuplicated}
               onNodeResized={this.handleNodeResized}
+              onClusterToggleCollapse={this.handleClusterToggleCollapse}
+              onClusterArrange={this.handleClusterArrange}
               onNodeOpen={this.handleNodeOpen}
               onNodePreview={this.handleNodePreview}
               onSelectionChange={this.handleSelectionChange}
@@ -1014,6 +1184,7 @@ export class RoadmapView extends TextFileView {
               onConnectToEmpty={this.handleConnectToEmpty}
               onEdgeContextMenu={this.handleEdgeContextMenu}
               onNodeContextMenu={this.handleNodeContextMenu}
+              onSelectionContextMenu={this.handleSelectionContextMenu}
             />
           </ReactFlowProvider>
           {previewNode !== undefined ? (

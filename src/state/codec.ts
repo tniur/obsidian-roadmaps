@@ -104,7 +104,6 @@ function decodeCluster(id: string, c: CompactCluster): RoadmapCluster {
     title: c.h,
     layout: { x: c.l[0], y: c.l[1], width: c.l[2], height: c.l[3] },
   };
-  if (c.src !== undefined) cluster.source = decodeSource(c.src);
   if (c.col !== undefined) cluster.style = { color: c.col };
   if (c.collapsed !== undefined) cluster.collapsed = c.collapsed;
 
@@ -116,7 +115,6 @@ function encodeCluster(cluster: RoadmapCluster): CompactCluster {
     h: cluster.title,
     l: [cluster.layout.x, cluster.layout.y, cluster.layout.width, cluster.layout.height],
   };
-  if (cluster.source !== undefined) c.src = encodeSource(cluster.source);
   if (cluster.style?.color !== undefined) c.col = cluster.style.color;
   if (cluster.collapsed !== undefined) c.collapsed = cluster.collapsed;
 

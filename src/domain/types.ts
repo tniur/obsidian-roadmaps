@@ -53,7 +53,6 @@ export interface RoadmapNode {
 export interface RoadmapCluster {
   id: string;
   title: string;
-  source?: RoadmapNodeSource;
   layout: RoadmapLayout;
   style?: { color?: string };
   collapsed?: boolean;

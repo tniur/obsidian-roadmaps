@@ -1,9 +1,11 @@
-import { asSide, createEdge } from "../domain/create";
+import { CLUSTER_NODE_GAP, CLUSTER_PADDING, COLLAPSED_CLUSTER_HEIGHT } from "../constants";
+import { asSide, createCluster, createEdge } from "../domain/create";
 import type {
   EdgeDirection,
   EdgeLine,
   EdgeSide,
   RoadmapEdge,
+  RoadmapEndpoint,
   RoadmapNode,
   RoadmapPriority,
   RoadmapState,
@@ -13,9 +15,14 @@ import type {
   TextAlignV,
 } from "../domain/types";
 import {
+  dissolveClusterSection,
   insertNodeBlock,
+  moveNodeToCluster,
+  removeClusterHeading,
   removeNodeBlock,
+  replaceClusterHeading,
   updateNodeBlock,
+  writeClusterSection,
   writeRelations,
   writeState,
 } from "./document";
@@ -128,6 +135,61 @@ export class RoadmapSession {
     this.contentValue = writeState(content, this.stateValue);
   }
 
+  /**
+   * Wraps the given top-level nodes into a new cluster sized to their bounding box. Member
+   * layouts are rebased to be relative to the cluster origin; the body moves their blocks
+   * under the cluster heading so membership stays canonical there.
+   */
+  createClusterFromNodes(nodeIds: readonly string[], title: string): void {
+    const members: RoadmapNode[] = [];
+    for (const id of nodeIds) {
+      const node = this.stateValue.nodes[id];
+      if (node !== undefined && node.clusterId == null) {
+        members.push(node);
+      }
+    }
+    if (members.length === 0) {
+      return;
+    }
+    this.begin();
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (const node of members) {
+      minX = Math.min(minX, node.layout.x);
+      minY = Math.min(minY, node.layout.y);
+      maxX = Math.max(maxX, node.layout.x + node.layout.width);
+      maxY = Math.max(maxY, node.layout.y + node.layout.height);
+    }
+    const layout = {
+      x: minX - CLUSTER_PADDING,
+      y: minY - CLUSTER_PADDING,
+      width: maxX - minX + CLUSTER_PADDING * 2,
+      height: maxY - minY + CLUSTER_PADDING * 2,
+    };
+    const cluster = createCluster(title, layout);
+    const nodes = { ...this.stateValue.nodes };
+    for (const node of members) {
+      nodes[node.id] = {
+        ...node,
+        clusterId: cluster.id,
+        layout: { ...node.layout, x: node.layout.x - layout.x, y: node.layout.y - layout.y },
+      };
+    }
+    this.stateValue = {
+      ...this.stateValue,
+      clusters: { ...this.stateValue.clusters, [cluster.id]: cluster },
+      nodes,
+    };
+    const content = writeClusterSection(
+      this.contentValue,
+      cluster,
+      members.map((node) => node.id),
+    );
+    this.contentValue = writeState(content, this.stateValue);
+  }
+
   addNodeWithEdge(
     node: RoadmapNode,
     fromNodeId: string,
@@ -137,7 +199,12 @@ export class RoadmapSession {
     this.begin();
     const nodes = { ...this.stateValue.nodes, [node.id]: node };
     const content = insertNodeBlock(this.contentValue, node);
-    const edge = createEdge(fromNodeId, node.id, asSide(fromHandle), asSide(toHandle));
+    const edge = createEdge(
+      this.endpointFor(fromNodeId),
+      { type: "node", id: node.id },
+      asSide(fromHandle),
+      asSide(toHandle),
+    );
     const edges = { ...this.stateValue.edges, [edge.id]: edge };
     this.stateValue = { ...this.stateValue, nodes, edges };
     this.contentValue = writeRelations(writeState(content, this.stateValue), this.stateValue);
@@ -166,6 +233,48 @@ export class RoadmapSession {
     this.contentValue = writeState(this.contentValue, this.stateValue);
   }
 
+  /**
+   * Reassigns nodes to a cluster (or to the root, `clusterId === null`) by their absolute drop
+   * position, rebasing layout to/from cluster-relative coordinates and moving the body block
+   * under/out of the cluster heading. Used for spatial drag in/out of a cluster.
+   */
+  setNodesCluster(
+    items: ReadonlyArray<{ id: string; clusterId: string | null; x: number; y: number }>,
+  ): void {
+    const changes = items.filter((item) => {
+      const node = this.stateValue.nodes[item.id];
+
+      return node !== undefined && (node.clusterId ?? null) !== item.clusterId;
+    });
+    if (changes.length === 0) {
+      return;
+    }
+    this.begin();
+    const nodes = { ...this.stateValue.nodes };
+    let content = this.contentValue;
+    for (const { id, clusterId, x, y } of changes) {
+      const node = nodes[id];
+      const cluster = clusterId === null ? undefined : this.stateValue.clusters[clusterId];
+      const next: RoadmapNode = {
+        ...node,
+        layout: {
+          ...node.layout,
+          x: cluster === undefined ? x : x - cluster.layout.x,
+          y: cluster === undefined ? y : y - cluster.layout.y,
+        },
+      };
+      if (clusterId === null) {
+        delete next.clusterId;
+      } else {
+        next.clusterId = clusterId;
+      }
+      nodes[id] = next;
+      content = moveNodeToCluster(content, id, clusterId);
+    }
+    this.stateValue = { ...this.stateValue, nodes };
+    this.contentValue = writeState(content, this.stateValue);
+  }
+
   resizeNode(id: string, width: number, height: number, x: number, y: number): void {
     const node = this.stateValue.nodes[id];
     if (node === undefined) {
@@ -177,6 +286,229 @@ export class RoadmapSession {
       nodes: { ...this.stateValue.nodes, [id]: { ...node, layout: { x, y, width, height } } },
     };
     this.contentValue = writeState(this.contentValue, this.stateValue);
+  }
+
+  moveClusters(moves: ReadonlyArray<{ id: string; x: number; y: number }>): void {
+    const clusters = { ...this.stateValue.clusters };
+    let changed = false;
+    for (const { id, x, y } of moves) {
+      const cluster = clusters[id];
+      if (cluster === undefined) {
+        continue;
+      }
+      clusters[id] = { ...cluster, layout: { ...cluster.layout, x, y } };
+      changed = true;
+    }
+    if (!changed) {
+      return;
+    }
+    this.begin();
+    this.stateValue = { ...this.stateValue, clusters };
+    this.contentValue = writeState(this.contentValue, this.stateValue);
+  }
+
+  resizeCluster(id: string, width: number, height: number, x: number, y: number): void {
+    const cluster = this.stateValue.clusters[id];
+    if (cluster === undefined) {
+      return;
+    }
+    this.begin();
+    this.stateValue = {
+      ...this.stateValue,
+      clusters: {
+        ...this.stateValue.clusters,
+        [id]: { ...cluster, layout: { x, y, width, height } },
+      },
+    };
+    this.contentValue = writeState(this.contentValue, this.stateValue);
+  }
+
+  toggleClusterCollapsed(id: string): void {
+    const cluster = this.stateValue.clusters[id];
+    if (cluster === undefined) {
+      return;
+    }
+    this.begin();
+    const next = { ...cluster };
+    if (cluster.collapsed === true) {
+      delete next.collapsed;
+    } else {
+      next.collapsed = true;
+    }
+    this.stateValue = {
+      ...this.stateValue,
+      clusters: { ...this.stateValue.clusters, [id]: next },
+    };
+    this.contentValue = writeState(this.contentValue, this.stateValue);
+  }
+
+  /** Lays out the cluster's member nodes in a tidy grid (reading order), growing the cluster to
+   * fit. Layout-only; membership and the body are unchanged. */
+  arrangeCluster(id: string): void {
+    const cluster = this.stateValue.clusters[id];
+    if (cluster === undefined) {
+      return;
+    }
+    const members = Object.values(this.stateValue.nodes)
+      .filter((node) => node.clusterId === id)
+      .sort((a, b) => a.layout.y - b.layout.y || a.layout.x - b.layout.x);
+    if (members.length === 0) {
+      return;
+    }
+    this.begin();
+    const cellW = Math.max(...members.map((node) => node.layout.width));
+    const cellH = Math.max(...members.map((node) => node.layout.height));
+    const gap = CLUSTER_NODE_GAP;
+    const top = COLLAPSED_CLUSTER_HEIGHT;
+    const baseWidth = Math.max(cluster.layout.width, cellW + CLUSTER_PADDING * 2);
+    const columns = Math.min(
+      members.length,
+      Math.max(1, Math.floor((baseWidth - CLUSTER_PADDING * 2 + gap) / (cellW + gap))),
+    );
+    const contentWidth = columns * (cellW + gap) - gap;
+    const nodes = { ...this.stateValue.nodes };
+    members.forEach((node, index) => {
+      const col = index % columns;
+      const row = Math.floor(index / columns);
+      const rowCount = Math.min(columns, members.length - row * columns);
+      const rowOffset = (contentWidth - (rowCount * (cellW + gap) - gap)) / 2;
+      const cellX = CLUSTER_PADDING + rowOffset + col * (cellW + gap);
+      const cellY = top + row * (cellH + gap);
+      nodes[node.id] = {
+        ...node,
+        layout: {
+          ...node.layout,
+          x: cellX + (cellW - node.layout.width) / 2,
+          y: cellY + (cellH - node.layout.height) / 2,
+        },
+      };
+    });
+    const rows = Math.ceil(members.length / columns);
+    const width = CLUSTER_PADDING * 2 + contentWidth;
+    const height = top + rows * (cellH + gap) - gap + CLUSTER_PADDING;
+    this.stateValue = {
+      ...this.stateValue,
+      nodes,
+      clusters: {
+        ...this.stateValue.clusters,
+        [id]: { ...cluster, layout: { ...cluster.layout, width, height } },
+      },
+    };
+    this.contentValue = writeState(this.contentValue, this.stateValue);
+  }
+
+  renameCluster(id: string, title: string): void {
+    const cluster = this.stateValue.clusters[id];
+    if (cluster === undefined || title.length === 0 || title === cluster.title) {
+      return;
+    }
+    this.begin();
+    const next = { ...cluster, title };
+    this.stateValue = {
+      ...this.stateValue,
+      clusters: { ...this.stateValue.clusters, [id]: next },
+    };
+    const content = replaceClusterHeading(this.contentValue, next);
+    this.contentValue = writeRelations(writeState(content, this.stateValue), this.stateValue);
+  }
+
+  setClusterColor(id: string, color: string | null): void {
+    const cluster = this.stateValue.clusters[id];
+    if (cluster === undefined) {
+      return;
+    }
+    this.begin();
+    const style = { ...cluster.style };
+    if (color === null || color.length === 0) {
+      delete style.color;
+    } else {
+      style.color = color;
+    }
+    const next = { ...cluster, style: Object.keys(style).length > 0 ? style : undefined };
+    this.stateValue = {
+      ...this.stateValue,
+      clusters: { ...this.stateValue.clusters, [id]: next },
+    };
+    this.contentValue = writeState(this.contentValue, this.stateValue);
+  }
+
+  private memberNodeIds(clusterId: string): string[] {
+    return Object.values(this.stateValue.nodes)
+      .filter((node) => node.clusterId === clusterId)
+      .map((node) => node.id);
+  }
+
+  private edgesWithoutEndpoints(dropped: ReadonlySet<string>): Record<string, RoadmapEdge> {
+    const edges: Record<string, RoadmapEdge> = {};
+    for (const [id, edge] of Object.entries(this.stateValue.edges)) {
+      if (!dropped.has(edge.from.id) && !dropped.has(edge.to.id)) {
+        edges[id] = edge;
+      }
+    }
+
+    return edges;
+  }
+
+  /** Deletes the cluster but keeps its nodes, rebasing their layouts to absolute and moving
+   * their body blocks out to the unclustered region ([[ADR-0011]] delete option 1). */
+  dissolveCluster(id: string): void {
+    const cluster = this.stateValue.clusters[id];
+    if (cluster === undefined) {
+      return;
+    }
+    this.begin();
+    const memberIds = this.memberNodeIds(id);
+    const nodes = { ...this.stateValue.nodes };
+    for (const memberId of memberIds) {
+      const node = nodes[memberId];
+      const next: RoadmapNode = {
+        ...node,
+        layout: {
+          ...node.layout,
+          x: node.layout.x + cluster.layout.x,
+          y: node.layout.y + cluster.layout.y,
+        },
+      };
+      delete next.clusterId;
+      nodes[memberId] = next;
+    }
+    const clusters = { ...this.stateValue.clusters };
+    delete clusters[id];
+    this.stateValue = {
+      ...this.stateValue,
+      nodes,
+      clusters,
+      edges: this.edgesWithoutEndpoints(new Set([id])),
+    };
+    const content = dissolveClusterSection(this.contentValue, id, memberIds);
+    this.contentValue = writeRelations(writeState(content, this.stateValue), this.stateValue);
+  }
+
+  /** Deletes the cluster and removes its member nodes from the roadmap. Source files are not
+   * touched ([[ADR-0011]] delete option 2). */
+  deleteClusterAndNodes(id: string): void {
+    const cluster = this.stateValue.clusters[id];
+    if (cluster === undefined) {
+      return;
+    }
+    this.begin();
+    const memberIds = this.memberNodeIds(id);
+    const nodes = { ...this.stateValue.nodes };
+    let content = this.contentValue;
+    for (const memberId of memberIds) {
+      delete nodes[memberId];
+      content = removeNodeBlock(content, memberId);
+    }
+    content = removeClusterHeading(content, id);
+    const clusters = { ...this.stateValue.clusters };
+    delete clusters[id];
+    this.stateValue = {
+      ...this.stateValue,
+      nodes,
+      clusters,
+      edges: this.edgesWithoutEndpoints(new Set([id, ...memberIds])),
+    };
+    this.contentValue = writeRelations(writeState(content, this.stateValue), this.stateValue);
   }
 
   setNodeAlign(id: string, patch: { h?: TextAlignH; v?: TextAlignV }): void {
@@ -279,18 +611,23 @@ export class RoadmapSession {
     fromHandle?: string | null,
     toHandle?: string | null,
   ): void {
+    const from = this.endpointFor(fromNodeId);
+    const to = this.endpointFor(toNodeId);
+    if (this.isInternalConnection(from, to)) {
+      return;
+    }
     const duplicate = Object.values(this.stateValue.edges).some(
       (edge) =>
-        edge.from.type === "node" &&
-        edge.to.type === "node" &&
-        edge.from.id === fromNodeId &&
-        edge.to.id === toNodeId,
+        edge.from.type === from.type &&
+        edge.from.id === from.id &&
+        edge.to.type === to.type &&
+        edge.to.id === to.id,
     );
     if (duplicate) {
       return;
     }
     this.begin();
-    const edge = createEdge(fromNodeId, toNodeId, asSide(fromHandle), asSide(toHandle));
+    const edge = createEdge(from, to, asSide(fromHandle), asSide(toHandle));
     this.stateValue = {
       ...this.stateValue,
       edges: { ...this.stateValue.edges, [edge.id]: edge },
@@ -299,6 +636,32 @@ export class RoadmapSession {
       writeState(this.contentValue, this.stateValue),
       this.stateValue,
     );
+  }
+
+  private endpointFor(id: string): RoadmapEndpoint {
+    return this.stateValue.clusters[id] !== undefined
+      ? { type: "cluster", id }
+      : { type: "node", id };
+  }
+
+  /** Forbids direct connections inside one cluster: node↔node sharing a cluster, or a node
+   * linking to its own container ([[ADR-0005]] / [[ADR-0006]]). Cross-cluster links are allowed. */
+  private isInternalConnection(from: RoadmapEndpoint, to: RoadmapEndpoint): boolean {
+    const clusterOfNode = (id: string): string | null =>
+      this.stateValue.nodes[id]?.clusterId ?? null;
+    if (from.type === "node" && to.type === "node") {
+      const a = clusterOfNode(from.id);
+
+      return a !== null && a === clusterOfNode(to.id);
+    }
+    if (from.type === "node" && to.type === "cluster") {
+      return clusterOfNode(from.id) === to.id;
+    }
+    if (from.type === "cluster" && to.type === "node") {
+      return clusterOfNode(to.id) === from.id;
+    }
+
+    return false;
   }
 
   deleteEdge(id: string): void {

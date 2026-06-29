@@ -8,8 +8,10 @@ function stripExtension(path: string): string {
 }
 
 function endpointLink(state: RoadmapState, endpoint: RoadmapEndpoint): string | null {
-  if (endpoint.type !== "node") {
-    return null;
+  if (endpoint.type === "cluster") {
+    const cluster = state.clusters[endpoint.id];
+
+    return cluster === undefined ? null : `[[#${cluster.title}]]`;
   }
   const node = state.nodes[endpoint.id];
   if (node === undefined) {
