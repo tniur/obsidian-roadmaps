@@ -893,6 +893,67 @@ export class RoadmapSession {
     this.stateValue = { ...this.stateValue, edges: { ...this.stateValue.edges, [id]: next } };
     this.contentValue = writeState(this.contentValue, this.stateValue);
   }
+
+  /**
+   * Re-points one or both ends of an edge to the given connection, keeping direction, label and
+   * style. Both endpoints are rebuilt from the connection, so the untouched end stays as it was;
+   * a null handle means that end floats. No-ops on a self-loop, a forbidden intra-cluster link,
+   * or a connection that duplicates another edge.
+   */
+  reconnectEdge(id: string, connection: RoadmapConnection): void {
+    const edge = this.stateValue.edges[id];
+
+    if (edge === undefined || connection.source === connection.target) {
+      return;
+    }
+
+    const from = this.endpointFor(connection.source);
+    const to = this.endpointFor(connection.target);
+
+    if (this.isInternalConnection(from, to)) {
+      return;
+    }
+
+    const duplicate = Object.values(this.stateValue.edges).some(
+      (other) =>
+        other.id !== id &&
+        other.from.type === from.type &&
+        other.from.id === from.id &&
+        other.to.type === to.type &&
+        other.to.id === to.id,
+    );
+
+    if (duplicate) {
+      return;
+    }
+
+    const fromSide = asSide(connection.sourceHandle);
+    const toSide = asSide(connection.targetHandle);
+    const next: RoadmapEdge = { ...edge, from, to };
+
+    if (fromSide === undefined) {
+      delete next.fromSide;
+    } else {
+      next.fromSide = fromSide;
+    }
+
+    if (toSide === undefined) {
+      delete next.toSide;
+    } else {
+      next.toSide = toSide;
+    }
+
+    this.begin();
+    this.stateValue = { ...this.stateValue, edges: { ...this.stateValue.edges, [id]: next } };
+    this.contentValue = writeRelations(writeState(this.contentValue, this.stateValue), this.stateValue);
+  }
+}
+
+export interface RoadmapConnection {
+  source: string;
+  target: string;
+  sourceHandle: string | null;
+  targetHandle: string | null;
 }
 
 function endpointNodeId(endpoint: RoadmapEdge["from"]): string {

@@ -443,6 +443,69 @@ describe("roadmap session", () => {
     expect(reversed?.toSide).toBe("right");
   });
 
+  it("reconnects an edge end to another node, updating state and ## Relations", () => {
+    const session = newSession();
+    const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
+    const b = createNoteNode("notes/b.md", { x: 0, y: 0 });
+    const c = createNoteNode("notes/c.md", { x: 0, y: 0 });
+
+    session.addNode(a);
+    session.addNode(b);
+    session.addNode(c);
+    session.addEdge(a.id, b.id, "right", "left");
+    const edgeId = Object.keys(session.state.edges)[0];
+
+    session.reconnectEdge(edgeId, { source: a.id, target: c.id, sourceHandle: "right", targetHandle: "top" });
+    const edge = readState(session.content)?.edges[edgeId];
+
+    expect(edge?.to.id).toBe(c.id);
+    expect(edge?.toSide).toBe("top");
+    expect(session.content).toContain(`-> [[notes/c|c]] <!-- roadmap-edge:id=${edgeId}`);
+    expect(session.content).not.toContain("-> [[notes/b|b]]");
+
+    session.undo();
+
+    expect(session.state.edges[edgeId]?.to.id).toBe(b.id);
+    expect(session.state.edges[edgeId]?.toSide).toBe("left");
+  });
+
+  it("floats a reconnected end when the new handle is null", () => {
+    const session = newSession();
+    const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
+    const b = createNoteNode("notes/b.md", { x: 0, y: 0 });
+
+    session.addNode(a);
+    session.addNode(b);
+    session.addEdge(a.id, b.id, "right", "left");
+    const edgeId = Object.keys(session.state.edges)[0];
+
+    session.reconnectEdge(edgeId, { source: a.id, target: b.id, sourceHandle: "bottom", targetHandle: null });
+
+    expect(session.state.edges[edgeId]?.fromSide).toBe("bottom");
+    expect(session.state.edges[edgeId]?.toSide).toBeUndefined();
+  });
+
+  it("ignores a reconnect that would duplicate another edge or form a self-loop", () => {
+    const session = newSession();
+    const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
+    const b = createNoteNode("notes/b.md", { x: 0, y: 0 });
+    const c = createNoteNode("notes/c.md", { x: 0, y: 0 });
+
+    session.addNode(a);
+    session.addNode(b);
+    session.addNode(c);
+    session.addEdge(a.id, b.id);
+    session.addEdge(a.id, c.id);
+    const [firstId] = Object.keys(session.state.edges);
+    const before = session.content;
+
+    session.reconnectEdge(firstId, { source: a.id, target: c.id, sourceHandle: null, targetHandle: null });
+    session.reconnectEdge(firstId, { source: a.id, target: a.id, sourceHandle: null, targetHandle: null });
+
+    expect(session.state.edges[firstId]?.to.id).toBe(b.id);
+    expect(session.content).toBe(before);
+  });
+
   it("undoes and redoes a mutation, restoring state and content", () => {
     const session = newSession();
     const emptyContent = session.content;

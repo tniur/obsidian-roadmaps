@@ -94,6 +94,7 @@ interface RoadmapCanvasProps {
   onDropFiles: (placement: NodePlacement, dataTransfer: DataTransfer | null) => void;
   onDeleteElements: (nodeIds: string[], edgeIds: string[]) => void;
   onConnectNodes: (source: string, target: string, sourceHandle: string | null, targetHandle: string | null) => void;
+  onReconnectEdge: (id: string, connection: Connection) => void;
   onConnectToEmpty: (source: string, sourceHandle: string | null, placement: NodePlacement, event: MouseEvent) => void;
   onEdgeContextMenu: (id: string, event: MouseEvent) => void;
   onNodeContextMenu: (id: string, event: MouseEvent) => void;
@@ -131,6 +132,7 @@ export function RoadmapCanvas({
   onDropFiles,
   onDeleteElements,
   onConnectNodes,
+  onReconnectEdge,
   onConnectToEmpty,
   onEdgeContextMenu,
   onNodeContextMenu,
@@ -248,6 +250,13 @@ export function RoadmapCanvas({
       }
     },
     [onConnectNodes],
+  );
+
+  const onReconnect = useCallback(
+    (oldEdge: Edge, connection: Connection) => {
+      onReconnectEdge(oldEdge.id, connection);
+    },
+    [onReconnectEdge],
   );
 
   const nodeAtPoint = useCallback(
@@ -543,6 +552,8 @@ export function RoadmapCanvas({
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
+          onReconnect={onReconnect}
+          edgesReconnectable={!locked}
           onConnectEnd={onConnectEnd}
           onNodeDragStart={onNodeDragStart}
           onNodeDragStop={onNodeDragStop}

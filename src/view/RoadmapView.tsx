@@ -36,7 +36,7 @@ import type {
   TextAlignV,
 } from "../domain/types";
 import { emptyState, reconcileState, readState, writeRelations, writeState } from "../state/document";
-import { RoadmapSession, type NodeMetaPatch } from "../state/session";
+import { RoadmapSession, type NodeMetaPatch, type RoadmapConnection } from "../state/session";
 import { FileSuggestModal } from "./FileSuggestModal";
 import { NodePreviewPanel } from "./NodePreviewPanel";
 import { PromptModal } from "./PromptModal";
@@ -732,6 +732,11 @@ export class RoadmapView extends TextFileView {
     this.commit();
   };
 
+  private readonly handleReconnectEdge = (id: string, connection: RoadmapConnection): void => {
+    this.session?.reconnectEdge(id, connection);
+    this.commit();
+  };
+
   private readonly handleConnectToEmpty = (
     source: string,
     sourceHandle: string | null,
@@ -1258,6 +1263,7 @@ export class RoadmapView extends TextFileView {
               onDropFiles={this.handleDropFiles}
               onDeleteElements={this.handleDeleteElements}
               onConnectNodes={this.handleConnectNodes}
+              onReconnectEdge={this.handleReconnectEdge}
               onConnectToEmpty={this.handleConnectToEmpty}
               onEdgeContextMenu={this.handleEdgeContextMenu}
               onNodeContextMenu={this.handleNodeContextMenu}

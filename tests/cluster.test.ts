@@ -265,6 +265,20 @@ describe("clusters storage", () => {
     expect(Object.keys(session.state.edges)).toHaveLength(0);
   });
 
+  it("ignores a reconnect that would land inside one cluster", () => {
+    const session = sessionWithTwoNodes();
+
+    session.addEdge("n1", "n2");
+    session.createClusterFromNodes(["n2"], "Group");
+    const clusterId = Object.keys(session.state.clusters)[0];
+    const edgeId = Object.keys(session.state.edges)[0];
+
+    session.reconnectEdge(edgeId, { source: "n2", target: clusterId, sourceHandle: null, targetHandle: null });
+
+    expect(session.state.edges[edgeId]?.from.id).toBe("n1");
+    expect(session.state.edges[edgeId]?.to.id).toBe("n2");
+  });
+
   it("dissolves a cluster, keeping nodes as unclustered with absolute layout", () => {
     const session = sessionWithTwoNodes();
 
