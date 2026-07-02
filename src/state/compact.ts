@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ROADMAP_SCHEMA_VERSION } from "../constants";
 
 const layoutSchema = z.tuple([z.number(), z.number(), z.number(), z.number()]);
 const viewportSchema = z.tuple([z.number(), z.number(), z.number()]);
@@ -30,7 +31,6 @@ const nodeSchema = z
     av: z.enum(["top", "middle", "bottom"]).optional(),
     cl: z.string().nullable().optional(),
     col: z.string().optional(),
-    i: z.string().optional(),
   })
   .strict();
 
@@ -71,7 +71,7 @@ const edgeSchema = z.union([edgeTupleSchema, edgeObjectSchema]);
 
 export const compactStateSchema = z
   .object({
-    v: z.number(),
+    v: z.literal(ROADMAP_SCHEMA_VERSION),
     id: z.string(),
     n: z.record(z.string(), nodeSchema).default({}),
     c: z.record(z.string(), clusterSchema).default({}),

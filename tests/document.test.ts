@@ -4,7 +4,6 @@ import {
   createRoadmapDocument,
   emptyState,
   insertNodeBlock,
-  isRoadmapFile,
   readState,
   reconcileState,
   removeNodeBlock,
@@ -24,7 +23,7 @@ describe("roadmap document", () => {
     const doc = createRoadmapDocument("My Roadmap");
     const state = readState(doc);
 
-    expect(isRoadmapFile(doc)).toBe(true);
+    expect(doc).toContain("roadmap-plugin: board");
     expect(state).not.toBeNull();
     expect(Object.keys(state?.nodes ?? {})).toHaveLength(0);
   });

@@ -40,7 +40,7 @@ export interface RoadmapNode {
   align?: TextAlign;
   clusterId?: string | null;
   layout: RoadmapLayout;
-  style?: { color?: string; icon?: string };
+  style?: { color?: string };
 }
 
 export interface RoadmapCluster {

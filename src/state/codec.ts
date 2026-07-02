@@ -1,3 +1,4 @@
+import { ROADMAP_SCHEMA_VERSION } from "../constants";
 import type {
   EdgeDirection,
   RoadmapCluster,
@@ -71,12 +72,7 @@ function decodeNode(id: string, c: CompactNode): RoadmapNode {
   }
 
   if (c.cl !== undefined) node.clusterId = c.cl;
-
-  if (c.col !== undefined || c.i !== undefined) {
-    node.style = {};
-    if (c.col !== undefined) node.style.color = c.col;
-    if (c.i !== undefined) node.style.icon = c.i;
-  }
+  if (c.col !== undefined) node.style = { color: c.col };
 
   return node;
 }
@@ -100,7 +96,6 @@ function encodeNode(node: RoadmapNode): CompactNode {
 
   if (node.clusterId !== undefined) c.cl = node.clusterId;
   if (node.style?.color !== undefined) c.col = node.style.color;
-  if (node.style?.icon !== undefined) c.i = node.style.icon;
 
   return c;
 }
@@ -223,7 +218,7 @@ export function decodeState(c: CompactState): RoadmapState {
 
 export function encodeState(state: RoadmapState): CompactState {
   const c: CompactState = {
-    v: state.schemaVersion,
+    v: ROADMAP_SCHEMA_VERSION,
     id: state.id,
     n: {},
     c: {},
@@ -268,10 +263,55 @@ function sortKeysDeep(value: unknown): unknown {
   return value;
 }
 
+/** State written by a plugin version this build cannot read (or migrate). */
+export class StateVersionError extends Error {
+  constructor(readonly version: number) {
+    super(`Unsupported roadmap state version: ${version}`);
+    this.name = "StateVersionError";
+  }
+}
+
+/**
+ * Pure migration steps keyed by the version they upgrade from; each returns the shape
+ * of the next version. Empty while the schema is at its first version — the seam exists
+ * so format bumps ship with a migration instead of invalidating older files.
+ */
+const MIGRATIONS: Record<number, (raw: Record<string, unknown>) => Record<string, unknown>> = {};
+
+function migrate(raw: unknown): unknown {
+  if (raw === null || typeof raw !== "object" || Array.isArray(raw)) {
+    return raw;
+  }
+
+  const version = (raw as Record<string, unknown>).v;
+
+  if (typeof version !== "number" || version === ROADMAP_SCHEMA_VERSION) {
+    return raw;
+  }
+
+  if (version > ROADMAP_SCHEMA_VERSION || !Number.isInteger(version) || version < 1) {
+    throw new StateVersionError(version);
+  }
+
+  let current = raw as Record<string, unknown>;
+
+  for (let from = version; from < ROADMAP_SCHEMA_VERSION; from += 1) {
+    const step = MIGRATIONS[from];
+
+    if (step === undefined) {
+      throw new StateVersionError(version);
+    }
+
+    current = { ...step(current), v: from + 1 };
+  }
+
+  return current;
+}
+
 export function parseState(json: string): RoadmapState {
   const raw: unknown = JSON.parse(json);
 
-  return decodeState(compactStateSchema.parse(raw));
+  return decodeState(compactStateSchema.parse(migrate(raw)));
 }
 
 export function serializeState(state: RoadmapState): string {

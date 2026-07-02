@@ -1,4 +1,15 @@
-import { addIcon, MarkdownView, Plugin, TFile, WorkspaceLeaf, type ViewState } from "obsidian";
+import {
+  addIcon,
+  MarkdownView,
+  Notice,
+  Plugin,
+  PluginSettingTab,
+  Setting,
+  TFile,
+  WorkspaceLeaf,
+  type App,
+  type ViewState,
+} from "obsidian";
 import {
   BACKGROUND_DOTS_ICON_ID,
   ROADMAP_FRONTMATTER_KEY,
@@ -34,6 +45,7 @@ export default class RoadmapPlugin extends Plugin {
     addIcon(BACKGROUND_DOTS_ICON_ID, BACKGROUND_DOTS_ICON);
 
     this.registerView(VIEW_TYPE_ROADMAP, (leaf) => new RoadmapView(leaf, this.createViewHost()));
+    this.addSettingTab(new RoadmapSettingTab(this.app, this));
     this.patchLeafViewState();
 
     this.addRibbonIcon("map", "Create roadmap", () => {
@@ -71,13 +83,21 @@ export default class RoadmapPlugin extends Plugin {
     );
   }
 
+  getShowBackgroundDots(): boolean {
+    return this.displaySettings.showBackgroundDots;
+  }
+
+  setShowBackgroundDots(value: boolean): void {
+    this.displaySettings.showBackgroundDots = value;
+    void this.saveSettings();
+  }
+
   private createViewHost(): RoadmapViewHost {
     return {
       openAsMarkdown: this.openAsMarkdown,
-      getShowBackgroundDots: () => this.displaySettings.showBackgroundDots,
+      getShowBackgroundDots: () => this.getShowBackgroundDots(),
       setShowBackgroundDots: (value) => {
-        this.displaySettings.showBackgroundDots = value;
-        void this.saveSettings();
+        this.setShowBackgroundDots(value);
       },
     };
   }
@@ -112,6 +132,16 @@ export default class RoadmapPlugin extends Plugin {
     return frontmatter?.[ROADMAP_FRONTMATTER_KEY] === ROADMAP_FRONTMATTER_VALUE;
   }
 
+  /**
+   * Roadmap boards are plain Markdown files, and Obsidian routes every `.md` file to the
+   * core Markdown view; there is no public API to reroute view resolution by frontmatter.
+   * Patching `WorkspaceLeaf.prototype.setViewState` — the approach established by
+   * community plugins built on the same file-as-board pattern — redirects roadmap files
+   * to the roadmap view in the same leaf. `fileModes` remembers leaves the user
+   * explicitly switched to Markdown; `detach` drops that memory with the leaf, and the
+   * guarded restore in `register` reverts both patches on unload unless another plugin
+   * has patched over them since.
+   */
   private patchLeafViewState(): void {
     const { fileModes } = this;
     const isRoadmapPath = (path: string): boolean => this.isRoadmapPath(path);
@@ -178,13 +208,17 @@ export default class RoadmapPlugin extends Plugin {
   };
 
   private async createRoadmap(): Promise<void> {
-    const path = this.availablePath("Untitled Roadmap");
-    const title = path.replace(/\.md$/, "");
-    const file = await this.app.vault.create(path, createRoadmapDocument(title));
-    const leaf = this.app.workspace.getLeaf(true);
+    try {
+      const path = this.availablePath("Untitled Roadmap");
+      const title = path.replace(/\.md$/, "");
+      const file = await this.app.vault.create(path, createRoadmapDocument(title));
+      const leaf = this.app.workspace.getLeaf(true);
 
-    this.openAsRoadmap(leaf, file);
-    await this.app.workspace.revealLeaf(leaf);
+      this.openAsRoadmap(leaf, file);
+      await this.app.workspace.revealLeaf(leaf);
+    } catch (error) {
+      new Notice(`Failed to create roadmap: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   private availablePath(base: string): string {
@@ -199,5 +233,26 @@ export default class RoadmapPlugin extends Plugin {
     }
 
     return `${base} ${index}.md`;
+  }
+}
+
+class RoadmapSettingTab extends PluginSettingTab {
+  constructor(
+    app: App,
+    private readonly plugin: RoadmapPlugin,
+  ) {
+    super(app, plugin);
+  }
+
+  display(): void {
+    this.containerEl.empty();
+    new Setting(this.containerEl)
+      .setName("Show background dots")
+      .setDesc("Draw the dotted grid behind roadmap boards. Newly opened boards pick up the change.")
+      .addToggle((toggle) =>
+        toggle.setValue(this.plugin.getShowBackgroundDots()).onChange((value) => {
+          this.plugin.setShowBackgroundDots(value);
+        }),
+      );
   }
 }

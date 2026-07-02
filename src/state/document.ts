@@ -1,5 +1,6 @@
 import { nanoid } from "nanoid";
 import {
+  CLUSTER_PADDING,
   DEFAULT_CLUSTER_HEIGHT,
   DEFAULT_CLUSTER_WIDTH,
   DEFAULT_NODE_HEIGHT,
@@ -8,6 +9,7 @@ import {
   ROADMAP_FRONTMATTER_VALUE,
   ROADMAP_SCHEMA_VERSION,
 } from "../constants";
+import { arrangeClusterGrid } from "../domain/clusterLayout";
 import { sourceFile } from "../domain/source";
 import { nodeTitle } from "../domain/title";
 import type {
@@ -16,12 +18,12 @@ import type {
   RoadmapEndpoint,
   RoadmapNode,
   RoadmapNodeKind,
+  RoadmapNodeSource,
   RoadmapState,
 } from "../domain/types";
 import { isReservedHeading, parseClusterHeading, renderClusterHeading } from "../markdown/cluster";
-import { parseNodeBlock, renderNodeBlock } from "../markdown/nodeBlock";
+import { parseNodeBlock, renderNodeBlock, renderNodeRepresentation, type ParsedNodeBlock } from "../markdown/nodeBlock";
 import { parseRelationsLine, renderRelationsSection, type ParsedRelationEndpoint } from "../markdown/relations";
-import { unescapeTextContent } from "../markdown/sanitize";
 import { parseState, serializeState } from "./codec";
 
 const FIRST_HEADING_RE = /^## /m;
@@ -44,25 +46,6 @@ function escapeRegExp(value: string): string {
 
 function nodeMarkerRe(id: string): RegExp {
   return new RegExp(`^<!-- roadmap-node:id=${escapeRegExp(id)} type=\\w+ -->`, "m");
-}
-
-export function isRoadmapFile(content: string): boolean {
-  const frontmatter = FRONTMATTER_RE.exec(content);
-
-  if (frontmatter === null) {
-    return false;
-  }
-
-  const keyRe = new RegExp(`^${escapeRegExp(ROADMAP_FRONTMATTER_KEY)}:[ \\t]*(.+?)[ \\t]*$`, "m");
-  const line = keyRe.exec(frontmatter[1]);
-
-  if (line === null) {
-    return false;
-  }
-
-  const value = line[1].replace(/^["']|["']$/g, "");
-
-  return value === ROADMAP_FRONTMATTER_VALUE;
 }
 
 export function emptyState(): RoadmapState {
@@ -440,6 +423,134 @@ function defaultCluster(id: string, info: ClusterInfo): RoadmapCluster {
   };
 }
 
+function sourcesEqual(a: RoadmapNodeSource, b: RoadmapNodeSource): boolean {
+  if (a.type !== b.type) {
+    return false;
+  }
+
+  const other = b as typeof a;
+
+  switch (a.type) {
+    case "note":
+    case "image":
+    case "attachment":
+      return a.file === (other as { file: string }).file;
+
+    case "heading": {
+      const h = other as { file: string; heading: string };
+
+      return a.file === h.file && a.heading === h.heading;
+    }
+
+    case "block": {
+      const bl = other as { file: string; blockId: string };
+
+      return a.file === bl.file && a.blockId === bl.blockId;
+    }
+
+    case "url":
+      return a.url === (other as { url: string }).url;
+    case "text":
+      return true;
+  }
+}
+
+/**
+ * Applies a hand-edited body block back onto the state node ([[ADR-0002]]: body is
+ * canonical for readable content). Layout, alignment and color stay state-only. Inline
+ * text nodes keep their original source (the block carries only the text) and their
+ * state-only meta.
+ */
+function mergeParsedBlock(node: RoadmapNode, parsed: ParsedNodeBlock): RoadmapNode {
+  const next: RoadmapNode = { ...node };
+
+  if (parsed.title !== undefined) next.title = parsed.title;
+  else delete next.title;
+
+  if (node.source.type === "text") {
+    return next;
+  }
+
+  next.source = parsed.source;
+
+  if (parsed.description !== undefined) next.description = parsed.description;
+  else delete next.description;
+
+  if (parsed.status !== undefined) next.status = parsed.status;
+  else delete next.status;
+
+  if (parsed.priority !== undefined) next.priority = parsed.priority;
+  else delete next.priority;
+
+  return next;
+}
+
+function sameNodeContent(a: RoadmapNode, b: RoadmapNode): boolean {
+  return (
+    a.title === b.title &&
+    a.description === b.description &&
+    a.status === b.status &&
+    a.priority === b.priority &&
+    sourcesEqual(a.source, b.source)
+  );
+}
+
+/**
+ * Lays out clusters that first appeared in the body (hand-written headings): the cluster
+ * anchors at its members' bounding box and the members snap into the same tidy grid the
+ * "Arrange nodes" action produces, with the cluster sized exactly to fit. Clusters
+ * already known to state keep their layout.
+ */
+function fitNewClusters(
+  state: RoadmapState,
+  nodes: Record<string, RoadmapNode>,
+  clusters: Record<string, RoadmapCluster>,
+): void {
+  for (const [id, cluster] of Object.entries(clusters)) {
+    if (state.clusters[id] !== undefined) {
+      continue;
+    }
+
+    const members = Object.values(nodes).filter((node) => node.clusterId === id);
+
+    if (members.length === 0) {
+      continue;
+    }
+
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+
+    for (const member of members) {
+      minX = Math.min(minX, member.layout.x);
+      minY = Math.min(minY, member.layout.y);
+      maxX = Math.max(maxX, member.layout.x + member.layout.width);
+    }
+
+    const arrangement = arrangeClusterGrid(members, maxX - minX + CLUSTER_PADDING * 2);
+
+    if (arrangement === null) {
+      continue;
+    }
+
+    clusters[id] = {
+      ...cluster,
+      layout: {
+        x: minX - CLUSTER_PADDING,
+        y: minY - CLUSTER_PADDING,
+        width: arrangement.width,
+        height: arrangement.height,
+      },
+    };
+
+    for (const [memberId, position] of arrangement.positions) {
+      const member = nodes[memberId];
+
+      nodes[memberId] = { ...member, layout: { ...member.layout, x: position.x, y: position.y } };
+    }
+  }
+}
+
 export function reconcileState(state: RoadmapState, content: string): RoadmapState {
   const { clusters: bodyClusters, membership } = parseBody(content);
   const presentNodes = bodyNodeIds(content);
@@ -455,13 +566,20 @@ export function reconcileState(state: RoadmapState, content: string): RoadmapSta
 
     let next = node;
 
-    if (node.source.type === "text" && presentNodes.has(id)) {
-      const bodyText = nodeBlockBody(content, id);
-      const nextTitle = bodyText !== null && bodyText.length > 0 ? unescapeTextContent(bodyText) : undefined;
+    if (presentNodes.has(id)) {
+      const body = nodeBlockBody(content, id);
 
-      if (nextTitle !== node.title) {
-        next = { ...next, title: nextTitle };
-        changed = true;
+      if (body !== null && body !== renderNodeRepresentation(node).trim()) {
+        const parsed = parseNodeBlock(node.kind, body);
+
+        if (parsed !== null) {
+          const merged = mergeParsedBlock(node, parsed);
+
+          if (!sameNodeContent(merged, node)) {
+            next = merged;
+            changed = true;
+          }
+        }
       }
     }
 
@@ -498,6 +616,8 @@ export function reconcileState(state: RoadmapState, content: string): RoadmapSta
       changed = true;
     }
   }
+
+  fitNewClusters(state, nodes, clusters);
 
   const presentEdges = bodyEdgeIds(content);
   const trackEdges = presentEdges.size > 0;
@@ -597,18 +717,13 @@ export function rebuildState(content: string): RoadmapState {
 
   const { clusters, membership } = parseBody(content);
 
-  [...clusters.entries()].forEach(([id, info], index) => {
+  for (const [id, info] of clusters) {
     state.clusters[id] = {
       id,
       title: info.title,
-      layout: {
-        x: index * (DEFAULT_CLUSTER_WIDTH + REBUILD_GRID_GAP),
-        y: -DEFAULT_CLUSTER_HEIGHT - REBUILD_GRID_GAP,
-        width: DEFAULT_CLUSTER_WIDTH,
-        height: DEFAULT_CLUSTER_HEIGHT,
-      },
+      layout: { x: 0, y: 0, width: DEFAULT_CLUSTER_WIDTH, height: DEFAULT_CLUSTER_HEIGHT },
     };
-  });
+  }
 
   for (const [nodeId, clusterId] of membership) {
     const node = state.nodes[nodeId];
@@ -618,10 +733,28 @@ export function rebuildState(content: string): RoadmapState {
     }
   }
 
-  for (const line of region.split(/\r?\n/)) {
+  let clusterCursor = 0;
+
+  for (const cluster of Object.values(state.clusters)) {
+    const members = Object.values(state.nodes).filter((node) => node.clusterId === cluster.id);
+    const arrangement = arrangeClusterGrid(members, DEFAULT_CLUSTER_WIDTH);
+    const width = arrangement?.width ?? DEFAULT_CLUSTER_WIDTH;
+    const height = arrangement?.height ?? DEFAULT_CLUSTER_HEIGHT;
+
+    cluster.layout = { x: clusterCursor, y: -height - REBUILD_GRID_GAP, width, height };
+    clusterCursor += width + REBUILD_GRID_GAP;
+
+    for (const [memberId, position] of arrangement?.positions ?? []) {
+      const member = state.nodes[memberId];
+
+      member.layout = { ...member.layout, x: position.x, y: position.y };
+    }
+  }
+
+  for (const line of relationsRegion(content).split(/\r?\n/)) {
     const parsed = parseRelationsLine(line);
 
-    if (parsed === null || state.edges[parsed.id] !== undefined) {
+    if (parsed === null || (parsed.id !== undefined && state.edges[parsed.id] !== undefined)) {
       continue;
     }
 
@@ -632,14 +765,103 @@ export function rebuildState(content: string): RoadmapState {
       continue;
     }
 
-    const edge: RoadmapEdge = { id: parsed.id, from, to, direction: parsed.direction };
+    const id = parsed.id ?? nanoid();
+    const edge: RoadmapEdge = { id, from, to, direction: parsed.direction };
 
     if (parsed.label !== undefined) edge.label = parsed.label;
 
-    state.edges[parsed.id] = edge;
+    state.edges[id] = edge;
   }
 
   return state;
+}
+
+function relationsRegion(content: string): string {
+  const body = bodyRegion(content);
+  const heading = RELATIONS_HEADING_RE.exec(body);
+
+  if (heading === null) {
+    return "";
+  }
+
+  const after = heading.index + heading[0].length;
+  const next = /^## /m.exec(body.slice(after));
+
+  return next === null ? body.slice(after) : body.slice(after, after + next.index);
+}
+
+/**
+ * Adds `##` cluster markers to hand-written headings so they become real clusters
+ * ([[ADR-0005]]: every non-reserved `##` heading is a cluster). Reserved sections and
+ * already-marked headings pass through untouched.
+ */
+export function ensureClusterMarkers(content: string): string {
+  const frontmatter = FRONTMATTER_RE.exec(content);
+  const bodyStart = frontmatter === null ? 0 : frontmatter[0].length;
+  const stateBlock = STATE_BLOCK_RE.exec(content);
+  const bodyEnd = stateBlock === null ? content.length : stateBlock.index;
+  const body = content.slice(bodyStart, bodyEnd);
+  let changed = false;
+  const lines = body.split("\n").map((line) => {
+    const heading = parseClusterHeading(line);
+
+    if (heading === null || heading.id !== null || heading.title.length === 0 || isReservedHeading(heading.title)) {
+      return line;
+    }
+
+    changed = true;
+
+    return `${line.trimEnd()} <!-- roadmap-cluster:id=${nanoid()} -->`;
+  });
+
+  if (!changed) {
+    return content;
+  }
+
+  return `${content.slice(0, bodyStart)}${lines.join("\n")}${content.slice(bodyEnd)}`;
+}
+
+/**
+ * Creates edges for hand-written `## Relations` lines that carry no hidden edge marker
+ * yet. Endpoints resolve against the reconciled state; unresolvable or duplicate lines
+ * are left alone. The caller rewrites the section, which replaces adopted lines with
+ * their canonical, marker-carrying form.
+ */
+export function adoptRelationEdges(state: RoadmapState, content: string): RoadmapState {
+  let edges: Record<string, RoadmapEdge> | null = null;
+
+  for (const line of relationsRegion(content).split(/\r?\n/)) {
+    const parsed = parseRelationsLine(line);
+
+    if (parsed === null || parsed.id !== undefined) {
+      continue;
+    }
+
+    const from = resolveEndpoint(state, parsed.from);
+    const to = resolveEndpoint(state, parsed.to);
+
+    if (from === null || to === null || (from.type === to.type && from.id === to.id)) {
+      continue;
+    }
+
+    const existing = Object.values(edges ?? state.edges).some(
+      (edge) =>
+        edge.from.type === from.type && edge.from.id === from.id && edge.to.type === to.type && edge.to.id === to.id,
+    );
+
+    if (existing) {
+      continue;
+    }
+
+    edges ??= { ...state.edges };
+    const edge: RoadmapEdge = { id: nanoid(), from, to, direction: parsed.direction };
+
+    if (parsed.label !== undefined) edge.label = parsed.label;
+
+    edges[edge.id] = edge;
+  }
+
+  return edges === null ? state : { ...state, edges };
 }
 
 export function createRoadmapDocument(title: string): string {

@@ -1,5 +1,7 @@
-import { CLUSTER_NODE_GAP, CLUSTER_PADDING, COLLAPSED_CLUSTER_HEIGHT } from "../constants";
+import { CLUSTER_PADDING } from "../constants";
+import { arrangeClusterGrid } from "../domain/clusterLayout";
 import { asSide, createCluster, createEdge } from "../domain/create";
+import { sourceFile } from "../domain/source";
 import type {
   EdgeDirection,
   EdgeLine,
@@ -7,6 +9,7 @@ import type {
   RoadmapEdge,
   RoadmapEndpoint,
   RoadmapNode,
+  RoadmapNodeSource,
   RoadmapPriority,
   RoadmapState,
   RoadmapStatus,
@@ -392,8 +395,8 @@ export class RoadmapSession {
     this.contentValue = writeState(this.contentValue, this.stateValue);
   }
 
-  /** Lays out the cluster's member nodes in a tidy grid (reading order), growing the cluster to
-   * fit. Layout-only; membership and the body are unchanged. */
+  /** Lays out the cluster's member nodes in a tidy grid (reading order), resizing the cluster
+   * exactly to fit. Layout-only; membership and the body are unchanged. */
   arrangeCluster(id: string): void {
     const cluster = this.stateValue.clusters[id];
 
@@ -401,54 +404,28 @@ export class RoadmapSession {
       return;
     }
 
-    const members = Object.values(this.stateValue.nodes)
-      .filter((node) => node.clusterId === id)
-      .sort((a, b) => a.layout.y - b.layout.y || a.layout.x - b.layout.x);
+    const members = Object.values(this.stateValue.nodes).filter((node) => node.clusterId === id);
+    const arrangement = arrangeClusterGrid(members, cluster.layout.width);
 
-    if (members.length === 0) {
+    if (arrangement === null) {
       return;
     }
 
     this.begin();
-    const cellW = Math.max(...members.map((node) => node.layout.width));
-    const cellH = Math.max(...members.map((node) => node.layout.height));
-    const gap = CLUSTER_NODE_GAP;
-    const top = COLLAPSED_CLUSTER_HEIGHT;
-    const baseWidth = Math.max(cluster.layout.width, cellW + CLUSTER_PADDING * 2);
-    const columns = Math.min(
-      members.length,
-      Math.max(1, Math.floor((baseWidth - CLUSTER_PADDING * 2 + gap) / (cellW + gap))),
-    );
-    const contentWidth = columns * (cellW + gap) - gap;
     const nodes = { ...this.stateValue.nodes };
 
-    members.forEach((node, index) => {
-      const col = index % columns;
-      const row = Math.floor(index / columns);
-      const rowCount = Math.min(columns, members.length - row * columns);
-      const rowOffset = (contentWidth - (rowCount * (cellW + gap) - gap)) / 2;
-      const cellX = CLUSTER_PADDING + rowOffset + col * (cellW + gap);
-      const cellY = top + row * (cellH + gap);
+    for (const [nodeId, position] of arrangement.positions) {
+      const node = nodes[nodeId];
 
-      nodes[node.id] = {
-        ...node,
-        layout: {
-          ...node.layout,
-          x: cellX + (cellW - node.layout.width) / 2,
-          y: cellY + (cellH - node.layout.height) / 2,
-        },
-      };
-    });
-    const rows = Math.ceil(members.length / columns);
-    const width = CLUSTER_PADDING * 2 + contentWidth;
-    const height = top + rows * (cellH + gap) - gap + CLUSTER_PADDING;
+      nodes[nodeId] = { ...node, layout: { ...node.layout, x: position.x, y: position.y } };
+    }
 
     this.stateValue = {
       ...this.stateValue,
       nodes,
       clusters: {
         ...this.stateValue.clusters,
-        [id]: { ...cluster, layout: { ...cluster.layout, width, height } },
+        [id]: { ...cluster, layout: { ...cluster.layout, width: arrangement.width, height: arrangement.height } },
       },
     };
     this.contentValue = writeState(this.contentValue, this.stateValue);
@@ -956,6 +933,53 @@ export class RoadmapSession {
 
     this.stateValue = { ...this.stateValue, viewport };
     this.contentValue = writeState(this.contentValue, this.stateValue);
+  }
+
+  /**
+   * Re-points file-backed node sources after a vault rename (file or folder prefix),
+   * updating body blocks and relations. Outside the undo history: the vault rename is
+   * an external fact, not a roadmap edit. Returns whether anything was re-pointed.
+   */
+  applySourceRename(oldPath: string, newPath: string): boolean {
+    const prefix = `${oldPath}/`;
+    const nodes = { ...this.stateValue.nodes };
+    let content = this.contentValue;
+    let touched = false;
+
+    for (const [id, node] of Object.entries(this.stateValue.nodes)) {
+      const file = sourceFile(node.source);
+
+      if (file === null) {
+        continue;
+      }
+
+      let nextFile: string | null = null;
+
+      if (file === oldPath) {
+        nextFile = newPath;
+      } else if (file.startsWith(prefix)) {
+        nextFile = `${newPath}/${file.slice(prefix.length)}`;
+      }
+
+      if (nextFile === null) {
+        continue;
+      }
+
+      const next: RoadmapNode = { ...node, source: { ...node.source, file: nextFile } as RoadmapNodeSource };
+
+      nodes[id] = next;
+      content = updateNodeBlock(content, next);
+      touched = true;
+    }
+
+    if (!touched) {
+      return false;
+    }
+
+    this.stateValue = { ...this.stateValue, nodes };
+    this.contentValue = writeRelations(writeState(content, this.stateValue), this.stateValue);
+
+    return true;
   }
 
   /**

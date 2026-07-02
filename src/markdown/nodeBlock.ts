@@ -39,7 +39,9 @@ function tags(node: RoadmapNode): string {
   return parts.join(" ");
 }
 
-function representation(node: RoadmapNode): string {
+/** Readable body of a node block (everything after the marker line). Also serves as the
+ * dirty-check baseline: a body block differing from this was edited by hand. */
+export function renderNodeRepresentation(node: RoadmapNode): string {
   const title = nodeTitle(node);
 
   if (node.source.type === "text") {
@@ -69,7 +71,7 @@ function representation(node: RoadmapNode): string {
 }
 
 export function renderNodeBlock(node: RoadmapNode): string {
-  return `<!-- roadmap-node:id=${node.id} type=${node.kind} -->\n${representation(node)}`;
+  return `<!-- roadmap-node:id=${node.id} type=${node.kind} -->\n${renderNodeRepresentation(node)}`;
 }
 
 const STATUS_VALUES = new Set<string>(["draft", "in-progress", "done", "archived"]);
@@ -100,6 +102,14 @@ function basename(path: string): string {
 
 function noteFilePath(target: string): string {
   return target.endsWith(".md") ? target : `${target}.md`;
+}
+
+function urlHostname(url: string): string {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return url;
+  }
 }
 
 interface ParsedTags {
@@ -173,7 +183,7 @@ export function parseNodeBlock(kind: RoadmapNodeKind, body: string): ParsedNodeB
 
     const result: ParsedNodeBlock = { source: { type: "url", url: link[2] }, ...parseTags(content) };
 
-    if (link[1].length > 0) {
+    if (link[1].length > 0 && link[1] !== urlHostname(link[2])) {
       result.title = link[1];
     }
 

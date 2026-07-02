@@ -74,14 +74,15 @@ export interface ParsedRelationEndpoint {
 }
 
 export interface ParsedRelationLine {
-  id: string;
+  /** Absent for a hand-written line that has no hidden edge marker yet. */
+  id?: string;
   from: ParsedRelationEndpoint;
   to: ParsedRelationEndpoint;
   direction: EdgeDirection;
   label?: string;
 }
 
-const RELATION_LINE_RE = /^-\s+(.*?)\s+(<->|->|--)\s+(.*?)\s*<!-- roadmap-edge:id=(\S+) -->\s*$/;
+const RELATION_LINE_RE = /^-\s+(.*?)\s+(<->|->|--)\s+(.*?)\s*(?:<!-- roadmap-edge:id=(\S+) -->)?\s*$/;
 
 function parseEndpoint(raw: string): { endpoint: ParsedRelationEndpoint; rest: string } {
   const heading = /^\[\[#([^\]|]+)\]\]/.exec(raw);
@@ -106,9 +107,9 @@ function parseEndpoint(raw: string): { endpoint: ParsedRelationEndpoint; rest: s
 }
 
 /**
- * Best-effort inverse of `renderRelationsSection` for a single line, used to rebuild
- * edges from the readable body when the hidden state block is lost. Endpoint identity
- * is resolved against rebuilt nodes by the caller.
+ * Best-effort inverse of `renderRelationsSection` for a single line. Used to rebuild
+ * edges when the hidden state block is lost, and to adopt hand-written lines (no marker,
+ * `id` absent) as new edges. Endpoint identity is resolved against state by the caller.
  */
 export function parseRelationsLine(line: string): ParsedRelationLine | null {
   const match = RELATION_LINE_RE.exec(line);
@@ -121,7 +122,11 @@ export function parseRelationsLine(line: string): ParsedRelationLine | null {
   const from = parseEndpoint(match[1]).endpoint;
   const target = parseEndpoint(match[3]);
   const label = target.rest.replace(/^:\s*/, "").trim();
-  const result: ParsedRelationLine = { id: match[4], from, to: target.endpoint, direction };
+  const result: ParsedRelationLine = { from, to: target.endpoint, direction };
+
+  if (match[4] !== undefined) {
+    result.id = match[4];
+  }
 
   if (label.length > 0) {
     result.label = label;

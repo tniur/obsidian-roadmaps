@@ -38,7 +38,9 @@ import type {
   TextAlignV,
 } from "../domain/types";
 import {
+  adoptRelationEdges,
   bodyNodeIds,
+  ensureClusterMarkers,
   rebuildState,
   reconcileState,
   readState,
@@ -47,6 +49,7 @@ import {
   writeState,
 } from "../state/document";
 import { isReservedHeading } from "../markdown/cluster";
+import { StateVersionError } from "../state/codec";
 import { RoadmapSession, type NodeMetaPatch, type RoadmapConnection } from "../state/session";
 import { FileSuggestModal } from "./FileSuggestModal";
 import { NodePreviewPanel } from "./NodePreviewPanel";
@@ -95,6 +98,7 @@ export class RoadmapView extends TextFileView {
   private loadError: string | null = null;
   private locked = false;
   private viewportSaveTimer: number | null = null;
+  private diskData: string | null = null;
 
   constructor(
     leaf: WorkspaceLeaf,
@@ -116,41 +120,49 @@ export class RoadmapView extends TextFileView {
   }
 
   /**
-   * Parses and reconciles the file into a session. A corrupted state block opens the
-   * view read-only instead of throwing (and never rewrites the file); a missing state
-   * block is rebuilt from the readable body; nodes present in state but absent from the
-   * body (a truncated or half-synced file) get their body blocks restored rather than
-   * being silently dropped.
+   * Parses and reconciles the file into a session. A corrupted or newer-version state
+   * block opens the view read-only instead of throwing (and never rewrites the file);
+   * a missing state block is rebuilt from the readable body; hand-written `##` headings
+   * gain cluster markers; hand-written relation lines become edges; nodes present in
+   * state but absent from the body (a truncated or half-synced file) get their body
+   * blocks restored rather than being silently dropped.
    */
   setViewData(data: string): void {
     this.loadError = null;
+    this.diskData = data;
     let parsed;
 
     try {
       parsed = readState(data);
-    } catch {
+    } catch (error) {
       this.data = data;
       this.session = null;
-      this.loadError = "The roadmap state block is corrupted. Fix or remove it in Markdown to avoid losing data.";
-      new Notice("Roadmap: state block is corrupted; opened read-only.");
+      this.loadError =
+        error instanceof StateVersionError
+          ? "This roadmap was saved by a newer plugin version. Update the plugin to edit it."
+          : "The roadmap state block is corrupted. Fix or remove it in Markdown to avoid losing data.";
+      new Notice(`Roadmap: ${this.loadError}`);
       this.renderApp();
 
       return;
     }
 
+    const marked = ensureClusterMarkers(data);
     let reconciled;
 
     if (parsed === null) {
-      reconciled = rebuildState(data);
+      reconciled = rebuildState(marked);
 
       if (Object.keys(reconciled.nodes).length > 0 || Object.keys(reconciled.clusters).length > 0) {
         new Notice("Roadmap: state block was missing; rebuilt from the note body.");
       }
     } else {
-      reconciled = reconcileState(parsed, data);
+      reconciled = reconcileState(parsed, marked);
+      reconciled = adoptRelationEdges(reconciled, marked);
     }
 
-    let content = reconciled === parsed ? data : writeRelations(writeState(data, reconciled), reconciled);
+    let content =
+      reconciled === parsed && marked === data ? data : writeRelations(writeState(marked, reconciled), reconciled);
     const present = bodyNodeIds(content);
     const orphans = Object.values(reconciled.nodes).filter((node) => !present.has(node.id));
 
@@ -177,6 +189,30 @@ export class RoadmapView extends TextFileView {
     this.data = "";
     this.session = null;
     this.loadError = null;
+    this.diskData = null;
+  }
+
+  /**
+   * Guards against overwriting edits that landed on disk from outside this view (sync,
+   * another device, an external editor) while local changes were pending. On a conflict
+   * the disk version wins — the roadmap file is shared state — and the view reloads it.
+   */
+  async save(clear?: boolean): Promise<void> {
+    const file = this.file;
+
+    if (file !== null && this.diskData !== null) {
+      const disk = await this.app.vault.read(file);
+
+      if (disk !== this.diskData && disk !== this.data) {
+        new Notice("Roadmap: file changed outside this view; reloaded the newer version.");
+        this.setViewData(disk);
+
+        return;
+      }
+    }
+
+    await super.save(clear);
+    this.diskData = this.data;
   }
 
   onPaneMenu(menu: Menu, source: string): void {
@@ -201,8 +237,33 @@ export class RoadmapView extends TextFileView {
     this.root = createRoot(this.contentEl);
     this.registerDomEvent(this.contentEl.ownerDocument, "keydown", this.handleKeyDown);
     this.registerEvent(this.app.vault.on("modify", this.handleVaultModify));
+    this.registerEvent(this.app.vault.on("rename", this.handleVaultRename));
+    this.registerEvent(this.app.vault.on("delete", this.handleVaultDelete));
     this.renderApp();
   }
+
+  /**
+   * Keeps node sources pointing at renamed files and folders ([[ADR-0011]]). Applied
+   * outside the undo history: the rename already happened in the vault, so undoing it
+   * from the roadmap would only break the links again.
+   */
+  private readonly handleVaultRename = (file: TAbstractFile, oldPath: string): void => {
+    if (this.session === null) {
+      return;
+    }
+
+    if (this.session.applySourceRename(oldPath, file.path)) {
+      this.data = this.session.content;
+      this.requestSave();
+      this.previewRefreshNonce += 1;
+    }
+
+    this.renderApp();
+  };
+
+  private readonly handleVaultDelete = (): void => {
+    this.renderApp();
+  };
 
   private readonly handleVaultModify = (file: TAbstractFile): void => {
     if (this.previewNodeId === null || this.session === null) {
@@ -911,8 +972,15 @@ export class RoadmapView extends TextFileView {
       return;
     }
 
-    const path = this.availableNotePath("Untitled Node");
-    const file = await this.app.vault.create(path, "");
+    let file: TFile;
+
+    try {
+      file = await this.app.vault.create(this.availableNotePath("Untitled Node"), "");
+    } catch (error) {
+      new Notice(`Failed to create note: ${error instanceof Error ? error.message : String(error)}`);
+
+      return;
+    }
 
     this.session.addNodeWithEdge(createNoteNode(file.path, placement), source, sourceHandle, null);
     this.commit();
@@ -1342,8 +1410,15 @@ export class RoadmapView extends TextFileView {
       return;
     }
 
-    const path = this.availableNotePath("Untitled Node");
-    const file = await this.app.vault.create(path, "");
+    let file: TFile;
+
+    try {
+      file = await this.app.vault.create(this.availableNotePath("Untitled Node"), "");
+    } catch (error) {
+      new Notice(`Failed to create note: ${error instanceof Error ? error.message : String(error)}`);
+
+      return;
+    }
 
     this.session.addNode(createNoteNode(file.path, placement));
     this.commit();

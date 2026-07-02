@@ -129,6 +129,70 @@ describe("viewport persistence", () => {
   });
 });
 
+describe("vault renames", () => {
+  it("re-points node sources, body links and relations without an undo step", () => {
+    const session = freshSession();
+    const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
+    const b = createNoteNode("notes/b.md", { x: 300, y: 0 });
+
+    session.addNodes([a, b]);
+    session.addEdge(a.id, b.id);
+    const undoDepthBefore = session.canUndo;
+
+    expect(session.applySourceRename("notes/a.md", "archive/renamed.md")).toBe(true);
+    expect(session.state.nodes[a.id].source).toEqual({ type: "note", file: "archive/renamed.md" });
+    expect(session.content).toContain("[[archive/renamed|renamed]]");
+    expect(session.content).not.toContain("[[notes/a|");
+    expect(session.canUndo).toBe(undoDepthBefore);
+  });
+
+  it("re-points every source inside a renamed folder", () => {
+    const session = freshSession();
+    const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
+    const b = createNoteNode("elsewhere/b.md", { x: 300, y: 0 });
+
+    session.addNodes([a, b]);
+
+    expect(session.applySourceRename("notes", "topics")).toBe(true);
+    expect(session.state.nodes[a.id].source).toEqual({ type: "note", file: "topics/a.md" });
+    expect(session.state.nodes[b.id].source).toEqual({ type: "note", file: "elsewhere/b.md" });
+  });
+
+  it("reports false when nothing references the renamed path", () => {
+    const session = freshSession();
+
+    expect(session.applySourceRename("notes/x.md", "notes/y.md")).toBe(false);
+  });
+});
+
+describe("storage round-trip at scale", () => {
+  it("keeps 300 nodes and their edges intact through write and reconcile", () => {
+    const session = freshSession();
+    const nodes = Array.from({ length: 300 }, (_, i) =>
+      createNoteNode(`notes/n${i}.md`, { x: (i % 20) * 220, y: Math.floor(i / 20) * 100 }),
+    );
+
+    session.addNodes(nodes);
+
+    for (let i = 0; i < 100; i += 1) {
+      session.addEdge(nodes[i].id, nodes[i + 100].id);
+    }
+
+    session.moveNodes(nodes.map((node, i) => ({ id: node.id, x: i, y: i * 2 })));
+    const state = readState(session.content);
+
+    expect(state).not.toBeNull();
+    expect(Object.keys(state?.nodes ?? {})).toHaveLength(300);
+    expect(Object.keys(state?.edges ?? {})).toHaveLength(100);
+
+    if (state === null) {
+      return;
+    }
+
+    expect(reconcileState(state, session.content)).toBe(state);
+  });
+});
+
 describe("no-op mutations", () => {
   it("does not record history for a meta patch that changes nothing", () => {
     const session = freshSession();
