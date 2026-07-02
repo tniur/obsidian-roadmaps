@@ -102,6 +102,36 @@ export function stateToFlowNodes(
   return [...clusters, ...nodes];
 }
 
+/**
+ * Shallow equality over node/cluster card content. Extra keys on either shape resolve to
+ * undefined on the other, so one comparator covers both node and cluster data records.
+ */
+function flowDataEqual(a: Record<string, unknown>, b: Record<string, unknown>): boolean {
+  const alignA = a.align as TextAlign | undefined;
+  const alignB = b.align as TextAlign | undefined;
+
+  return (
+    a.label === b.label &&
+    a.title === b.title &&
+    a.description === b.description &&
+    a.kind === b.kind &&
+    a.status === b.status &&
+    a.priority === b.priority &&
+    a.color === b.color &&
+    a.missing === b.missing &&
+    a.imageSrc === b.imageSrc &&
+    a.collapsed === b.collapsed &&
+    alignA?.h === alignB?.h &&
+    alignA?.v === alignB?.v
+  );
+}
+
+/**
+ * Merges freshly derived flow nodes into the current list, preserving object identity
+ * for nodes that did not change. React Flow re-renders per element by reference, so on
+ * a large board an unrelated mutation leaves untouched cards alone instead of
+ * re-rendering all of them.
+ */
 export function reconcileFlowNodes(current: RoadmapFlowNode[], next: RoadmapFlowNode[]): RoadmapFlowNode[] {
   const currentById = new Map(current.map((node) => [node.id, node]));
 
@@ -112,8 +142,23 @@ export function reconcileFlowNodes(current: RoadmapFlowNode[], next: RoadmapFlow
       return node;
     }
 
+    const dataEqual = flowDataEqual(existing.data, node.data);
+
     if (existing.dragging === true) {
-      return { ...existing, data: node.data };
+      return dataEqual ? existing : { ...existing, data: node.data };
+    }
+
+    const same =
+      dataEqual &&
+      existing.position.x === node.position.x &&
+      existing.position.y === node.position.y &&
+      existing.width === node.width &&
+      existing.height === node.height &&
+      existing.parentId === node.parentId &&
+      existing.hidden === node.hidden;
+
+    if (same) {
+      return existing;
     }
 
     return {
@@ -144,4 +189,44 @@ export function stateToFlowEdges(state: RoadmapState): Edge[] {
       label: edge.label,
     },
   }));
+}
+
+function edgeDataEqual(a: Record<string, unknown> | undefined, b: Record<string, unknown> | undefined): boolean {
+  return (
+    a?.direction === b?.direction &&
+    a?.line === b?.line &&
+    a?.fromSide === b?.fromSide &&
+    a?.toSide === b?.toSide &&
+    a?.label === b?.label
+  );
+}
+
+/**
+ * Same identity-preserving merge as `reconcileFlowNodes`, for edges. Also carries the
+ * ephemeral `selected` flag over to changed edges, so an unrelated commit no longer
+ * drops the current edge selection.
+ */
+export function reconcileFlowEdges(current: Edge[], next: Edge[]): Edge[] {
+  const currentById = new Map(current.map((edge) => [edge.id, edge]));
+
+  return next.map((edge) => {
+    const existing = currentById.get(edge.id);
+
+    if (existing === undefined) {
+      return edge;
+    }
+
+    const same =
+      existing.source === edge.source &&
+      existing.target === edge.target &&
+      existing.sourceHandle === edge.sourceHandle &&
+      existing.targetHandle === edge.targetHandle &&
+      edgeDataEqual(existing.data, edge.data);
+
+    if (same) {
+      return existing;
+    }
+
+    return existing.selected === undefined ? edge : { ...edge, selected: existing.selected };
+  });
 }

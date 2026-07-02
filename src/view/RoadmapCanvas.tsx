@@ -32,6 +32,7 @@ import { getHelperLines } from "./alignment";
 import { HelperLines } from "./HelperLines";
 import { NodeCallbacksContext, type NodeCallbacks } from "./nodeCallbacks";
 import {
+  reconcileFlowEdges,
   reconcileFlowNodes,
   ROADMAP_CLUSTER_TYPE,
   ROADMAP_EDGE_TYPE,
@@ -158,7 +159,7 @@ export function RoadmapCanvas({
 
   useEffect(() => {
     setNodes((current) => reconcileFlowNodes(current, stateToFlowNodes(state, isNodeMissing, resolveImageSrc)));
-    setEdges(stateToFlowEdges(state));
+    setEdges((current) => reconcileFlowEdges(current, stateToFlowEdges(state)));
   }, [state, isNodeMissing, resolveImageSrc]);
 
   useEffect(() => {
