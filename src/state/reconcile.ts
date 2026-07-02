@@ -7,6 +7,7 @@ import {
   DEFAULT_NODE_WIDTH,
 } from "../constants";
 import { arrangeClusterGrid, membersBoundingBox } from "../domain/clusterLayout";
+import { fileKindForPath } from "../domain/paths";
 import { sourceFile } from "../domain/source";
 import { nodeTitle } from "../domain/title";
 import {
@@ -387,8 +388,7 @@ function relationEdgesFromBody(
 }
 
 /** Node reconstructed from its body marker and readable block, or null when the marker
- * kind is unknown or the block does not parse. Inline text sources reuse the marker id,
- * keeping repeated recoveries of the same file deterministic. */
+ * kind is unknown or the block does not parse. */
 function nodeFromMarker(content: string, marker: { id: string; kind: string }, index: number): RoadmapNode | null {
   if (!isNodeKind(marker.kind)) {
     return null;
@@ -401,9 +401,12 @@ function nodeFromMarker(content: string, marker: { id: string; kind: string }, i
     return null;
   }
 
-  const source: RoadmapNodeSource =
-    parsed.source.type === "text" ? { type: "text", markdownNodeId: marker.id } : parsed.source;
-  const node: RoadmapNode = { id: marker.id, kind: marker.kind, source, layout: defaultNodeLayout(index) };
+  const node: RoadmapNode = {
+    id: marker.id,
+    kind: marker.kind,
+    source: parsed.source,
+    layout: defaultNodeLayout(index),
+  };
 
   if (parsed.title !== undefined) node.title = parsed.title;
   if (parsed.description !== undefined) node.description = parsed.description;
@@ -500,6 +503,79 @@ export function rebuildState(content: string): RoadmapState {
   return { ...state, edges: relationEdgesFromBody(state, content, true) ?? state.edges };
 }
 
+const BARE_WIKILINK_LINE_RE = /^(?:-\s+(?:\[[ xX]\]\s+)?)?\[\[([^\][|#^]+)(?:\|([^\]]*))?\]\]\s*$/;
+
+/**
+ * Turns standalone wikilink lines hand-written in the body into marked node blocks, so
+ * a `[[note]]` dropped into a section becomes a node on load. Only lines that consist
+ * of a single link (optionally as a list item) qualify. The `## Relations` / `## Archive`
+ * sections and the representation line right after an existing node marker are left
+ * alone; the node kind follows the target's extension.
+ */
+export function adoptBareWikilinks(content: string): string {
+  const bounds = bodyBounds(content);
+  const lines = content.slice(bounds.start, bounds.end).split("\n");
+  const result: string[] = [];
+  let changed = false;
+  let inReservedSection = false;
+  let afterMarker = false;
+
+  for (const line of lines) {
+    const heading = parseClusterHeading(line);
+
+    if (heading !== null) {
+      inReservedSection = isReservedHeading(heading.title);
+      afterMarker = false;
+      result.push(line);
+      continue;
+    }
+
+    if (NODE_MARKER_LINE_RE.test(line)) {
+      afterMarker = true;
+      result.push(line);
+      continue;
+    }
+
+    if (line.trim().length === 0) {
+      result.push(line);
+      continue;
+    }
+
+    const skip = inReservedSection || afterMarker;
+
+    afterMarker = false;
+    const link = skip ? null : BARE_WIKILINK_LINE_RE.exec(line);
+
+    if (link === null) {
+      result.push(line);
+      continue;
+    }
+
+    const target = link[1].trim();
+    const alias = link[2]?.trim();
+    const kind = fileKindForPath(target);
+
+    changed = true;
+    result.push(`<!-- roadmap-node:id=${nanoid()} type=${kind} -->`);
+
+    if (kind === "image") {
+      result.push(`![[${target}]]`);
+
+      if (alias !== undefined && alias.length > 0) {
+        result.push(`**${alias}**`);
+      }
+    } else {
+      result.push(line);
+    }
+  }
+
+  if (!changed) {
+    return content;
+  }
+
+  return `${content.slice(0, bounds.start)}${result.join("\n")}${content.slice(bounds.end)}`;
+}
+
 /**
  * Adds cluster markers to hand-written `##` headings so they become real clusters
  * (every non-reserved `##` heading is a cluster). Reserved sections and
@@ -558,7 +634,13 @@ export interface LoadedDocument {
 export function loadDocument(data: string): LoadedDocument {
   const warnings: DocumentWarning[] = [];
   const parsed = readState(data);
-  const marked = ensureClusterMarkers(data);
+  let marked = ensureClusterMarkers(data);
+  const truncatedBody = parsed !== null && Object.keys(parsed.nodes).length > 0 && bodyNodeIds(data).size === 0;
+
+  if (!truncatedBody) {
+    marked = adoptBareWikilinks(marked);
+  }
+
   let state: RoadmapState;
 
   if (parsed === null) {
@@ -596,7 +678,7 @@ export function loadDocument(data: string): LoadedDocument {
  * done silently.
  */
 export function rebuildDocument(data: string): LoadedDocument {
-  const marked = ensureClusterMarkers(data);
+  const marked = adoptBareWikilinks(ensureClusterMarkers(data));
   const state = rebuildState(marked);
   const content = writeRelations(writeState(marked, state), state);
 

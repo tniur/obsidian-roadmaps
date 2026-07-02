@@ -10,7 +10,7 @@ export type RoadmapNodeSource =
   | { type: "note"; file: string }
   | { type: "heading"; file: string; heading: string }
   | { type: "block"; file: string; blockId: string }
-  | { type: "text"; markdownNodeId: string }
+  | { type: "text" }
   | { type: "image"; file: string }
   | { type: "attachment"; file: string }
   | { type: "url"; url: string };

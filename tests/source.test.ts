@@ -13,7 +13,7 @@ describe("sourceFile", () => {
   });
 
   it("returns null for sources without a vault file", () => {
-    expect(sourceFile({ type: "text", markdownNodeId: "m1" })).toBeNull();
+    expect(sourceFile({ type: "text" })).toBeNull();
     expect(sourceFile({ type: "url", url: "https://example.com" })).toBeNull();
   });
 });

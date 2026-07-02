@@ -5,5 +5,5 @@
   "minAppVersion": "1.5.0",
   "description": "Turn your notes into interactive visual roadmaps — with connections, clusters, statuses, and priorities.",
   "author": "tniur",
-  "isDesktopOnly": false
+  "isDesktopOnly": true
 }

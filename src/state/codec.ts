@@ -25,7 +25,7 @@ function decodeSource(s: CompactSource): RoadmapNodeSource {
     case "block":
       return { type: "block", file: s[1], blockId: s[2] };
     case "text":
-      return { type: "text", markdownNodeId: s[1] };
+      return { type: "text" };
     case "image":
       return { type: "image", file: s[1] };
     case "attachment":
@@ -44,7 +44,7 @@ function encodeSource(s: RoadmapNodeSource): CompactSource {
     case "block":
       return ["block", s.file, s.blockId];
     case "text":
-      return ["text", s.markdownNodeId];
+      return ["text"];
     case "image":
       return ["image", s.file];
     case "attachment":
@@ -273,8 +273,9 @@ export class StateVersionError extends Error {
 
 /**
  * Pure migration steps keyed by the version they upgrade from; each returns the shape
- * of the next version. Empty while the schema is at its first version — the seam exists
- * so format bumps ship with a migration instead of invalidating older files.
+ * of the next version. Empty while the schema is at its first released version — the
+ * seam exists so post-release format bumps ship with a migration instead of
+ * invalidating older files.
  */
 const MIGRATIONS: Record<number, (raw: Record<string, unknown>) => Record<string, unknown>> = {};
 

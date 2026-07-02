@@ -983,7 +983,9 @@ export class RoadmapSession {
    * Re-points one or both ends of an edge to the given connection, keeping direction, label and
    * style. Both endpoints are rebuilt from the connection, so the untouched end stays as it was;
    * a null handle means that end floats. No-ops on a self-loop, a forbidden intra-cluster link,
-   * or a connection that duplicates another edge in either direction.
+   * or an exact duplicate of another edge; landing on the mirror of another edge merges into
+   * it — the reconnected edge is dropped and the mirror becomes bidirectional, matching how
+   * drawing a reverse edge behaves.
    */
   reconnectEdge(id: string, connection: RoadmapConnection): void {
     const edge = this.stateValue.edges[id];
@@ -999,14 +1001,27 @@ export class RoadmapSession {
       return;
     }
 
-    const duplicate = Object.values(this.stateValue.edges).some(
-      (other) =>
-        other.id !== id &&
-        ((endpointsEqual(other.from, from) && endpointsEqual(other.to, to)) ||
-          (endpointsEqual(other.from, to) && endpointsEqual(other.to, from))),
-    );
+    const others = Object.values(this.stateValue.edges).filter((other) => other.id !== id);
 
-    if (duplicate) {
+    if (others.some((other) => endpointsEqual(other.from, from) && endpointsEqual(other.to, to))) {
+      return;
+    }
+
+    const mirror = others.find((other) => endpointsEqual(other.from, to) && endpointsEqual(other.to, from));
+
+    if (mirror !== undefined) {
+      this.begin();
+      const edges = { ...this.stateValue.edges };
+
+      delete edges[id];
+
+      if (mirror.direction !== "both") {
+        edges[mirror.id] = { ...mirror, direction: "both" };
+      }
+
+      this.stateValue = { ...this.stateValue, edges };
+      this.contentValue = writeRelations(writeState(this.contentValue, this.stateValue), this.stateValue);
+
       return;
     }
 

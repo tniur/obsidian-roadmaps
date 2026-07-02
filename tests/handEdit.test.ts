@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { createNoteNode, createUrlNode } from "../src/domain/create";
 import { createRoadmapDocument, readState } from "../src/state/document";
-import { adoptNodeMarkers, adoptRelationEdges, ensureClusterMarkers, reconcileState } from "../src/state/reconcile";
+import {
+  adoptNodeMarkers,
+  adoptRelationEdges,
+  ensureClusterMarkers,
+  loadDocument,
+  reconcileState,
+} from "../src/state/reconcile";
 import { RoadmapSession } from "../src/state/session";
 
 function freshSession(): RoadmapSession {
@@ -13,6 +19,10 @@ function freshSession(): RoadmapSession {
   }
 
   return new RoadmapSession(state, content);
+}
+
+function sourceHasFile(source: { type: string }, file: string): boolean {
+  return "file" in source && (source as { file: string }).file === file;
 }
 
 describe("hand edits reconciled back into state", () => {
@@ -181,6 +191,78 @@ describe("hand-written node blocks with a marker", () => {
     const adopted = adoptNodeMarkers(reconcileState(state, edited), edited);
 
     expect(adopted.nodes["pasted-node-3"]).toBeUndefined();
+  });
+});
+
+describe("bare wikilinks written in the body", () => {
+  it("adopts a standalone [[wikilink]] line as a note node", () => {
+    const session = freshSession();
+    const existing = createNoteNode("notes/a.md", { x: 0, y: 0 });
+
+    session.addNode(existing);
+    const edited = session.content.replace("# Board", "# Board\n\n[[notes/new|Fresh]]");
+    const loaded = loadDocument(edited);
+    const adopted = Object.values(loaded.state.nodes).find((node) => sourceHasFile(node.source, "notes/new.md"));
+
+    expect(adopted).toBeDefined();
+    expect(adopted?.kind).toBe("note");
+    expect(adopted?.title).toBe("Fresh");
+    expect(loaded.content).toMatch(/<!-- roadmap-node:id=\S+ type=note -->\n\[\[notes\/new\|Fresh\]\]/);
+    expect(Object.keys(loaded.state.nodes)).toHaveLength(2);
+  });
+
+  it("adopts a bare link under a cluster heading as a member", () => {
+    const session = freshSession();
+    const member = createNoteNode("notes/a.md", { x: 0, y: 0 });
+
+    session.addNode(member);
+    session.createClusterFromNodes([member.id], "Group");
+    const clusterId = Object.keys(session.state.clusters)[0];
+    const heading = session.content.match(/^## Group <!--[^\n]*$/m)?.[0];
+
+    if (heading === undefined) {
+      throw new Error("expected the cluster heading");
+    }
+
+    const edited = session.content.replace(heading, `${heading}\n\n- [[notes/linked]]`);
+    const loaded = loadDocument(edited);
+    const adopted = Object.values(loaded.state.nodes).find((node) => sourceHasFile(node.source, "notes/linked.md"));
+
+    expect(adopted?.clusterId).toBe(clusterId);
+  });
+
+  it("classifies the adopted node by the target extension", () => {
+    const session = freshSession();
+    const edited = session.content.replace("# Board", "# Board\n\n[[img/pic.png]]\n\n[[files/doc.pdf]]");
+    const loaded = loadDocument(edited);
+    const kinds = Object.values(loaded.state.nodes).map((node) => node.kind);
+
+    expect(kinds.sort()).toEqual(["attachment", "image"]);
+    expect(loaded.content).toContain("![[img/pic.png]]");
+  });
+
+  it("does not re-adopt the representation line of an existing node", () => {
+    const session = freshSession();
+    const existing = createNoteNode("notes/a.md", { x: 0, y: 0 });
+
+    session.addNode(existing);
+    const loaded = loadDocument(session.content);
+
+    expect(Object.keys(loaded.state.nodes)).toHaveLength(1);
+    expect(loaded.content).toBe(session.content);
+  });
+
+  it("leaves relation lines and the reserved sections alone", () => {
+    const session = freshSession();
+    const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
+    const b = createNoteNode("notes/b.md", { x: 300, y: 0 });
+
+    session.addNodes([a, b]);
+    session.addEdge(a.id, b.id);
+    const loaded = loadDocument(session.content);
+
+    expect(Object.keys(loaded.state.nodes)).toHaveLength(2);
+    expect(Object.keys(loaded.state.edges)).toHaveLength(1);
   });
 });
 

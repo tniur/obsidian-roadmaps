@@ -9,7 +9,7 @@ const sourceSchema = z.union([
   z.tuple([z.literal("note"), z.string()]),
   z.tuple([z.literal("heading"), z.string(), z.string()]),
   z.tuple([z.literal("block"), z.string(), z.string()]),
-  z.tuple([z.literal("text"), z.string()]),
+  z.tuple([z.literal("text")]),
   z.tuple([z.literal("image"), z.string()]),
   z.tuple([z.literal("attachment"), z.string()]),
   z.tuple([z.literal("url"), z.string()]),

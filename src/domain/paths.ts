@@ -18,3 +18,24 @@ export function urlHostname(url: string): string {
     return url;
   }
 }
+
+export const IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "gif", "svg", "webp", "bmp", "avif"]);
+
+/** Node kind implied by a vault path: image by extension, note for `.md` and
+ * extension-less wikilink targets, attachment for anything else. */
+export function fileKindForPath(path: string): "note" | "image" | "attachment" {
+  const name = path.split("/").pop() ?? path;
+  const dot = name.lastIndexOf(".");
+
+  if (dot === -1) {
+    return "note";
+  }
+
+  const extension = name.slice(dot + 1).toLowerCase();
+
+  if (IMAGE_EXTENSIONS.has(extension)) {
+    return "image";
+  }
+
+  return extension === "md" ? "note" : "attachment";
+}

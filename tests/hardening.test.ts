@@ -168,7 +168,7 @@ describe("reverse edge merging", () => {
     expect(session.state.edges[edgeId].direction).toBe("forward");
   });
 
-  it("rejects a reconnect that would mirror another edge", () => {
+  it("merges a reconnect landing on the mirror of another edge into a bidirectional one", () => {
     const session = freshSession();
     const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
     const b = createNoteNode("notes/b.md", { x: 300, y: 0 });
@@ -177,13 +177,40 @@ describe("reverse edge merging", () => {
     session.addNodes([a, b, c]);
     session.addEdge(a.id, b.id);
     session.addEdge(b.id, c.id);
+    const first = Object.values(session.state.edges).find((edge) => edge.from.id === a.id);
     const second = Object.values(session.state.edges).find((edge) => edge.from.id === b.id);
+
+    if (first === undefined || second === undefined) {
+      throw new Error("expected both edges");
+    }
+
+    session.reconnectEdge(second.id, { source: b.id, target: a.id, sourceHandle: null, targetHandle: null });
+
+    expect(session.state.edges[second.id]).toBeUndefined();
+    expect(session.state.edges[first.id].direction).toBe("both");
+    expect(Object.keys(session.state.edges)).toHaveLength(1);
+
+    session.undo();
+    expect(session.state.edges[second.id].to).toEqual({ type: "node", id: c.id });
+    expect(session.state.edges[first.id].direction).toBe("forward");
+  });
+
+  it("rejects a reconnect that would exactly duplicate another edge", () => {
+    const session = freshSession();
+    const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
+    const b = createNoteNode("notes/b.md", { x: 300, y: 0 });
+    const c = createNoteNode("notes/c.md", { x: 600, y: 0 });
+
+    session.addNodes([a, b, c]);
+    session.addEdge(a.id, b.id);
+    session.addEdge(a.id, c.id);
+    const second = Object.values(session.state.edges).find((edge) => edge.to.id === c.id);
 
     if (second === undefined) {
       throw new Error("expected the second edge");
     }
 
-    session.reconnectEdge(second.id, { source: b.id, target: a.id, sourceHandle: null, targetHandle: null });
+    session.reconnectEdge(second.id, { source: a.id, target: b.id, sourceHandle: null, targetHandle: null });
 
     expect(session.state.edges[second.id].to).toEqual({ type: "node", id: c.id });
   });

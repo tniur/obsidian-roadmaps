@@ -79,7 +79,7 @@ export function createTextNode(text: string, placement: NodePlacement): RoadmapN
   return {
     id: nanoid(),
     kind: "text",
-    source: { type: "text", markdownNodeId: nanoid() },
+    source: { type: "text" },
     title: text,
     layout: {
       x: placement.x,

@@ -1,4 +1,3 @@
-import { nanoid } from "nanoid";
 import { fileBasename, stripMarkdownExtension, urlHostname } from "../domain/paths";
 import { nodeTitle } from "../domain/title";
 import {
@@ -83,7 +82,7 @@ const STATUS_VALUES = new Set<string>(ROADMAP_STATUSES);
 
 const PRIORITY_VALUES = new Set<string>(ROADMAP_PRIORITIES);
 
-const LIST_LINK_RE = /^(?:- \[[ xX]\] )?(.*)$/;
+const LIST_LINK_RE = /^(?:-\s+(?:\[[ xX]\]\s+)?)?(.*)$/;
 
 const WIKILINK_RE = /^\[\[([^\]|]+)(?:\|([^\]]*))?\]\]/;
 
@@ -131,7 +130,7 @@ export function parseNodeBlock(kind: RoadmapNodeKind, body: string): ParsedNodeB
   if (kind === "text") {
     const text = unescapeTextContent(body.trim());
 
-    return { source: { type: "text", markdownNodeId: nanoid() }, title: text.length > 0 ? text : undefined };
+    return { source: { type: "text" }, title: text.length > 0 ? text : undefined };
   }
 
   const lines = body

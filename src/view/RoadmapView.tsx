@@ -24,6 +24,7 @@ import {
 } from "../domain/create";
 import { facingSide } from "../domain/edges";
 import { nodeOpenTarget } from "../domain/openTarget";
+import { fileKindForPath, IMAGE_EXTENSIONS } from "../domain/paths";
 import { sourceFile } from "../domain/source";
 import type {
   EdgeDirection,
@@ -45,8 +46,6 @@ import { FileSuggestModal } from "./FileSuggestModal";
 import { NodePreviewPanel } from "./NodePreviewPanel";
 import { PromptModal } from "./PromptModal";
 import { RoadmapCanvas } from "./RoadmapCanvas";
-
-const IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "gif", "svg", "webp", "bmp", "avif"]);
 
 const COLOR_OPTIONS: { title: string; value: string }[] = [
   { title: "Red", value: "var(--color-red)" },
@@ -406,17 +405,14 @@ export class RoadmapView extends TextFileView {
   }
 
   private nodeForFile(file: TFile, placement: NodePlacement): RoadmapNode {
-    const ext = file.extension.toLowerCase();
-
-    if (IMAGE_EXTENSIONS.has(ext)) {
-      return createImageNode(file.path, placement);
+    switch (fileKindForPath(file.path)) {
+      case "image":
+        return createImageNode(file.path, placement);
+      case "note":
+        return createNoteNode(file.path, placement);
+      case "attachment":
+        return createAttachmentNode(file.path, placement);
     }
-
-    if (ext === "md") {
-      return createNoteNode(file.path, placement);
-    }
-
-    return createAttachmentNode(file.path, placement);
   }
 
   private readonly handleNodesDuplicated = (items: ReadonlyArray<{ id: string; x: number; y: number }>): void => {

@@ -95,7 +95,7 @@ describe("roadmap document", () => {
     const textNode: RoadmapNode = {
       id: "t1",
       kind: "text",
-      source: { type: "text", markdownNodeId: "m1" },
+      source: { type: "text" },
       title: "AAA",
       layout: { x: 0, y: 0, width: 200, height: 80 },
     };
