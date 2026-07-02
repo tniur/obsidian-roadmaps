@@ -17,7 +17,7 @@ import {
   VIEW_TYPE_ROADMAP,
 } from "./constants";
 import { createRoadmapDocument } from "./state/document";
-import { RoadmapView, type RoadmapViewHost } from "./view/RoadmapView";
+import { RoadmapView, type AddNodeCommand, type RoadmapViewHost } from "./view/RoadmapView";
 
 const MARKDOWN_VIEW_TYPE = "markdown";
 
@@ -36,6 +36,15 @@ const DEFAULT_SETTINGS: RoadmapSettings = {
   showBackgroundDots: true,
 };
 
+const ADD_NODE_COMMANDS: ReadonlyArray<{ id: AddNodeCommand; name: string; icon: string }> = [
+  { id: "create-note", name: "Create new note", icon: "file-plus" },
+  { id: "add-note", name: "Add existing note", icon: "search" },
+  { id: "add-url", name: "Add URL", icon: "link" },
+  { id: "add-image", name: "Add image", icon: "image" },
+  { id: "add-text", name: "Add text", icon: "type" },
+  { id: "add-attachment", name: "Add attachment", icon: "paperclip" },
+];
+
 export default class RoadmapPlugin extends Plugin {
   private readonly fileModes: Record<string, ViewMode> = {};
   private displaySettings: RoadmapSettings = { ...DEFAULT_SETTINGS };
@@ -52,13 +61,7 @@ export default class RoadmapPlugin extends Plugin {
       void this.createRoadmap();
     });
 
-    this.addCommand({
-      id: "create-roadmap",
-      name: "Create roadmap",
-      callback: () => {
-        void this.createRoadmap();
-      },
-    });
+    this.registerCommands();
 
     this.registerEvent(
       this.app.workspace.on("file-menu", (menu, file, _source, leaf) => {
@@ -81,6 +84,124 @@ export default class RoadmapPlugin extends Plugin {
         );
       }),
     );
+  }
+
+  private registerCommands(): void {
+    this.addCommand({
+      id: "create-roadmap",
+      name: "Create roadmap",
+      icon: "map",
+      callback: () => {
+        void this.createRoadmap();
+      },
+    });
+
+    this.addCommand({
+      id: "open-as-roadmap",
+      name: "Open as roadmap",
+      icon: "map",
+      checkCallback: (checking) => {
+        const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+        const file = view?.file ?? null;
+
+        if (view === null || file === null || !this.isRoadmapFile(file)) {
+          return false;
+        }
+
+        if (!checking) {
+          this.openAsRoadmap(view.leaf, file);
+        }
+
+        return true;
+      },
+    });
+
+    this.addCommand({
+      id: "open-as-markdown",
+      name: "Open as Markdown",
+      icon: "file-text",
+      checkCallback: (checking) => {
+        const view = this.app.workspace.getActiveViewOfType(RoadmapView);
+        const file = view?.file ?? null;
+
+        if (view === null || file === null) {
+          return false;
+        }
+
+        if (!checking) {
+          this.openAsMarkdown(view.leaf, file);
+        }
+
+        return true;
+      },
+    });
+
+    for (const { id, name, icon } of ADD_NODE_COMMANDS) {
+      this.addBoardCommand(
+        id,
+        name,
+        icon,
+        (view) => view.isBoardEditable(),
+        (view) => view.runAddNode(id),
+      );
+    }
+
+    this.addBoardCommand(
+      "undo",
+      "Undo",
+      "undo-2",
+      (view) => view.canUndoEdit(),
+      (view) => view.undoEdit(),
+    );
+    this.addBoardCommand(
+      "redo",
+      "Redo",
+      "redo-2",
+      (view) => view.canRedoEdit(),
+      (view) => view.redoEdit(),
+    );
+    this.addBoardCommand(
+      "fit-view",
+      "Fit to nodes",
+      "frame",
+      (view) => view.isBoardLoaded(),
+      (view) => view.fitToNodes(),
+    );
+    this.addBoardCommand(
+      "toggle-lock",
+      "Toggle board lock",
+      "lock",
+      (view) => view.isBoardLoaded(),
+      (view) => view.toggleLock(),
+    );
+  }
+
+  /** Registers a command that applies only while a roadmap view is active. */
+  private addBoardCommand(
+    id: string,
+    name: string,
+    icon: string,
+    available: (view: RoadmapView) => boolean,
+    run: (view: RoadmapView) => void,
+  ): void {
+    this.addCommand({
+      id,
+      name,
+      icon,
+      checkCallback: (checking) => {
+        const view = this.app.workspace.getActiveViewOfType(RoadmapView);
+
+        if (view === null || !available(view)) {
+          return false;
+        }
+
+        if (!checking) {
+          run(view);
+        }
+
+        return true;
+      },
+    });
   }
 
   getShowBackgroundDots(): boolean {

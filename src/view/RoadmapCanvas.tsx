@@ -12,6 +12,7 @@ import {
   type EdgeChange,
   type FinalConnectionState,
   type NodeChange,
+  type ReactFlowInstance,
 } from "@xyflow/react";
 import {
   type DragEvent,
@@ -73,6 +74,7 @@ interface RoadmapCanvasProps {
   locked: boolean;
   onToggleLock: () => void;
   onViewportChange: (viewport: RoadmapViewport) => void;
+  onFlowInit: (instance: ReactFlowInstance | null) => void;
   canUndo: boolean;
   canRedo: boolean;
   onUndo: () => void;
@@ -114,6 +116,7 @@ export function RoadmapCanvas({
   locked,
   onToggleLock,
   onViewportChange,
+  onFlowInit,
   canUndo,
   canRedo,
   onUndo,
@@ -145,7 +148,8 @@ export function RoadmapCanvas({
   onNodeContextMenu,
   onSelectionContextMenu,
 }: RoadmapCanvasProps) {
-  const { screenToFlowPosition, getNodes } = useReactFlow();
+  const reactFlow = useReactFlow();
+  const { screenToFlowPosition, getNodes } = reactFlow;
   const flowId = useId();
   const [dotsVisible, setDotsVisible] = useState(initialDotsVisible);
   const initialViewportRef = useRef(state.viewport);
@@ -161,6 +165,12 @@ export function RoadmapCanvas({
     setNodes((current) => reconcileFlowNodes(current, stateToFlowNodes(state, isNodeMissing, resolveImageSrc)));
     setEdges((current) => reconcileFlowEdges(current, stateToFlowEdges(state)));
   }, [state, isNodeMissing, resolveImageSrc]);
+
+  useEffect(() => {
+    onFlowInit(reactFlow);
+
+    return () => onFlowInit(null);
+  }, [reactFlow, onFlowInit]);
 
   useEffect(() => {
     if (focusNonce === 0) {

@@ -9,7 +9,7 @@ import {
   type TAbstractFile,
   type WorkspaceLeaf,
 } from "obsidian";
-import { ReactFlowProvider } from "@xyflow/react";
+import { ReactFlowProvider, type ReactFlowInstance } from "@xyflow/react";
 import { StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { DEFAULT_NODE_HEIGHT, DEFAULT_NODE_WIDTH, VIEW_TYPE_ROADMAP } from "../constants";
@@ -64,6 +64,8 @@ export interface RoadmapViewHost {
   setShowBackgroundDots: (value: boolean) => void;
 }
 
+export type AddNodeCommand = "create-note" | "add-note" | "add-url" | "add-image" | "add-text" | "add-attachment";
+
 type AppWithDragManager = App & {
   dragManager?: { draggable?: { file?: unknown; files?: unknown[] } };
 };
@@ -94,6 +96,7 @@ export class RoadmapView extends TextFileView {
   private locked = false;
   private viewportSaveTimer: number | null = null;
   private diskData: string | null = null;
+  private flow: ReactFlowInstance | null = null;
 
   constructor(
     leaf: WorkspaceLeaf,
@@ -300,16 +303,80 @@ export class RoadmapView extends TextFileView {
     }
   };
 
-  private readonly undoEdit = (): void => {
+  readonly undoEdit = (): void => {
     if (this.session?.undo() === true) {
       this.commit();
     }
   };
 
-  private readonly redoEdit = (): void => {
+  readonly redoEdit = (): void => {
     if (this.session?.redo() === true) {
       this.commit();
     }
+  };
+
+  canUndoEdit(): boolean {
+    return this.session?.canUndo === true;
+  }
+
+  canRedoEdit(): boolean {
+    return this.session?.canRedo === true;
+  }
+
+  isBoardLoaded(): boolean {
+    return this.session !== null;
+  }
+
+  isBoardEditable(): boolean {
+    return this.session !== null && !this.locked;
+  }
+
+  fitToNodes(): void {
+    void this.flow?.fitView();
+  }
+
+  runAddNode(command: AddNodeCommand): void {
+    const placement = this.canvasCenterPlacement();
+
+    if (this.session === null || this.locked || placement === null) {
+      return;
+    }
+
+    switch (command) {
+      case "create-note":
+        this.handleCreateNote(placement);
+        break;
+      case "add-note":
+        this.handleAddNote(placement);
+        break;
+      case "add-url":
+        this.handleAddUrl(placement);
+        break;
+      case "add-image":
+        this.handleAddImage(placement);
+        break;
+      case "add-text":
+        this.handleAddText(placement);
+        break;
+      case "add-attachment":
+        this.handleAddAttachment(placement);
+        break;
+    }
+  }
+
+  private canvasCenterPlacement(): NodePlacement | null {
+    if (this.flow === null) {
+      return null;
+    }
+
+    const rect = this.contentEl.getBoundingClientRect();
+    const center = this.flow.screenToFlowPosition({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
+
+    return { x: center.x - DEFAULT_NODE_WIDTH / 2, y: center.y - DEFAULT_NODE_HEIGHT / 2 };
+  }
+
+  private readonly handleFlowInit = (instance: ReactFlowInstance | null): void => {
+    this.flow = instance;
   };
 
   /** Clipboard entries carry absolute coordinates: cluster members store cluster-relative
@@ -445,7 +512,7 @@ export class RoadmapView extends TextFileView {
     this.root = null;
   }
 
-  private readonly handleToggleLock = (): void => {
+  readonly toggleLock = (): void => {
     this.locked = !this.locked;
     this.renderApp();
   };
@@ -1481,8 +1548,9 @@ export class RoadmapView extends TextFileView {
               initialDotsVisible={this.host.getShowBackgroundDots()}
               onDotsVisibleChange={this.host.setShowBackgroundDots}
               locked={this.locked}
-              onToggleLock={this.handleToggleLock}
+              onToggleLock={this.toggleLock}
               onViewportChange={this.handleViewportChange}
+              onFlowInit={this.handleFlowInit}
               canUndo={this.session.canUndo}
               canRedo={this.session.canRedo}
               onUndo={this.undoEdit}
