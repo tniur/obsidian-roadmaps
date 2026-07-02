@@ -5,11 +5,11 @@ import {
   emptyState,
   insertNodeBlock,
   readState,
-  reconcileState,
   removeNodeBlock,
   writeRelations,
   writeState,
 } from "../src/state/document";
+import { reconcileState } from "../src/state/reconcile";
 
 const node: RoadmapNode = {
   id: "n1",

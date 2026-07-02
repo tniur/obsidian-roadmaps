@@ -1,10 +1,31 @@
 import { CLUSTER_NODE_GAP, CLUSTER_PADDING, COLLAPSED_CLUSTER_HEIGHT } from "../constants";
-import type { RoadmapNode } from "./types";
+import type { RoadmapLayout, RoadmapNode } from "./types";
 
 export interface ClusterArrangement {
   width: number;
   height: number;
   positions: Map<string, { x: number; y: number }>;
+}
+
+/** Bounding box around the members' layouts, or null for an empty list. */
+export function membersBoundingBox(members: readonly RoadmapNode[]): RoadmapLayout | null {
+  if (members.length === 0) {
+    return null;
+  }
+
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+
+  for (const member of members) {
+    minX = Math.min(minX, member.layout.x);
+    minY = Math.min(minY, member.layout.y);
+    maxX = Math.max(maxX, member.layout.x + member.layout.width);
+    maxY = Math.max(maxY, member.layout.y + member.layout.height);
+  }
+
+  return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
 }
 
 /**

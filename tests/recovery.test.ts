@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createImageNode, createNoteNode, createTextNode, createUrlNode } from "../src/domain/create";
-import { createRoadmapDocument, readState, rebuildState } from "../src/state/document";
+import { createRoadmapDocument, readState } from "../src/state/document";
+import { loadDocument, rebuildDocument, rebuildState } from "../src/state/reconcile";
 import { RoadmapSession } from "../src/state/session";
 
 function populatedContent(): { content: string; ids: Record<string, string> } {
@@ -85,5 +86,72 @@ describe("state recovery from the body", () => {
 
     expect(Object.keys(rebuilt.nodes)).toHaveLength(0);
     expect(Object.keys(rebuilt.edges)).toHaveLength(0);
+  });
+
+  it("skips markers with an unknown node kind instead of poisoning the state", () => {
+    const { content, ids } = populatedContent();
+    const broken = stripStateBlock(content).replace(
+      `<!-- roadmap-node:id=${ids.note} type=note -->`,
+      `<!-- roadmap-node:id=${ids.note} type=banana -->`,
+    );
+    const rebuilt = rebuildState(broken);
+
+    expect(rebuilt.nodes[ids.note]).toBeUndefined();
+    expect(rebuilt.nodes[ids.url]).toBeDefined();
+  });
+});
+
+describe("document open pipeline", () => {
+  it("returns the input untouched when nothing needs fixing", () => {
+    const { content } = populatedContent();
+    const loaded = loadDocument(content);
+
+    expect(loaded.content).toBe(content);
+    expect(loaded.warnings).toEqual([]);
+  });
+
+  it("rebuilds a missing state block and reports it", () => {
+    const { content, ids } = populatedContent();
+    const loaded = loadDocument(stripStateBlock(content));
+
+    expect(loaded.warnings).toContain("rebuilt-state");
+    expect(loaded.state.nodes[ids.note]).toBeDefined();
+    expect(readState(loaded.content)?.nodes[ids.note]).toBeDefined();
+  });
+
+  it("restores body blocks for nodes a truncated body lost", () => {
+    const { content, ids } = populatedContent();
+    const truncated = content.replace(/<!-- roadmap-node:id=\S+ type=\w+ -->/g, "");
+    const loaded = loadDocument(truncated);
+
+    expect(loaded.warnings).toContain("restored-nodes");
+    expect(loaded.state.nodes[ids.note]).toBeDefined();
+    expect(loaded.content).toContain(`<!-- roadmap-node:id=${ids.note} type=note -->`);
+  });
+
+  it("throws on a corrupted state block without touching the file", () => {
+    const { content } = populatedContent();
+
+    expect(() => loadDocument(content.replace('"v": 1', '"v": '))).toThrow();
+  });
+
+  it("rebuildDocument replaces a broken state block with one rebuilt from the body", () => {
+    const { content, ids } = populatedContent();
+    const broken = content.replace('"v": 1', '"v": ');
+    const rebuilt = rebuildDocument(broken);
+
+    expect(rebuilt.warnings).toContain("rebuilt-state");
+    expect(rebuilt.state.nodes[ids.note]).toBeDefined();
+    expect(readState(rebuilt.content)?.nodes[ids.note]).toBeDefined();
+  });
+
+  it("keeps text node source ids stable across repeated rebuilds", () => {
+    const { content, ids } = populatedContent();
+    const stripped = stripStateBlock(content);
+    const first = rebuildState(stripped);
+    const second = rebuildState(stripped);
+    const sourceOf = (state: typeof first): unknown => state.nodes[ids.text].source;
+
+    expect(sourceOf(first)).toEqual(sourceOf(second));
   });
 });

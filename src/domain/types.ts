@@ -1,4 +1,10 @@
-export type RoadmapNodeKind = "note" | "heading" | "block" | "text" | "image" | "attachment" | "url";
+export const ROADMAP_NODE_KINDS = ["note", "heading", "block", "text", "image", "attachment", "url"] as const;
+
+export type RoadmapNodeKind = (typeof ROADMAP_NODE_KINDS)[number];
+
+export function isNodeKind(value: string): value is RoadmapNodeKind {
+  return (ROADMAP_NODE_KINDS as readonly string[]).includes(value);
+}
 
 export type RoadmapNodeSource =
   | { type: "note"; file: string }
@@ -9,9 +15,13 @@ export type RoadmapNodeSource =
   | { type: "attachment"; file: string }
   | { type: "url"; url: string };
 
-export type RoadmapStatus = "draft" | "in-progress" | "done" | "archived";
+export const ROADMAP_STATUSES = ["draft", "in-progress", "done", "archived"] as const;
 
-export type RoadmapPriority = "low" | "medium" | "high" | "critical";
+export type RoadmapStatus = (typeof ROADMAP_STATUSES)[number];
+
+export const ROADMAP_PRIORITIES = ["low", "medium", "high", "critical"] as const;
+
+export type RoadmapPriority = (typeof ROADMAP_PRIORITIES)[number];
 
 export type TextAlignH = "left" | "center" | "right";
 
@@ -55,7 +65,9 @@ export type RoadmapEndpoint = { type: "node" | "cluster"; id: string };
 
 export type EdgeDirection = "none" | "forward" | "both";
 
-export type EdgeSide = "top" | "right" | "bottom" | "left";
+export const EDGE_SIDES = ["top", "right", "bottom", "left"] as const;
+
+export type EdgeSide = (typeof EDGE_SIDES)[number];
 
 export type EdgeLine = "dashed" | "dotted";
 

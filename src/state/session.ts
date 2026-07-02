@@ -1,5 +1,5 @@
 import { CLUSTER_PADDING } from "../constants";
-import { arrangeClusterGrid } from "../domain/clusterLayout";
+import { arrangeClusterGrid, membersBoundingBox } from "../domain/clusterLayout";
 import { asSide, createCluster, createEdge } from "../domain/create";
 import { sourceFile } from "../domain/source";
 import type {
@@ -172,28 +172,18 @@ export class RoadmapSession {
       }
     }
 
-    if (members.length === 0) {
+    const box = membersBoundingBox(members);
+
+    if (box === null) {
       return;
     }
 
     this.begin();
-    let minX = Infinity;
-    let minY = Infinity;
-    let maxX = -Infinity;
-    let maxY = -Infinity;
-
-    for (const node of members) {
-      minX = Math.min(minX, node.layout.x);
-      minY = Math.min(minY, node.layout.y);
-      maxX = Math.max(maxX, node.layout.x + node.layout.width);
-      maxY = Math.max(maxY, node.layout.y + node.layout.height);
-    }
-
     const layout = {
-      x: minX - CLUSTER_PADDING,
-      y: minY - CLUSTER_PADDING,
-      width: maxX - minX + CLUSTER_PADDING * 2,
-      height: maxY - minY + CLUSTER_PADDING * 2,
+      x: box.x - CLUSTER_PADDING,
+      y: box.y - CLUSTER_PADDING,
+      width: box.width + CLUSTER_PADDING * 2,
+      height: box.height + CLUSTER_PADDING * 2,
     };
     const cluster = createCluster(safeTitle, layout);
     const nodes = { ...this.stateValue.nodes };
@@ -500,7 +490,7 @@ export class RoadmapSession {
   }
 
   /** Deletes the cluster but keeps its nodes, rebasing their layouts to absolute and moving
-   * their body blocks out to the unclustered region ([[ADR-0011]] delete option 1). */
+   * their body blocks out to the unclustered region so they survive as top-level. */
   dissolveCluster(id: string): void {
     const cluster = this.stateValue.clusters[id];
 
@@ -542,7 +532,7 @@ export class RoadmapSession {
   }
 
   /** Deletes the cluster and removes its member nodes from the roadmap. Source files are not
-   * touched ([[ADR-0011]] delete option 2). */
+   * touched: removing entities from the roadmap must never delete vault files. */
   deleteClusterAndNodes(id: string): void {
     const cluster = this.stateValue.clusters[id];
 
@@ -696,16 +686,7 @@ export class RoadmapSession {
       content = removeNodeBlock(content, id);
     }
 
-    const removed = new Set(present);
-    const edges: Record<string, RoadmapEdge> = {};
-
-    for (const [edgeId, edge] of Object.entries(this.stateValue.edges)) {
-      if (!removed.has(endpointNodeId(edge.from)) && !removed.has(endpointNodeId(edge.to))) {
-        edges[edgeId] = edge;
-      }
-    }
-
-    this.stateValue = { ...this.stateValue, nodes, edges };
+    this.stateValue = { ...this.stateValue, nodes, edges: this.edgesWithoutEndpoints(new Set(present)) };
     this.contentValue = writeRelations(writeState(content, this.stateValue), this.stateValue);
   }
 
@@ -757,7 +738,7 @@ export class RoadmapSession {
   }
 
   /** Forbids direct connections inside one cluster: node↔node sharing a cluster, or a node
-   * linking to its own container ([[ADR-0005]] / [[ADR-0006]]). Cross-cluster links are allowed. */
+   * linking to its own container. Cross-cluster links are allowed. */
   private isInternalConnection(from: RoadmapEndpoint, to: RoadmapEndpoint): boolean {
     const clusterOfNode = (id: string): string | null => this.stateValue.nodes[id]?.clusterId ?? null;
 

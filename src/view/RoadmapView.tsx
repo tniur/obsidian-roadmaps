@@ -37,19 +37,9 @@ import type {
   TextAlignH,
   TextAlignV,
 } from "../domain/types";
-import {
-  adoptRelationEdges,
-  bodyNodeIds,
-  ensureClusterMarkers,
-  rebuildState,
-  reconcileState,
-  readState,
-  updateNodeBlock,
-  writeRelations,
-  writeState,
-} from "../state/document";
 import { isReservedHeading } from "../markdown/cluster";
 import { StateVersionError } from "../state/codec";
+import { loadDocument, rebuildDocument, type DocumentWarning, type LoadedDocument } from "../state/reconcile";
 import { RoadmapSession, type NodeMetaPatch, type RoadmapConnection } from "../state/session";
 import { FileSuggestModal } from "./FileSuggestModal";
 import { NodePreviewPanel } from "./NodePreviewPanel";
@@ -85,6 +75,11 @@ const VIEWPORT_SAVE_DELAY = 600;
 
 const SAFE_URL_RE = /^(https?|obsidian):\/\//i;
 
+const WARNING_MESSAGES: Record<DocumentWarning, string> = {
+  "rebuilt-state": "state block was missing; rebuilt from the note body.",
+  "restored-nodes": "restored node entries missing from the note body.",
+};
+
 export class RoadmapView extends TextFileView {
   private root: Root | null = null;
   private session: RoadmapSession | null = null;
@@ -96,6 +91,7 @@ export class RoadmapView extends TextFileView {
   private previewNodeId: string | null = null;
   private previewRefreshNonce = 0;
   private loadError: string | null = null;
+  private loadErrorRecoverable = false;
   private locked = false;
   private viewportSaveTimer: number | null = null;
   private diskData: string | null = null;
@@ -120,65 +116,40 @@ export class RoadmapView extends TextFileView {
   }
 
   /**
-   * Parses and reconciles the file into a session. A corrupted or newer-version state
-   * block opens the view read-only instead of throwing (and never rewrites the file);
-   * a missing state block is rebuilt from the readable body; hand-written `##` headings
-   * gain cluster markers; hand-written relation lines become edges; nodes present in
-   * state but absent from the body (a truncated or half-synced file) get their body
-   * blocks restored rather than being silently dropped.
+   * Runs the document open pipeline (`loadDocument`) into a session. A corrupted or
+   * newer-version state block opens the view read-only instead of throwing, and never
+   * rewrites the file.
    */
   setViewData(data: string): void {
     this.loadError = null;
     this.diskData = data;
-    let parsed;
+    let loaded: LoadedDocument;
 
     try {
-      parsed = readState(data);
+      loaded = loadDocument(data);
     } catch (error) {
+      const newerVersion = error instanceof StateVersionError;
+
       this.data = data;
       this.session = null;
-      this.loadError =
-        error instanceof StateVersionError
-          ? "This roadmap was saved by a newer plugin version. Update the plugin to edit it."
-          : "The roadmap state block is corrupted. Fix or remove it in Markdown to avoid losing data.";
+      this.loadError = newerVersion
+        ? "This roadmap was saved by a newer plugin version. Update the plugin to edit it."
+        : "The roadmap state block is corrupted.";
+      this.loadErrorRecoverable = !newerVersion;
       new Notice(`Roadmap: ${this.loadError}`);
       this.renderApp();
 
       return;
     }
 
-    const marked = ensureClusterMarkers(data);
-    let reconciled;
-
-    if (parsed === null) {
-      reconciled = rebuildState(marked);
-
-      if (Object.keys(reconciled.nodes).length > 0 || Object.keys(reconciled.clusters).length > 0) {
-        new Notice("Roadmap: state block was missing; rebuilt from the note body.");
-      }
-    } else {
-      reconciled = reconcileState(parsed, marked);
-      reconciled = adoptRelationEdges(reconciled, marked);
+    for (const warning of loaded.warnings) {
+      new Notice(`Roadmap: ${WARNING_MESSAGES[warning]}`);
     }
 
-    let content =
-      reconciled === parsed && marked === data ? data : writeRelations(writeState(marked, reconciled), reconciled);
-    const present = bodyNodeIds(content);
-    const orphans = Object.values(reconciled.nodes).filter((node) => !present.has(node.id));
+    this.data = loaded.content;
+    this.session = new RoadmapSession(loaded.state, loaded.content);
 
-    if (orphans.length > 0) {
-      for (const node of orphans) {
-        content = updateNodeBlock(content, node);
-      }
-
-      content = writeRelations(writeState(content, reconciled), reconciled);
-      new Notice("Roadmap: restored node entries missing from the note body.");
-    }
-
-    this.data = content;
-    this.session = new RoadmapSession(reconciled, content);
-
-    if (content !== data) {
+    if (loaded.content !== data) {
       this.requestSave();
     }
 
@@ -191,6 +162,17 @@ export class RoadmapView extends TextFileView {
     this.loadError = null;
     this.diskData = null;
   }
+
+  private readonly handleRebuildFromBody = (): void => {
+    const rebuilt = rebuildDocument(this.data);
+
+    this.loadError = null;
+    this.data = rebuilt.content;
+    this.session = new RoadmapSession(rebuilt.state, rebuilt.content);
+    this.requestSave();
+    new Notice("Roadmap: rebuilt from the note body; layout was reset.");
+    this.renderApp();
+  };
 
   /**
    * Guards against overwriting edits that landed on disk from outside this view (sync,
@@ -243,7 +225,7 @@ export class RoadmapView extends TextFileView {
   }
 
   /**
-   * Keeps node sources pointing at renamed files and folders ([[ADR-0011]]). Applied
+   * Keeps node sources pointing at renamed files and folders. Applied
    * outside the undo history: the rename already happened in the vault, so undoing it
    * from the roadmap would only break the links again.
    */
@@ -1454,17 +1436,30 @@ export class RoadmapView extends TextFileView {
           <div className="rm-view">
             <div className="rm-load-error">
               <p className="rm-load-error__message">{this.loadError}</p>
-              <button
-                type="button"
-                className="rm-load-error__action"
-                onClick={() => {
-                  if (file !== null) {
-                    this.host.openAsMarkdown(this.leaf, file);
-                  }
-                }}
-              >
-                Open as Markdown
-              </button>
+              {this.loadErrorRecoverable ? (
+                <p className="rm-load-error__message">
+                  Fix it in Markdown, or rebuild the roadmap from the note body — content survives, but the layout
+                  resets.
+                </p>
+              ) : null}
+              <div className="rm-load-error__actions">
+                {this.loadErrorRecoverable ? (
+                  <button type="button" className="rm-load-error__action" onClick={this.handleRebuildFromBody}>
+                    Rebuild from note body
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  className="rm-load-error__action"
+                  onClick={() => {
+                    if (file !== null) {
+                      this.host.openAsMarkdown(this.leaf, file);
+                    }
+                  }}
+                >
+                  Open as Markdown
+                </button>
+              </div>
             </div>
           </div>
         </StrictMode>,

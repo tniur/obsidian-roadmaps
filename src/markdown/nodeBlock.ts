@@ -1,11 +1,16 @@
 import { nanoid } from "nanoid";
+import { fileBasename, stripMarkdownExtension, urlHostname } from "../domain/paths";
 import { nodeTitle } from "../domain/title";
-import type { RoadmapNode, RoadmapNodeKind, RoadmapNodeSource, RoadmapPriority, RoadmapStatus } from "../domain/types";
+import {
+  ROADMAP_PRIORITIES,
+  ROADMAP_STATUSES,
+  type RoadmapNode,
+  type RoadmapNodeKind,
+  type RoadmapNodeSource,
+  type RoadmapPriority,
+  type RoadmapStatus,
+} from "../domain/types";
 import { encodeMarkdownUrl, escapeTextContent, sanitizeAlias, sanitizeInline, unescapeTextContent } from "./sanitize";
-
-function stripExtension(path: string): string {
-  return path.replace(/\.md$/, "");
-}
 
 function wikilink(target: string, title: string): string {
   return `[[${target}|${sanitizeAlias(title)}]]`;
@@ -14,11 +19,11 @@ function wikilink(target: string, title: string): string {
 function sourceLink(source: RoadmapNodeSource, title: string): string {
   switch (source.type) {
     case "note":
-      return wikilink(stripExtension(source.file), title);
+      return wikilink(stripMarkdownExtension(source.file), title);
     case "heading":
-      return wikilink(`${stripExtension(source.file)}#${source.heading}`, title);
+      return wikilink(`${stripMarkdownExtension(source.file)}#${source.heading}`, title);
     case "block":
-      return wikilink(`${stripExtension(source.file)}#^${source.blockId}`, title);
+      return wikilink(`${stripMarkdownExtension(source.file)}#^${source.blockId}`, title);
     case "image":
       return `![[${source.file}]]`;
     case "attachment":
@@ -74,9 +79,9 @@ export function renderNodeBlock(node: RoadmapNode): string {
   return `<!-- roadmap-node:id=${node.id} type=${node.kind} -->\n${renderNodeRepresentation(node)}`;
 }
 
-const STATUS_VALUES = new Set<string>(["draft", "in-progress", "done", "archived"]);
+const STATUS_VALUES = new Set<string>(ROADMAP_STATUSES);
 
-const PRIORITY_VALUES = new Set<string>(["low", "medium", "high", "critical"]);
+const PRIORITY_VALUES = new Set<string>(ROADMAP_PRIORITIES);
 
 const LIST_LINK_RE = /^(?:- \[[ xX]\] )?(.*)$/;
 
@@ -94,22 +99,8 @@ export interface ParsedNodeBlock {
   priority?: RoadmapPriority;
 }
 
-function basename(path: string): string {
-  const file = path.split("/").pop() ?? path;
-
-  return file.replace(/\.[^.]+$/, "");
-}
-
 function noteFilePath(target: string): string {
   return target.endsWith(".md") ? target : `${target}.md`;
-}
-
-function urlHostname(url: string): string {
-  try {
-    return new URL(url).hostname;
-  } catch {
-    return url;
-  }
 }
 
 interface ParsedTags {
@@ -228,7 +219,7 @@ export function parseNodeBlock(kind: RoadmapNodeKind, body: string): ParsedNodeB
 
   const result: ParsedNodeBlock = { source, ...parseTags(content) };
 
-  if (alias !== undefined && alias.length > 0 && alias !== basename(target)) {
+  if (alias !== undefined && alias.length > 0 && alias !== fileBasename(target)) {
     result.title = alias;
   }
 

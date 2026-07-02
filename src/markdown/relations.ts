@@ -1,12 +1,9 @@
+import { stripMarkdownExtension } from "../domain/paths";
 import { nodeTitle } from "../domain/title";
 import type { EdgeDirection, RoadmapEndpoint, RoadmapState } from "../domain/types";
 import { encodeMarkdownUrl, sanitizeAlias, sanitizeInline } from "./sanitize";
 
 const RELATIONS_HEADING = "## Relations";
-
-function stripExtension(path: string): string {
-  return path.replace(/\.md$/, "");
-}
 
 function endpointLink(state: RoadmapState, endpoint: RoadmapEndpoint): string | null {
   if (endpoint.type === "cluster") {
@@ -26,11 +23,11 @@ function endpointLink(state: RoadmapState, endpoint: RoadmapEndpoint): string | 
 
   switch (source.type) {
     case "note":
-      return `[[${stripExtension(source.file)}|${title}]]`;
+      return `[[${stripMarkdownExtension(source.file)}|${title}]]`;
     case "heading":
-      return `[[${stripExtension(source.file)}#${source.heading}|${title}]]`;
+      return `[[${stripMarkdownExtension(source.file)}#${source.heading}|${title}]]`;
     case "block":
-      return `[[${stripExtension(source.file)}#^${source.blockId}|${title}]]`;
+      return `[[${stripMarkdownExtension(source.file)}#^${source.blockId}|${title}]]`;
     case "image":
     case "attachment":
       return `[[${source.file}|${title}]]`;

@@ -80,6 +80,11 @@
   color: var(--rm-danger);
 }
 
+.rm-load-error__actions {
+  display: flex;
+  gap: var(--rm-space-2);
+}
+
 .rm-load-error__action {
   padding: var(--rm-space-1) var(--rm-space-3);
   color: var(--rm-text);

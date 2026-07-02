@@ -1,12 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createNoteNode, createUrlNode } from "../src/domain/create";
-import {
-  adoptRelationEdges,
-  createRoadmapDocument,
-  ensureClusterMarkers,
-  readState,
-  reconcileState,
-} from "../src/state/document";
+import { createRoadmapDocument, readState } from "../src/state/document";
+import { adoptNodeMarkers, adoptRelationEdges, ensureClusterMarkers, reconcileState } from "../src/state/reconcile";
 import { RoadmapSession } from "../src/state/session";
 
 function freshSession(): RoadmapSession {
@@ -131,6 +126,61 @@ describe("hand-written cluster headings", () => {
       expect(member.layout.x + member.layout.width).toBeLessThanOrEqual(box.width);
       expect(member.layout.y + member.layout.height).toBeLessThanOrEqual(box.height);
     }
+  });
+});
+
+describe("hand-written node blocks with a marker", () => {
+  it("adopts a pasted marked block as a new node with parsed content", () => {
+    const session = freshSession();
+    const existing = createNoteNode("notes/a.md", { x: 0, y: 0 });
+
+    session.addNode(existing);
+    const pasted = [
+      "<!-- roadmap-node:id=pasted-node-1 type=note -->",
+      "- [ ] [[notes/pasted|Pasted]] #done #high",
+    ].join("\n");
+    const edited = session.content.replace("# Board", `# Board\n\n${pasted}`);
+    const state = readState(edited) ?? session.state;
+    const adopted = adoptNodeMarkers(reconcileState(state, edited), edited);
+    const node = adopted.nodes["pasted-node-1"];
+
+    expect(node).toBeDefined();
+    expect(node.source).toEqual({ type: "note", file: "notes/pasted.md" });
+    expect(node.title).toBe("Pasted");
+    expect(node.status).toBe("done");
+    expect(node.priority).toBe("high");
+    expect(adopted.nodes[existing.id]).toBeDefined();
+  });
+
+  it("adopts a marked block under a cluster heading as a member", () => {
+    const session = freshSession();
+    const member = createNoteNode("notes/a.md", { x: 0, y: 0 });
+
+    session.addNode(member);
+    session.createClusterFromNodes([member.id], "Group");
+    const clusterId = Object.keys(session.state.clusters)[0];
+    const heading = session.content.match(/^## Group <!--[^\n]*$/m)?.[0];
+
+    if (heading === undefined) {
+      throw new Error("expected the cluster heading");
+    }
+
+    const pasted = `<!-- roadmap-node:id=pasted-node-2 type=note -->\n- [ ] [[notes/pasted|Pasted]]`;
+    const edited = session.content.replace(heading, `${heading}\n\n${pasted}`);
+    const state = readState(edited) ?? session.state;
+    const adopted = adoptNodeMarkers(reconcileState(state, edited), edited);
+
+    expect(adopted.nodes["pasted-node-2"]?.clusterId).toBe(clusterId);
+  });
+
+  it("ignores markers with an unknown kind", () => {
+    const session = freshSession();
+    const pasted = `<!-- roadmap-node:id=pasted-node-3 type=banana -->\n- [ ] [[notes/x|X]]`;
+    const edited = session.content.replace("# Board", `# Board\n\n${pasted}`);
+    const state = readState(edited) ?? session.state;
+    const adopted = adoptNodeMarkers(reconcileState(state, edited), edited);
+
+    expect(adopted.nodes["pasted-node-3"]).toBeUndefined();
   });
 });
 

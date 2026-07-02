@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { copyNode, createNoteNode, createTextNode } from "../src/domain/create";
-import { createRoadmapDocument, readState, reconcileState } from "../src/state/document";
+import { createRoadmapDocument, readState } from "../src/state/document";
+import { reconcileState } from "../src/state/reconcile";
 import { RoadmapSession } from "../src/state/session";
 
 function freshSession(): RoadmapSession {

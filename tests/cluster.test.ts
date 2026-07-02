@@ -7,10 +7,10 @@ import {
   emptyState,
   insertNodeBlock,
   readState,
-  reconcileState,
   writeClusterSection,
   writeState,
 } from "../src/state/document";
+import { reconcileState } from "../src/state/reconcile";
 import { RoadmapSession } from "../src/state/session";
 import { stateToFlowEdges } from "../src/view/flow";
 

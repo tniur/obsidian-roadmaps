@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { ROADMAP_SCHEMA_VERSION } from "../constants";
+import { EDGE_SIDES, ROADMAP_NODE_KINDS, ROADMAP_PRIORITIES, ROADMAP_STATUSES } from "../domain/types";
 
 const layoutSchema = z.tuple([z.number(), z.number(), z.number(), z.number()]);
 const viewportSchema = z.tuple([z.number(), z.number(), z.number()]);
@@ -14,9 +15,9 @@ const sourceSchema = z.union([
   z.tuple([z.literal("url"), z.string()]),
 ]);
 
-const kindSchema = z.enum(["note", "heading", "block", "text", "image", "attachment", "url"]);
-const statusSchema = z.enum(["draft", "in-progress", "done", "archived"]);
-const prioritySchema = z.enum(["low", "medium", "high", "critical"]);
+const kindSchema = z.enum(ROADMAP_NODE_KINDS);
+const statusSchema = z.enum(ROADMAP_STATUSES);
+const prioritySchema = z.enum(ROADMAP_PRIORITIES);
 
 const nodeSchema = z
   .object({
@@ -47,7 +48,7 @@ const endpointSchema = z.tuple([z.enum(["node", "cluster"]), z.string()]);
 
 const directionCodeSchema = z.union([z.literal(0), z.literal(1), z.literal(2)]);
 
-const sideSchema = z.enum(["top", "right", "bottom", "left"]);
+const sideSchema = z.enum(EDGE_SIDES);
 
 const lineSchema = z.enum(["dashed", "dotted"]);
 
