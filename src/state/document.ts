@@ -2,14 +2,26 @@ import { nanoid } from "nanoid";
 import {
   DEFAULT_CLUSTER_HEIGHT,
   DEFAULT_CLUSTER_WIDTH,
+  DEFAULT_NODE_HEIGHT,
+  DEFAULT_NODE_WIDTH,
   ROADMAP_FRONTMATTER_KEY,
   ROADMAP_FRONTMATTER_VALUE,
   ROADMAP_SCHEMA_VERSION,
 } from "../constants";
-import type { RoadmapCluster, RoadmapEdge, RoadmapEndpoint, RoadmapNode, RoadmapState } from "../domain/types";
+import { sourceFile } from "../domain/source";
+import { nodeTitle } from "../domain/title";
+import type {
+  RoadmapCluster,
+  RoadmapEdge,
+  RoadmapEndpoint,
+  RoadmapNode,
+  RoadmapNodeKind,
+  RoadmapState,
+} from "../domain/types";
 import { isReservedHeading, parseClusterHeading, renderClusterHeading } from "../markdown/cluster";
-import { renderNodeBlock } from "../markdown/nodeBlock";
-import { renderRelationsSection } from "../markdown/relations";
+import { parseNodeBlock, renderNodeBlock } from "../markdown/nodeBlock";
+import { parseRelationsLine, renderRelationsSection, type ParsedRelationEndpoint } from "../markdown/relations";
+import { unescapeTextContent } from "../markdown/sanitize";
 import { parseState, serializeState } from "./codec";
 
 const FIRST_HEADING_RE = /^## /m;
@@ -18,16 +30,20 @@ const FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/;
 
 const STATE_BLOCK_RE = /%%[ \t]*roadmap:state[ \t]*\r?\n```(?:json)?[ \t]*\r?\n([\s\S]*?)\r?\n```[ \t]*\r?\n[ \t]*%%/;
 
-const NODE_BOUNDARY_RE = /<!-- roadmap-node:id=\S+ type=\w+ -->|^## |%%[ \t]*roadmap:state/m;
+const NODE_BOUNDARY_RE = /^<!-- roadmap-node:id=\S+ type=\w+ -->|^## |^%%[ \t]*roadmap:state/m;
 
-const NODE_MARKER_RE = /<!-- roadmap-node:id=(\S+) type=\w+ -->/g;
+const NODE_MARKER_RE = /^<!-- roadmap-node:id=(\S+) type=(\w+) -->/gm;
 
-const EDGE_MARKER_RE = /<!-- roadmap-edge:id=(\S+) -->/g;
+const EDGE_MARKER_RE = /<!-- roadmap-edge:id=(\S+) -->[ \t]*$/gm;
 
 const RELATIONS_HEADING_RE = /^## Relations[ \t]*$/m;
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function nodeMarkerRe(id: string): RegExp {
+  return new RegExp(`^<!-- roadmap-node:id=${escapeRegExp(id)} type=\\w+ -->`, "m");
 }
 
 export function isRoadmapFile(content: string): boolean {
@@ -144,7 +160,7 @@ export function insertNodeBlock(content: string, node: RoadmapNode): string {
 }
 
 export function removeNodeBlock(content: string, id: string): string {
-  const marker = new RegExp(`<!-- roadmap-node:id=${escapeRegExp(id)} type=\\w+ -->`);
+  const marker = nodeMarkerRe(id);
   const match = marker.exec(content);
 
   if (match === null) {
@@ -161,7 +177,7 @@ export function removeNodeBlock(content: string, id: string): string {
 }
 
 export function updateNodeBlock(content: string, node: RoadmapNode): string {
-  const marker = new RegExp(`<!-- roadmap-node:id=${escapeRegExp(node.id)} type=\\w+ -->`);
+  const marker = nodeMarkerRe(node.id);
   const match = marker.exec(content);
 
   if (match === null) {
@@ -184,7 +200,7 @@ export function updateNodeBlock(content: string, node: RoadmapNode): string {
  * honored on load (see `reconcileState`).
  */
 export function nodeBlockBody(content: string, id: string): string | null {
-  const marker = new RegExp(`<!-- roadmap-node:id=${escapeRegExp(id)} type=\\w+ -->`);
+  const marker = nodeMarkerRe(id);
   const match = marker.exec(content);
 
   if (match === null) {
@@ -199,7 +215,7 @@ export function nodeBlockBody(content: string, id: string): string | null {
 }
 
 function locateNodeBlock(content: string, id: string): { start: number; end: number } | null {
-  const marker = new RegExp(`<!-- roadmap-node:id=${escapeRegExp(id)} type=\\w+ -->`);
+  const marker = nodeMarkerRe(id);
   const match = marker.exec(content);
 
   if (match === null) {
@@ -361,7 +377,7 @@ export function bodyEdgeIds(content: string): Set<string> {
   return ids;
 }
 
-const NODE_MARKER_LINE_RE = /<!-- roadmap-node:id=(\S+) type=\w+ -->/;
+const NODE_MARKER_LINE_RE = /^<!-- roadmap-node:id=(\S+) type=(\w+) -->/;
 
 function bodyRegion(content: string): string {
   const frontmatter = FRONTMATTER_RE.exec(content);
@@ -427,20 +443,21 @@ function defaultCluster(id: string, info: ClusterInfo): RoadmapCluster {
 export function reconcileState(state: RoadmapState, content: string): RoadmapState {
   const { clusters: bodyClusters, membership } = parseBody(content);
   const presentNodes = bodyNodeIds(content);
+  const trackNodes = presentNodes.size > 0;
   const nodes: Record<string, RoadmapNode> = {};
   let changed = false;
 
   for (const [id, node] of Object.entries(state.nodes)) {
-    if (!presentNodes.has(id)) {
+    if (trackNodes && !presentNodes.has(id)) {
       changed = true;
       continue;
     }
 
     let next = node;
 
-    if (node.source.type === "text") {
+    if (node.source.type === "text" && presentNodes.has(id)) {
       const bodyText = nodeBlockBody(content, id);
-      const nextTitle = bodyText !== null && bodyText.length > 0 ? bodyText : undefined;
+      const nextTitle = bodyText !== null && bodyText.length > 0 ? unescapeTextContent(bodyText) : undefined;
 
       if (nextTitle !== node.title) {
         next = { ...next, title: nextTitle };
@@ -448,7 +465,7 @@ export function reconcileState(state: RoadmapState, content: string): RoadmapSta
       }
     }
 
-    const clusterId = membership.get(id) ?? null;
+    const clusterId = presentNodes.has(id) ? (membership.get(id) ?? null) : (node.clusterId ?? null);
 
     if ((next.clusterId ?? null) !== clusterId) {
       next = { ...next, clusterId };
@@ -475,6 +492,13 @@ export function reconcileState(state: RoadmapState, content: string): RoadmapSta
     changed = true;
   }
 
+  for (const [id, node] of Object.entries(nodes)) {
+    if (node.clusterId != null && clusters[node.clusterId] === undefined) {
+      nodes[id] = { ...node, clusterId: null };
+      changed = true;
+    }
+  }
+
   const presentEdges = bodyEdgeIds(content);
   const trackEdges = presentEdges.size > 0;
   const hasEndpoint = (endpoint: RoadmapEndpoint): boolean =>
@@ -492,6 +516,130 @@ export function reconcileState(state: RoadmapState, content: string): RoadmapSta
   }
 
   return changed ? { ...state, nodes, clusters, edges } : state;
+}
+
+const REBUILD_GRID_COLUMNS = 4;
+
+const REBUILD_GRID_GAP = 48;
+
+function defaultNodeLayout(index: number): RoadmapNode["layout"] {
+  return {
+    x: (index % REBUILD_GRID_COLUMNS) * (DEFAULT_NODE_WIDTH + REBUILD_GRID_GAP),
+    y: Math.floor(index / REBUILD_GRID_COLUMNS) * (DEFAULT_NODE_HEIGHT + REBUILD_GRID_GAP),
+    width: DEFAULT_NODE_WIDTH,
+    height: DEFAULT_NODE_HEIGHT,
+  };
+}
+
+function resolveEndpoint(state: RoadmapState, endpoint: ParsedRelationEndpoint): RoadmapEndpoint | null {
+  if (endpoint.clusterTitle !== undefined) {
+    const cluster = Object.values(state.clusters).find((entry) => entry.title === endpoint.clusterTitle);
+
+    return cluster === undefined ? null : { type: "cluster", id: cluster.id };
+  }
+
+  const nodes = Object.values(state.nodes);
+  let node: RoadmapNode | undefined;
+
+  if (endpoint.linkTarget !== undefined) {
+    const target = endpoint.linkTarget;
+
+    node =
+      nodes.find((entry) => {
+        const file = sourceFile(entry.source);
+
+        return file === target || file === `${target}.md`;
+      }) ?? nodes.find((entry) => nodeTitle(entry) === endpoint.linkAlias);
+  } else if (endpoint.url !== undefined) {
+    node = nodes.find((entry) => entry.source.type === "url" && entry.source.url === endpoint.url);
+  } else if (endpoint.text !== undefined) {
+    const text = endpoint.text;
+    const byTitle = (value: string): RoadmapNode | undefined =>
+      nodes.find((entry) => entry.source.type === "text" && nodeTitle(entry) === value);
+    const labelSplit = text.lastIndexOf(": ");
+
+    node = byTitle(text) ?? (labelSplit === -1 ? undefined : byTitle(text.slice(0, labelSplit)));
+  }
+
+  return node === undefined ? null : { type: "node", id: node.id };
+}
+
+/**
+ * Best-effort recovery when the hidden state block is missing: nodes are rebuilt from
+ * body markers (source, title, description, tags parsed back from each block's readable
+ * representation), clusters from marked headings, and edges from `## Relations` lines.
+ * Layout cannot be recovered, so nodes fall back to a grid ([[ADR-0011]]).
+ */
+export function rebuildState(content: string): RoadmapState {
+  const state = emptyState();
+  const region = bodyRegion(content);
+  const markers = [...region.matchAll(NODE_MARKER_RE)];
+
+  markers.forEach((marker, index) => {
+    const id = marker[1];
+    const kind = marker[2] as RoadmapNodeKind;
+    const body = nodeBlockBody(content, id);
+    const parsed = body === null ? null : parseNodeBlock(kind, body);
+
+    if (parsed === null) {
+      return;
+    }
+
+    const node: RoadmapNode = { id, kind, source: parsed.source, layout: defaultNodeLayout(index) };
+
+    if (parsed.title !== undefined) node.title = parsed.title;
+    if (parsed.description !== undefined) node.description = parsed.description;
+    if (parsed.status !== undefined) node.status = parsed.status;
+    if (parsed.priority !== undefined) node.priority = parsed.priority;
+
+    state.nodes[id] = node;
+  });
+
+  const { clusters, membership } = parseBody(content);
+
+  [...clusters.entries()].forEach(([id, info], index) => {
+    state.clusters[id] = {
+      id,
+      title: info.title,
+      layout: {
+        x: index * (DEFAULT_CLUSTER_WIDTH + REBUILD_GRID_GAP),
+        y: -DEFAULT_CLUSTER_HEIGHT - REBUILD_GRID_GAP,
+        width: DEFAULT_CLUSTER_WIDTH,
+        height: DEFAULT_CLUSTER_HEIGHT,
+      },
+    };
+  });
+
+  for (const [nodeId, clusterId] of membership) {
+    const node = state.nodes[nodeId];
+
+    if (node !== undefined && clusterId !== null && state.clusters[clusterId] !== undefined) {
+      node.clusterId = clusterId;
+    }
+  }
+
+  for (const line of region.split(/\r?\n/)) {
+    const parsed = parseRelationsLine(line);
+
+    if (parsed === null || state.edges[parsed.id] !== undefined) {
+      continue;
+    }
+
+    const from = resolveEndpoint(state, parsed.from);
+    const to = resolveEndpoint(state, parsed.to);
+
+    if (from === null || to === null || (from.type === to.type && from.id === to.id)) {
+      continue;
+    }
+
+    const edge: RoadmapEdge = { id: parsed.id, from, to, direction: parsed.direction };
+
+    if (parsed.label !== undefined) edge.label = parsed.label;
+
+    state.edges[parsed.id] = edge;
+  }
+
+  return state;
 }
 
 export function createRoadmapDocument(title: string): string {

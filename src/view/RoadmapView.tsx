@@ -2,6 +2,7 @@ import {
   Component,
   MarkdownRenderer,
   Menu,
+  Notice,
   TextFileView,
   TFile,
   type App,
@@ -32,10 +33,20 @@ import type {
   RoadmapNode,
   RoadmapPriority,
   RoadmapStatus,
+  RoadmapViewport,
   TextAlignH,
   TextAlignV,
 } from "../domain/types";
-import { emptyState, reconcileState, readState, writeRelations, writeState } from "../state/document";
+import {
+  bodyNodeIds,
+  rebuildState,
+  reconcileState,
+  readState,
+  updateNodeBlock,
+  writeRelations,
+  writeState,
+} from "../state/document";
+import { isReservedHeading } from "../markdown/cluster";
 import { RoadmapSession, type NodeMetaPatch, type RoadmapConnection } from "../state/session";
 import { FileSuggestModal } from "./FileSuggestModal";
 import { NodePreviewPanel } from "./NodePreviewPanel";
@@ -67,6 +78,10 @@ type AppWithDragManager = App & {
 
 const PASTE_OFFSET = 24;
 
+const VIEWPORT_SAVE_DELAY = 600;
+
+const SAFE_URL_RE = /^(https?|obsidian):\/\//i;
+
 export class RoadmapView extends TextFileView {
   private root: Root | null = null;
   private session: RoadmapSession | null = null;
@@ -77,6 +92,9 @@ export class RoadmapView extends TextFileView {
   private focusNonce = 0;
   private previewNodeId: string | null = null;
   private previewRefreshNonce = 0;
+  private loadError: string | null = null;
+  private locked = false;
+  private viewportSaveTimer: number | null = null;
 
   constructor(
     leaf: WorkspaceLeaf,
@@ -97,10 +115,53 @@ export class RoadmapView extends TextFileView {
     return this.data;
   }
 
+  /**
+   * Parses and reconciles the file into a session. A corrupted state block opens the
+   * view read-only instead of throwing (and never rewrites the file); a missing state
+   * block is rebuilt from the readable body; nodes present in state but absent from the
+   * body (a truncated or half-synced file) get their body blocks restored rather than
+   * being silently dropped.
+   */
   setViewData(data: string): void {
-    const parsed = readState(data) ?? emptyState();
-    const reconciled = reconcileState(parsed, data);
-    const content = reconciled === parsed ? data : writeRelations(writeState(data, reconciled), reconciled);
+    this.loadError = null;
+    let parsed;
+
+    try {
+      parsed = readState(data);
+    } catch {
+      this.data = data;
+      this.session = null;
+      this.loadError = "The roadmap state block is corrupted. Fix or remove it in Markdown to avoid losing data.";
+      new Notice("Roadmap: state block is corrupted; opened read-only.");
+      this.renderApp();
+
+      return;
+    }
+
+    let reconciled;
+
+    if (parsed === null) {
+      reconciled = rebuildState(data);
+
+      if (Object.keys(reconciled.nodes).length > 0 || Object.keys(reconciled.clusters).length > 0) {
+        new Notice("Roadmap: state block was missing; rebuilt from the note body.");
+      }
+    } else {
+      reconciled = reconcileState(parsed, data);
+    }
+
+    let content = reconciled === parsed ? data : writeRelations(writeState(data, reconciled), reconciled);
+    const present = bodyNodeIds(content);
+    const orphans = Object.values(reconciled.nodes).filter((node) => !present.has(node.id));
+
+    if (orphans.length > 0) {
+      for (const node of orphans) {
+        content = updateNodeBlock(content, node);
+      }
+
+      content = writeRelations(writeState(content, reconciled), reconciled);
+      new Notice("Roadmap: restored node entries missing from the note body.");
+    }
 
     this.data = content;
     this.session = new RoadmapSession(reconciled, content);
@@ -115,6 +176,7 @@ export class RoadmapView extends TextFileView {
   clear(): void {
     this.data = "";
     this.session = null;
+    this.loadError = null;
   }
 
   onPaneMenu(menu: Menu, source: string): void {
@@ -164,6 +226,16 @@ export class RoadmapView extends TextFileView {
       return;
     }
 
+    const target = event.target;
+
+    if (
+      target instanceof HTMLInputElement ||
+      target instanceof HTMLTextAreaElement ||
+      (target instanceof HTMLElement && target.isContentEditable)
+    ) {
+      return;
+    }
+
     const key = event.key.toLowerCase();
 
     if (key === "z") {
@@ -198,6 +270,25 @@ export class RoadmapView extends TextFileView {
     }
   };
 
+  /** Clipboard entries carry absolute coordinates: cluster members store cluster-relative
+   * layout, but pasted copies land unclustered ([[copyNode]]), so their frame is absolute. */
+  private withAbsoluteLayout(node: RoadmapNode): RoadmapNode {
+    if (node.clusterId == null) {
+      return node;
+    }
+
+    const cluster = this.session?.state.clusters[node.clusterId];
+
+    if (cluster === undefined) {
+      return node;
+    }
+
+    return {
+      ...node,
+      layout: { ...node.layout, x: node.layout.x + cluster.layout.x, y: node.layout.y + cluster.layout.y },
+    };
+  }
+
   private copySelection(): void {
     if (this.session === null) {
       return;
@@ -209,7 +300,7 @@ export class RoadmapView extends TextFileView {
       const node = this.session.state.nodes[id];
 
       if (node !== undefined) {
-        nodes.push(node);
+        nodes.push(this.withAbsoluteLayout(node));
       }
     }
 
@@ -220,7 +311,7 @@ export class RoadmapView extends TextFileView {
   }
 
   private pasteClipboard(): void {
-    if (this.session === null || this.clipboard.length === 0) {
+    if (this.session === null || this.locked || this.clipboard.length === 0) {
       return;
     }
 
@@ -306,9 +397,37 @@ export class RoadmapView extends TextFileView {
   };
 
   protected async onClose(): Promise<void> {
+    if (this.viewportSaveTimer !== null) {
+      window.clearTimeout(this.viewportSaveTimer);
+      this.viewportSaveTimer = null;
+    }
+
     this.root?.unmount();
     this.root = null;
   }
+
+  private readonly handleToggleLock = (): void => {
+    this.locked = !this.locked;
+    this.renderApp();
+  };
+
+  private readonly handleViewportChange = (viewport: RoadmapViewport): void => {
+    if (this.viewportSaveTimer !== null) {
+      window.clearTimeout(this.viewportSaveTimer);
+    }
+
+    this.viewportSaveTimer = window.setTimeout(() => {
+      this.viewportSaveTimer = null;
+
+      if (this.session === null) {
+        return;
+      }
+
+      this.session.setViewport(viewport);
+      this.data = this.session.content;
+      this.requestSave();
+    }, VIEWPORT_SAVE_DELAY);
+  };
 
   private commit(): void {
     if (this.session === null) {
@@ -456,6 +575,12 @@ export class RoadmapView extends TextFileView {
           return;
         }
 
+        if (isReservedHeading(value)) {
+          new Notice(`"${value}" is a reserved section name.`);
+
+          return;
+        }
+
         this.session?.renameCluster(cluster.id, value);
         this.commit();
       },
@@ -476,7 +601,9 @@ export class RoadmapView extends TextFileView {
     }
 
     if (target.kind === "url") {
-      window.open(target.url);
+      if (SAFE_URL_RE.test(target.url)) {
+        window.open(target.url);
+      }
 
       return;
     }
@@ -586,7 +713,7 @@ export class RoadmapView extends TextFileView {
   };
 
   private normalizeUrl(value: string): string {
-    return /^[a-z][\w+.-]*:\/\//i.test(value) ? value : `https://${value}`;
+    return SAFE_URL_RE.test(value) ? value : `https://${value}`;
   }
 
   private readonly handleAddUrl = (placement: NodePlacement): void => {
@@ -668,6 +795,10 @@ export class RoadmapView extends TextFileView {
   }
 
   private readonly handleCreateNodeAt = (placement: NodePlacement, event: MouseEvent): void => {
+    if (this.locked) {
+      return;
+    }
+
     const centered: NodePlacement = {
       x: placement.x - DEFAULT_NODE_WIDTH / 2,
       y: placement.y - DEFAULT_NODE_HEIGHT / 2,
@@ -790,7 +921,7 @@ export class RoadmapView extends TextFileView {
   private readonly handleEdgeContextMenu = (id: string, event: MouseEvent): void => {
     const edge = this.session?.state.edges[id];
 
-    if (edge === undefined) {
+    if (edge === undefined || this.locked) {
       return;
     }
 
@@ -923,6 +1054,10 @@ export class RoadmapView extends TextFileView {
   }
 
   private readonly handleNodeContextMenu = (id: string, event: MouseEvent): void => {
+    if (this.locked) {
+      return;
+    }
+
     const cluster = this.session?.state.clusters[id];
 
     if (cluster !== undefined) {
@@ -1083,6 +1218,10 @@ export class RoadmapView extends TextFileView {
   };
 
   private readonly handleSelectionContextMenu = (ids: string[], event: MouseEvent): void => {
+    if (this.locked) {
+      return;
+    }
+
     const targets = ids.filter((id) => this.session?.state.nodes[id]?.clusterId == null);
 
     if (targets.length === 0) {
@@ -1112,6 +1251,12 @@ export class RoadmapView extends TextFileView {
       placeholder: "Cluster",
       cta: "Group",
       onSubmit: (value) => {
+        if (isReservedHeading(value)) {
+          new Notice(`"${value}" is a reserved section name.`);
+
+          return;
+        }
+
         this.session?.createClusterFromNodes(targets, value.length > 0 ? value : "Cluster");
         this.commit();
       },
@@ -1145,7 +1290,7 @@ export class RoadmapView extends TextFileView {
   }
 
   private readonly handleDropFiles = (placement: NodePlacement, dataTransfer: DataTransfer | null): void => {
-    if (this.session === null) {
+    if (this.session === null || this.locked) {
       return;
     }
 
@@ -1222,7 +1367,38 @@ export class RoadmapView extends TextFileView {
   }
 
   private renderApp(): void {
-    if (this.root === null || this.session === null) {
+    if (this.root === null) {
+      return;
+    }
+
+    if (this.loadError !== null) {
+      const file = this.file;
+
+      this.root.render(
+        <StrictMode>
+          <div className="rm-view">
+            <div className="rm-load-error">
+              <p className="rm-load-error__message">{this.loadError}</p>
+              <button
+                type="button"
+                className="rm-load-error__action"
+                onClick={() => {
+                  if (file !== null) {
+                    this.host.openAsMarkdown(this.leaf, file);
+                  }
+                }}
+              >
+                Open as Markdown
+              </button>
+            </div>
+          </div>
+        </StrictMode>,
+      );
+
+      return;
+    }
+
+    if (this.session === null) {
       return;
     }
 
@@ -1238,6 +1414,9 @@ export class RoadmapView extends TextFileView {
               resolveImageSrc={this.resolveImageSrc}
               initialDotsVisible={this.host.getShowBackgroundDots()}
               onDotsVisibleChange={this.host.setShowBackgroundDots}
+              locked={this.locked}
+              onToggleLock={this.handleToggleLock}
+              onViewportChange={this.handleViewportChange}
               canUndo={this.session.canUndo}
               canRedo={this.session.canRedo}
               onUndo={this.undoEdit}

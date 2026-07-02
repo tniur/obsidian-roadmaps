@@ -126,7 +126,7 @@ export default class RoadmapPlugin extends Plugin {
         const key = (this as LeafWithId).id ?? file;
 
         if (fileModes[key] !== MARKDOWN_VIEW_TYPE && isRoadmapPath(file)) {
-          fileModes[file] = VIEW_TYPE_ROADMAP;
+          fileModes[key] = VIEW_TYPE_ROADMAP;
 
           return originalSetViewState.call(this, { ...viewState, type: VIEW_TYPE_ROADMAP }, eState);
         }

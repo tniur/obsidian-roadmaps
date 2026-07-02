@@ -82,8 +82,17 @@ export function createTextNode(text: string, placement: NodePlacement): RoadmapN
   };
 }
 
+/**
+ * Clone for paste/duplicate. Cluster membership is intentionally not inherited: the body
+ * places new blocks in the unclustered region, so a copy claiming a cluster would diverge
+ * from it. Callers pass absolute coordinates; dragging the copy into a cluster re-joins it.
+ */
 export function copyNode(node: RoadmapNode, x: number, y: number): RoadmapNode {
-  return { ...node, id: nanoid(), layout: { ...node.layout, x, y } };
+  const copy: RoadmapNode = { ...node, id: nanoid(), layout: { ...node.layout, x, y } };
+
+  delete copy.clusterId;
+
+  return copy;
 }
 
 export function asSide(value: string | null | undefined): EdgeSide | undefined {

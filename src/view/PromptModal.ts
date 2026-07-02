@@ -30,7 +30,7 @@ export class PromptModal extends Modal {
           this.value = value;
         });
       text.inputEl.addEventListener("keydown", (event) => {
-        if (event.key === "Enter") {
+        if (event.key === "Enter" && !event.isComposing) {
           event.preventDefault();
           this.submit();
         }

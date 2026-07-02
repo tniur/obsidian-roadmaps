@@ -63,6 +63,36 @@
   height: 100%;
 }
 
+.rm-load-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--rm-space-3);
+  height: 100%;
+  padding: var(--rm-space-4);
+  text-align: center;
+}
+
+.rm-load-error__message {
+  max-width: var(--rm-preview-width);
+  margin: 0;
+  color: var(--rm-danger);
+}
+
+.rm-load-error__action {
+  padding: var(--rm-space-1) var(--rm-space-3);
+  color: var(--rm-text);
+  background: var(--rm-surface-alt);
+  border: var(--rm-border-width) solid var(--rm-border);
+  border-radius: var(--rm-radius-s);
+  cursor: pointer;
+}
+
+.rm-load-error__action:hover {
+  background: var(--background-modifier-hover);
+}
+
 .rm-preview {
   position: absolute;
   inset: 0 0 0 auto;

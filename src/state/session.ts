@@ -10,10 +10,13 @@ import type {
   RoadmapPriority,
   RoadmapState,
   RoadmapStatus,
+  RoadmapViewport,
   TextAlign,
   TextAlignH,
   TextAlignV,
 } from "../domain/types";
+import { isReservedHeading } from "../markdown/cluster";
+import { sanitizeAlias, sanitizeInline } from "../markdown/sanitize";
 import {
   dissolveClusterSection,
   insertNodeBlock,
@@ -150,6 +153,12 @@ export class RoadmapSession {
    * under the cluster heading so membership stays canonical there.
    */
   createClusterFromNodes(nodeIds: readonly string[], title: string): void {
+    const safeTitle = sanitizeAlias(title);
+
+    if (safeTitle.length === 0 || isReservedHeading(safeTitle)) {
+      return;
+    }
+
     const members: RoadmapNode[] = [];
 
     for (const id of nodeIds) {
@@ -183,7 +192,7 @@ export class RoadmapSession {
       width: maxX - minX + CLUSTER_PADDING * 2,
       height: maxY - minY + CLUSTER_PADDING * 2,
     };
-    const cluster = createCluster(title, layout);
+    const cluster = createCluster(safeTitle, layout);
     const nodes = { ...this.stateValue.nodes };
 
     for (const node of members) {
@@ -194,18 +203,19 @@ export class RoadmapSession {
       };
     }
 
-    this.stateValue = {
-      ...this.stateValue,
-      clusters: { ...this.stateValue.clusters, [cluster.id]: cluster },
-      nodes,
-    };
-    const content = writeClusterSection(
+    const clusters = { ...this.stateValue.clusters, [cluster.id]: cluster };
+    const edges = withoutInternalEdges(this.stateValue.edges, nodes);
+    const edgesChanged = edges !== this.stateValue.edges;
+
+    this.stateValue = { ...this.stateValue, clusters, nodes, edges };
+    let content = writeClusterSection(
       this.contentValue,
       cluster,
       members.map((node) => node.id),
     );
 
-    this.contentValue = writeState(content, this.stateValue);
+    content = writeState(content, this.stateValue);
+    this.contentValue = edgesChanged ? writeRelations(content, this.stateValue) : content;
   }
 
   addNodeWithEdge(node: RoadmapNode, fromNodeId: string, fromHandle?: string | null, toHandle?: string | null): void {
@@ -294,8 +304,12 @@ export class RoadmapSession {
       content = moveNodeToCluster(content, id, clusterId);
     }
 
-    this.stateValue = { ...this.stateValue, nodes };
-    this.contentValue = writeState(content, this.stateValue);
+    const edges = withoutInternalEdges(this.stateValue.edges, nodes);
+    const edgesChanged = edges !== this.stateValue.edges;
+
+    this.stateValue = { ...this.stateValue, nodes, edges };
+    content = writeState(content, this.stateValue);
+    this.contentValue = edgesChanged ? writeRelations(content, this.stateValue) : content;
   }
 
   resizeNode(id: string, width: number, height: number, x: number, y: number): void {
@@ -442,13 +456,19 @@ export class RoadmapSession {
 
   renameCluster(id: string, title: string): void {
     const cluster = this.stateValue.clusters[id];
+    const safeTitle = sanitizeAlias(title);
 
-    if (cluster === undefined || title.length === 0 || title === cluster.title) {
+    if (
+      cluster === undefined ||
+      safeTitle.length === 0 ||
+      safeTitle === cluster.title ||
+      isReservedHeading(safeTitle)
+    ) {
       return;
     }
 
     this.begin();
-    const next = { ...cluster, title };
+    const next = { ...cluster, title: safeTitle };
 
     this.stateValue = {
       ...this.stateValue,
@@ -462,7 +482,7 @@ export class RoadmapSession {
   setClusterColor(id: string, color: string | null): void {
     const cluster = this.stateValue.clusters[id];
 
-    if (cluster === undefined) {
+    if (cluster === undefined || (cluster.style?.color ?? null) === (color === "" ? null : color)) {
       return;
     }
 
@@ -586,6 +606,10 @@ export class RoadmapSession {
     const current = node.align ?? { h: "left", v: "middle" };
     const align: TextAlign = { h: patch.h ?? current.h, v: patch.v ?? current.v };
 
+    if (align.h === current.h && align.v === current.v && node.align !== undefined) {
+      return;
+    }
+
     this.begin();
     this.stateValue = {
       ...this.stateValue,
@@ -601,7 +625,6 @@ export class RoadmapSession {
       return;
     }
 
-    this.begin();
     const next: RoadmapNode = { ...node };
 
     if ("status" in patch) {
@@ -615,13 +638,17 @@ export class RoadmapSession {
     }
 
     if ("title" in patch) {
-      if (patch.title == null || patch.title.length === 0) delete next.title;
-      else next.title = patch.title;
+      const title = patch.title == null ? "" : sanitizeInline(patch.title);
+
+      if (title.length === 0) delete next.title;
+      else next.title = title;
     }
 
     if ("description" in patch) {
-      if (patch.description == null || patch.description.length === 0) delete next.description;
-      else next.description = patch.description;
+      const description = patch.description == null ? "" : sanitizeInline(patch.description);
+
+      if (description.length === 0) delete next.description;
+      else next.description = description;
     }
 
     if ("color" in patch) {
@@ -632,6 +659,17 @@ export class RoadmapSession {
       next.style = Object.keys(style).length > 0 ? style : undefined;
     }
 
+    if (
+      next.status === node.status &&
+      next.priority === node.priority &&
+      next.title === node.title &&
+      next.description === node.description &&
+      next.style?.color === node.style?.color
+    ) {
+      return;
+    }
+
+    this.begin();
     this.stateValue = { ...this.stateValue, nodes: { ...this.stateValue.nodes, [id]: next } };
     const touchesBody = "status" in patch || "priority" in patch || "title" in patch || "description" in patch;
     let content = touchesBody ? updateNodeBlock(this.contentValue, next) : this.contentValue;
@@ -809,7 +847,6 @@ export class RoadmapSession {
       return;
     }
 
-    this.begin();
     const next: RoadmapEdge = { ...edge };
 
     if (patch.direction !== undefined) {
@@ -817,10 +854,12 @@ export class RoadmapSession {
     }
 
     if (patch.label !== undefined) {
-      if (patch.label.length === 0) {
+      const label = sanitizeInline(patch.label);
+
+      if (label.length === 0) {
         delete next.label;
       } else {
-        next.label = patch.label;
+        next.label = label;
       }
     }
 
@@ -836,6 +875,11 @@ export class RoadmapSession {
       next.style = Object.keys(style).length > 0 ? style : undefined;
     }
 
+    if (next.direction === edge.direction && next.label === edge.label && next.style?.line === edge.style?.line) {
+      return;
+    }
+
+    this.begin();
     this.stateValue = { ...this.stateValue, edges: { ...this.stateValue.edges, [id]: next } };
     this.contentValue = writeRelations(writeState(this.contentValue, this.stateValue), this.stateValue);
   }
@@ -891,6 +935,26 @@ export class RoadmapSession {
     }
 
     this.stateValue = { ...this.stateValue, edges: { ...this.stateValue.edges, [id]: next } };
+    this.contentValue = writeState(this.contentValue, this.stateValue);
+  }
+
+  /**
+   * Persists the camera position. Deliberately outside the undo history: pan/zoom is not
+   * an edit, and an undo step per camera move would bury real changes.
+   */
+  setViewport(viewport: RoadmapViewport): void {
+    const current = this.stateValue.viewport;
+
+    if (
+      current !== undefined &&
+      current.x === viewport.x &&
+      current.y === viewport.y &&
+      current.zoom === viewport.zoom
+    ) {
+      return;
+    }
+
+    this.stateValue = { ...this.stateValue, viewport };
     this.contentValue = writeState(this.contentValue, this.stateValue);
   }
 
@@ -958,4 +1022,39 @@ export interface RoadmapConnection {
 
 function endpointNodeId(endpoint: RoadmapEdge["from"]): string {
   return endpoint.type === "node" ? endpoint.id : "";
+}
+
+/**
+ * Drops edges that became internal to a cluster after membership changed: node↔node
+ * sharing a cluster or a node linked to its own container. Returns the original map
+ * when nothing changed, so callers can detect whether Relations need a rewrite.
+ */
+function withoutInternalEdges(
+  edges: Record<string, RoadmapEdge>,
+  nodes: Record<string, RoadmapNode>,
+): Record<string, RoadmapEdge> {
+  const clusterOf = (endpoint: RoadmapEndpoint): string | null =>
+    endpoint.type === "node" ? (nodes[endpoint.id]?.clusterId ?? null) : endpoint.id;
+  const isInternal = (edge: RoadmapEdge): boolean => {
+    if (edge.from.type === "cluster" && edge.to.type === "cluster") {
+      return false;
+    }
+
+    const a = clusterOf(edge.from);
+    const b = clusterOf(edge.to);
+
+    return a !== null && a === b;
+  };
+  const kept: Record<string, RoadmapEdge> = {};
+  let changed = false;
+
+  for (const [id, edge] of Object.entries(edges)) {
+    if (isInternal(edge)) {
+      changed = true;
+    } else {
+      kept[id] = edge;
+    }
+  }
+
+  return changed ? kept : edges;
 }

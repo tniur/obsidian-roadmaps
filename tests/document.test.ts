@@ -61,7 +61,24 @@ describe("roadmap document", () => {
     expect(removed).toContain("%% roadmap:state");
   });
 
-  it("reconciles deletions: drops state nodes missing a body marker", () => {
+  it("reconciles deletions: drops a state node whose body marker was removed", () => {
+    const other: RoadmapNode = { ...node, id: "n2", source: { type: "note", file: "notes/b.md" } };
+    const doc = insertNodeBlock(insertNodeBlock(createRoadmapDocument("My Roadmap"), node), other);
+    const base = readState(doc);
+
+    if (base === null) {
+      throw new Error("expected a state block");
+    }
+
+    const withBoth = writeState(doc, { ...base, nodes: { [node.id]: node, [other.id]: other } });
+    const withoutOne = removeNodeBlock(withBoth, node.id);
+    const reconciled = reconcileState(readState(withoutOne) ?? emptyState(), withoutOne);
+
+    expect(reconciled.nodes[node.id]).toBeUndefined();
+    expect(reconciled.nodes[other.id]).toBeDefined();
+  });
+
+  it("keeps state nodes when the body lost every marker (truncated file guard)", () => {
     const doc = createRoadmapDocument("My Roadmap");
     const base = readState(doc);
 
@@ -69,10 +86,10 @@ describe("roadmap document", () => {
       throw new Error("expected a state block");
     }
 
-    const withOrphan = writeState(doc, { ...base, nodes: { [node.id]: node } });
-    const reconciled = reconcileState(readState(withOrphan) ?? emptyState(), withOrphan);
+    const bodyless = writeState(doc, { ...base, nodes: { [node.id]: node } });
+    const reconciled = reconcileState(readState(bodyless) ?? emptyState(), bodyless);
 
-    expect(reconciled.nodes[node.id]).toBeUndefined();
+    expect(reconciled.nodes[node.id]).toBeDefined();
   });
 
   it("reconciles inline text edited by hand in the body back into state", () => {

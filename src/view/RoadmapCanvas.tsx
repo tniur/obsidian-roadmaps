@@ -25,7 +25,7 @@ import {
 } from "react";
 import { nanoid } from "nanoid";
 import type { NodePlacement } from "../domain/create";
-import type { RoadmapState } from "../domain/types";
+import type { RoadmapState, RoadmapViewport } from "../domain/types";
 import { ClusterNodeView } from "./ClusterNodeView";
 import { FloatingEdge } from "./FloatingEdge";
 import { getHelperLines } from "./alignment";
@@ -69,6 +69,9 @@ interface RoadmapCanvasProps {
   resolveImageSrc: NodeImageResolver;
   initialDotsVisible: boolean;
   onDotsVisibleChange: (value: boolean) => void;
+  locked: boolean;
+  onToggleLock: () => void;
+  onViewportChange: (viewport: RoadmapViewport) => void;
   canUndo: boolean;
   canRedo: boolean;
   onUndo: () => void;
@@ -107,6 +110,9 @@ export function RoadmapCanvas({
   resolveImageSrc,
   initialDotsVisible,
   onDotsVisibleChange,
+  locked,
+  onToggleLock,
+  onViewportChange,
   canUndo,
   canRedo,
   onUndo,
@@ -141,7 +147,7 @@ export function RoadmapCanvas({
   const { screenToFlowPosition, getNodes } = useReactFlow();
   const flowId = useId();
   const [dotsVisible, setDotsVisible] = useState(initialDotsVisible);
-  const [locked, setLocked] = useState(false);
+  const initialViewportRef = useRef(state.viewport);
   const [nodes, setNodes] = useState<RoadmapFlowNode[]>(() => stateToFlowNodes(state, isNodeMissing, resolveImageSrc));
   const [edges, setEdges] = useState<Edge[]>(() => stateToFlowEdges(state));
   const [helperLines, setHelperLines] = useState<{ horizontal?: number; vertical?: number }>({});
@@ -336,7 +342,13 @@ export function RoadmapCanvas({
       const copy = all.find((node) => node.id === copyId);
 
       if (copy !== undefined) {
-        items.push({ id: originalId, x: copy.position.x, y: copy.position.y });
+        const parent = copy.parentId == null ? undefined : all.find((node) => node.id === copy.parentId);
+
+        items.push({
+          id: originalId,
+          x: (parent?.position.x ?? 0) + copy.position.x,
+          y: (parent?.position.y ?? 0) + copy.position.y,
+        });
       }
     }
 
@@ -528,9 +540,12 @@ export function RoadmapCanvas({
     onDotsVisibleChange(next);
   }, [dotsVisible, onDotsVisibleChange]);
 
-  const toggleLock = useCallback(() => {
-    setLocked((value) => !value);
-  }, []);
+  const onMoveEnd = useCallback(
+    (_event: MouseEvent | TouchEvent | null, viewport: RoadmapViewport) => {
+      onViewportChange(viewport);
+    },
+    [onViewportChange],
+  );
 
   const nodeCallbacks = useMemo<NodeCallbacks>(
     () => ({ locked, onResizeEnd: onNodeResized, onClusterToggleCollapse, onClusterArrange }),
@@ -566,6 +581,7 @@ export function RoadmapCanvas({
           onEdgeContextMenu={onEdgeContextMenuInternal}
           onPaneContextMenu={onPaneContextMenuInternal}
           onDelete={onDeleteInternal}
+          onMoveEnd={onMoveEnd}
           deleteKeyCode={locked ? null : ["Backspace", "Delete"]}
           multiSelectionKeyCode="Shift"
           selectionKeyCode={null}
@@ -574,23 +590,26 @@ export function RoadmapCanvas({
           panOnDrag={[1, 2]}
           panOnScroll
           proOptions={{ hideAttribution: true }}
-          fitView
+          defaultViewport={initialViewportRef.current}
+          fitView={initialViewportRef.current === undefined}
         >
           {dotsVisible ? <Background variant={BackgroundVariant.Dots} /> : null}
           <HelperLines horizontal={helperLines.horizontal} vertical={helperLines.vertical} />
-          <NodeToolbar
-            onCreateNote={onCreateNote}
-            onAddNote={onAddNote}
-            onAddUrl={onAddUrl}
-            onAddImage={onAddImage}
-            onAddText={onAddText}
-            onAddAttachment={onAddAttachment}
-          />
+          {!locked ? (
+            <NodeToolbar
+              onCreateNote={onCreateNote}
+              onAddNote={onAddNote}
+              onAddUrl={onAddUrl}
+              onAddImage={onAddImage}
+              onAddText={onAddText}
+              onAddAttachment={onAddAttachment}
+            />
+          ) : null}
           <RoadmapToolbar
             dotsVisible={dotsVisible}
             onToggleDots={toggleDots}
             locked={locked}
-            onToggleLock={toggleLock}
+            onToggleLock={onToggleLock}
             canUndo={canUndo}
             canRedo={canRedo}
             onUndo={onUndo}
