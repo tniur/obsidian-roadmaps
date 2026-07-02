@@ -709,6 +709,11 @@ export class RoadmapSession {
     this.contentValue = writeRelations(writeState(content, this.stateValue), this.stateValue);
   }
 
+  /**
+   * Connects two elements. Drawing over an existing edge is a no-op; drawing the reverse
+   * of an existing edge does not add a second line — the existing edge becomes
+   * bidirectional instead, keeping its geometry.
+   */
   addEdge(fromNodeId: string, toNodeId: string, fromHandle?: string | null, toHandle?: string | null): void {
     const from = this.endpointFor(fromNodeId);
     const to = this.endpointFor(toNodeId);
@@ -717,12 +722,23 @@ export class RoadmapSession {
       return;
     }
 
-    const duplicate = Object.values(this.stateValue.edges).some(
-      (edge) =>
-        edge.from.type === from.type && edge.from.id === from.id && edge.to.type === to.type && edge.to.id === to.id,
-    );
+    const edges = Object.values(this.stateValue.edges);
 
-    if (duplicate) {
+    if (edges.some((edge) => endpointsEqual(edge.from, from) && endpointsEqual(edge.to, to))) {
+      return;
+    }
+
+    const reverse = edges.find((edge) => endpointsEqual(edge.from, to) && endpointsEqual(edge.to, from));
+
+    if (reverse !== undefined) {
+      if (reverse.direction !== "both") {
+        this.begin();
+        const next: RoadmapEdge = { ...reverse, direction: "both" };
+
+        this.stateValue = { ...this.stateValue, edges: { ...this.stateValue.edges, [reverse.id]: next } };
+        this.contentValue = writeRelations(writeState(this.contentValue, this.stateValue), this.stateValue);
+      }
+
       return;
     }
 
@@ -986,7 +1002,7 @@ export class RoadmapSession {
    * Re-points one or both ends of an edge to the given connection, keeping direction, label and
    * style. Both endpoints are rebuilt from the connection, so the untouched end stays as it was;
    * a null handle means that end floats. No-ops on a self-loop, a forbidden intra-cluster link,
-   * or a connection that duplicates another edge.
+   * or a connection that duplicates another edge in either direction.
    */
   reconnectEdge(id: string, connection: RoadmapConnection): void {
     const edge = this.stateValue.edges[id];
@@ -1005,10 +1021,8 @@ export class RoadmapSession {
     const duplicate = Object.values(this.stateValue.edges).some(
       (other) =>
         other.id !== id &&
-        other.from.type === from.type &&
-        other.from.id === from.id &&
-        other.to.type === to.type &&
-        other.to.id === to.id,
+        ((endpointsEqual(other.from, from) && endpointsEqual(other.to, to)) ||
+          (endpointsEqual(other.from, to) && endpointsEqual(other.to, from))),
     );
 
     if (duplicate) {
@@ -1046,6 +1060,10 @@ export interface RoadmapConnection {
 
 function endpointNodeId(endpoint: RoadmapEdge["from"]): string {
   return endpoint.type === "node" ? endpoint.id : "";
+}
+
+function endpointsEqual(a: RoadmapEndpoint, b: RoadmapEndpoint): boolean {
+  return a.type === b.type && a.id === b.id;
 }
 
 /**

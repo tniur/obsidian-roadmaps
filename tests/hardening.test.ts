@@ -129,6 +129,65 @@ describe("viewport persistence", () => {
   });
 });
 
+describe("reverse edge merging", () => {
+  it("upgrades the existing edge to bidirectional instead of adding a reverse line", () => {
+    const session = freshSession();
+    const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
+    const b = createNoteNode("notes/b.md", { x: 300, y: 0 });
+
+    session.addNodes([a, b]);
+    session.addEdge(a.id, b.id, "right", "left");
+    session.addEdge(b.id, a.id);
+    const edges = Object.values(session.state.edges);
+
+    expect(edges).toHaveLength(1);
+    expect(edges[0].direction).toBe("both");
+    expect(edges[0].from).toEqual({ type: "node", id: a.id });
+    expect(edges[0].fromSide).toBe("right");
+    expect(session.content).toContain("<->");
+
+    session.undo();
+    expect(Object.values(session.state.edges)[0].direction).toBe("forward");
+  });
+
+  it("treats a reverse draw over a bidirectional edge as a no-op", () => {
+    const session = freshSession();
+    const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
+    const b = createNoteNode("notes/b.md", { x: 300, y: 0 });
+
+    session.addNodes([a, b]);
+    session.addEdge(a.id, b.id);
+    const edgeId = Object.keys(session.state.edges)[0];
+
+    session.updateEdge(edgeId, { direction: "both" });
+    session.addEdge(b.id, a.id);
+
+    expect(Object.keys(session.state.edges)).toHaveLength(1);
+    session.undo();
+    expect(session.state.edges[edgeId].direction).toBe("forward");
+  });
+
+  it("rejects a reconnect that would mirror another edge", () => {
+    const session = freshSession();
+    const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
+    const b = createNoteNode("notes/b.md", { x: 300, y: 0 });
+    const c = createNoteNode("notes/c.md", { x: 600, y: 0 });
+
+    session.addNodes([a, b, c]);
+    session.addEdge(a.id, b.id);
+    session.addEdge(b.id, c.id);
+    const second = Object.values(session.state.edges).find((edge) => edge.from.id === b.id);
+
+    if (second === undefined) {
+      throw new Error("expected the second edge");
+    }
+
+    session.reconnectEdge(second.id, { source: b.id, target: a.id, sourceHandle: null, targetHandle: null });
+
+    expect(session.state.edges[second.id].to).toEqual({ type: "node", id: c.id });
+  });
+});
+
 describe("vault renames", () => {
   it("re-points node sources, body links and relations without an undo step", () => {
     const session = freshSession();
