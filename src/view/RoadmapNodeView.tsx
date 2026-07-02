@@ -1,15 +1,15 @@
 import { Handle, NodeResizer, Position, type NodeProps } from "@xyflow/react";
 import type { CSSProperties } from "react";
 import { MIN_NODE_HEIGHT, MIN_NODE_WIDTH } from "../constants";
-import type { RoadmapNodeData } from "./flow";
+import type { RoadmapCardNode } from "./flow";
 import { Icon } from "./Icon";
 import { useNodeCallbacks } from "./nodeCallbacks";
 import { getNodeRenderer } from "./nodeRegistry";
 
 const HANDLE_SIDES = [Position.Top, Position.Right, Position.Bottom, Position.Left];
 
-export function RoadmapNodeView({ id, data, selected }: NodeProps) {
-  const node = data as RoadmapNodeData;
+export function RoadmapNodeView({ id, data, selected }: NodeProps<RoadmapCardNode>) {
+  const node = data;
   const Body = getNodeRenderer(node.kind);
   const callbacks = useNodeCallbacks();
   const align = node.align ?? { h: "left", v: "middle" };

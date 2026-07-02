@@ -8,7 +8,7 @@ import {
 } from "@xyflow/react";
 import type { CSSProperties, MouseEvent } from "react";
 import { MIN_CLUSTER_HEIGHT, MIN_CLUSTER_WIDTH } from "../constants";
-import type { RoadmapClusterData } from "./flow";
+import type { RoadmapClusterNode } from "./flow";
 import { Icon } from "./Icon";
 import { useNodeCallbacks } from "./nodeCallbacks";
 
@@ -18,10 +18,10 @@ const RESIZE_EDGES = ["right", "bottom", "bottom-right"] as const;
 
 const HANDLE_SIDES = [Position.Top, Position.Right, Position.Bottom, Position.Left];
 
-export function ClusterNodeView({ id, data, selected }: NodeProps) {
-  const cluster = data as unknown as RoadmapClusterData;
+export function ClusterNodeView({ id, data, selected }: NodeProps<RoadmapClusterNode>) {
+  const cluster = data;
   const callbacks = useNodeCallbacks();
-  const collapsed = cluster.collapsed === true;
+  const collapsed = cluster.collapsed;
   const colorStyle =
     cluster.color !== undefined ? ({ "--rm-cluster-color": cluster.color } as CSSProperties) : undefined;
   const showResize = selected === true && callbacks?.locked !== true && !collapsed;

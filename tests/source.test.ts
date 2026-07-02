@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { sourceFile } from "../src/domain/source";
 import type { RoadmapNode, RoadmapState } from "../src/domain/types";
-import { stateToFlowNodes } from "../src/view/flow";
+import { isCardNode, stateToFlowNodes } from "../src/view/flow";
 
 describe("sourceFile", () => {
   it("returns the vault path for file-backed sources", () => {
@@ -37,7 +37,9 @@ function sampleState(): RoadmapState {
 
 describe("stateToFlowNodes missing flag", () => {
   it("marks a node missing when the predicate reports its source as absent", () => {
-    const nodes = stateToFlowNodes(sampleState(), (node) => sourceFile(node.source) === "notes/b.md");
+    const nodes = stateToFlowNodes(sampleState(), (node) => sourceFile(node.source) === "notes/b.md").filter(
+      isCardNode,
+    );
     const byId = new Map(nodes.map((n) => [n.id, n]));
 
     expect(byId.get("a")?.data.missing).toBe(false);
@@ -45,6 +47,6 @@ describe("stateToFlowNodes missing flag", () => {
   });
 
   it("defaults missing to false without a predicate", () => {
-    expect(stateToFlowNodes(sampleState())[0].data.missing).toBe(false);
+    expect(stateToFlowNodes(sampleState()).filter(isCardNode)[0].data.missing).toBe(false);
   });
 });

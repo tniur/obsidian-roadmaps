@@ -2,7 +2,13 @@ import { describe, expect, it } from "vitest";
 import { createNoteNode } from "../src/domain/create";
 import { createRoadmapDocument, readState } from "../src/state/document";
 import { RoadmapSession } from "../src/state/session";
-import { reconcileFlowEdges, reconcileFlowNodes, stateToFlowEdges, stateToFlowNodes } from "../src/view/flow";
+import {
+  isCardNode,
+  reconcileFlowEdges,
+  reconcileFlowNodes,
+  stateToFlowEdges,
+  stateToFlowNodes,
+} from "../src/view/flow";
 
 function sessionWithNodes(): { session: RoadmapSession; ids: string[] } {
   const content = createRoadmapDocument("Board");
@@ -44,7 +50,7 @@ describe("identity-preserving flow reconcile", () => {
 
     session.updateNodeMeta(ids[0], { status: "done" });
     const after = reconcileFlowNodes(before, stateToFlowNodes(session.state));
-    const changed = after.find((node) => node.id === ids[0]);
+    const changed = after.filter(isCardNode).find((node) => node.id === ids[0]);
 
     expect(changed).not.toBe(before.find((node) => node.id === ids[0]));
     expect(changed?.data.status).toBe("done");

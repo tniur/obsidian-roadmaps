@@ -16,7 +16,7 @@ export const ROADMAP_CLUSTER_TYPE = "roadmapCluster";
 
 export const ROADMAP_EDGE_TYPE = "floating";
 
-export interface RoadmapNodeData {
+export type RoadmapNodeData = {
   label: string;
   title?: string;
   description?: string;
@@ -27,17 +27,23 @@ export interface RoadmapNodeData {
   align?: TextAlign;
   missing?: boolean;
   imageSrc?: string;
-  [key: string]: unknown;
-}
+};
 
-export interface RoadmapClusterData {
+export type RoadmapClusterData = {
   label: string;
   color?: string;
-  collapsed?: boolean;
-  [key: string]: unknown;
-}
+  collapsed: boolean;
+};
 
-export type RoadmapFlowNode = Node<RoadmapNodeData>;
+export type RoadmapCardNode = Node<RoadmapNodeData, typeof ROADMAP_NODE_TYPE>;
+
+export type RoadmapClusterNode = Node<RoadmapClusterData, typeof ROADMAP_CLUSTER_TYPE>;
+
+export type RoadmapFlowNode = RoadmapCardNode | RoadmapClusterNode;
+
+export function isCardNode(node: RoadmapFlowNode): node is RoadmapCardNode {
+  return node.type === ROADMAP_NODE_TYPE;
+}
 
 export type NodeMissingPredicate = (node: RoadmapNode) => boolean;
 
@@ -54,24 +60,23 @@ export function stateToFlowNodes(
   resolveImageSrc?: NodeImageResolver,
 ): RoadmapFlowNode[] {
   const clusters = Object.values(state.clusters).map(
-    (cluster) =>
-      ({
-        id: cluster.id,
-        type: ROADMAP_CLUSTER_TYPE,
-        position: { x: cluster.layout.x, y: cluster.layout.y },
-        width: cluster.layout.width,
-        height: cluster.collapsed === true ? COLLAPSED_CLUSTER_HEIGHT : cluster.layout.height,
-        deletable: false,
-        data: {
-          label: cluster.title,
-          color: cluster.style?.color,
-          collapsed: cluster.collapsed === true,
-        },
-      }) as unknown as RoadmapFlowNode,
+    (cluster): RoadmapClusterNode => ({
+      id: cluster.id,
+      type: ROADMAP_CLUSTER_TYPE,
+      position: { x: cluster.layout.x, y: cluster.layout.y },
+      width: cluster.layout.width,
+      height: cluster.collapsed === true ? COLLAPSED_CLUSTER_HEIGHT : cluster.layout.height,
+      deletable: false,
+      data: {
+        label: cluster.title,
+        color: cluster.style?.color,
+        collapsed: cluster.collapsed === true,
+      },
+    }),
   );
-  const nodes = Object.values(state.nodes).map((node) => {
+  const nodes = Object.values(state.nodes).map((node): RoadmapCardNode => {
     const cluster = node.clusterId != null ? state.clusters[node.clusterId] : undefined;
-    const flow: RoadmapFlowNode = {
+    const flow: RoadmapCardNode = {
       id: node.id,
       type: ROADMAP_NODE_TYPE,
       position: { x: node.layout.x, y: node.layout.y },
@@ -138,14 +143,28 @@ export function reconcileFlowNodes(current: RoadmapFlowNode[], next: RoadmapFlow
   return next.map((node) => {
     const existing = currentById.get(node.id);
 
-    if (existing === undefined) {
+    if (existing === undefined || existing.type !== node.type) {
       return node;
     }
 
     const dataEqual = flowDataEqual(existing.data, node.data);
 
     if (existing.dragging === true) {
-      return dataEqual ? existing : { ...existing, data: node.data };
+      if (dataEqual) {
+        return existing;
+      }
+
+      return {
+        ...node,
+        position: existing.position,
+        width: existing.width,
+        height: existing.height,
+        parentId: existing.parentId,
+        hidden: existing.hidden,
+        selected: existing.selected,
+        dragging: existing.dragging,
+        measured: existing.measured,
+      };
     }
 
     const same =
@@ -161,15 +180,7 @@ export function reconcileFlowNodes(current: RoadmapFlowNode[], next: RoadmapFlow
       return existing;
     }
 
-    return {
-      ...existing,
-      position: node.position,
-      width: node.width,
-      height: node.height,
-      parentId: node.parentId,
-      hidden: node.hidden,
-      data: node.data,
-    };
+    return { ...node, selected: existing.selected, measured: existing.measured };
   });
 }
 
