@@ -1,6 +1,13 @@
 import { z } from "zod";
 import { ROADMAP_SCHEMA_VERSION } from "../constants";
-import { EDGE_SIDES, ROADMAP_NODE_KINDS, ROADMAP_PRIORITIES, ROADMAP_STATUSES } from "../domain/types";
+import {
+  EDGE_SIDES,
+  ROADMAP_NODE_KINDS,
+  ROADMAP_PRIORITIES,
+  ROADMAP_STATUSES,
+  TEXT_ALIGNS_H,
+  TEXT_ALIGNS_V,
+} from "../domain/types";
 
 const layoutSchema = z.tuple([z.number(), z.number(), z.number(), z.number()]);
 const viewportSchema = z.tuple([z.number(), z.number(), z.number()]);
@@ -28,8 +35,8 @@ const nodeSchema = z
     d: z.string().optional(),
     st: statusSchema.optional(),
     p: prioritySchema.optional(),
-    ah: z.enum(["left", "center", "right"]).optional(),
-    av: z.enum(["top", "middle", "bottom"]).optional(),
+    ah: z.enum(TEXT_ALIGNS_H).optional(),
+    av: z.enum(TEXT_ALIGNS_V).optional(),
     cl: z.string().nullable().optional(),
     col: z.string().optional(),
   })

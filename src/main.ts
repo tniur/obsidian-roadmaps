@@ -16,6 +16,7 @@ import {
   ROADMAP_FRONTMATTER_VALUE,
   VIEW_TYPE_ROADMAP,
 } from "./constants";
+import { availableVaultPath } from "./services/vaultFiles";
 import { createRoadmapDocument } from "./state/document";
 import { RoadmapView, type AddNodeCommand, type RoadmapViewHost } from "./view/RoadmapView";
 
@@ -339,7 +340,7 @@ export default class RoadmapPlugin extends Plugin {
 
   private async createRoadmap(): Promise<void> {
     try {
-      const path = this.availablePath("Untitled Roadmap");
+      const path = availableVaultPath(this.app.vault, undefined, "Untitled Roadmap", "md");
       const title = path.replace(/\.md$/, "");
       const file = await this.app.vault.create(path, createRoadmapDocument(title));
       const leaf = this.app.workspace.getLeaf(true);
@@ -349,20 +350,6 @@ export default class RoadmapPlugin extends Plugin {
     } catch (error) {
       new Notice(`Failed to create roadmap: ${error instanceof Error ? error.message : String(error)}`);
     }
-  }
-
-  private availablePath(base: string): string {
-    if (this.app.vault.getAbstractFileByPath(`${base}.md`) === null) {
-      return `${base}.md`;
-    }
-
-    let index = 1;
-
-    while (this.app.vault.getAbstractFileByPath(`${base} ${index}.md`) !== null) {
-      index += 1;
-    }
-
-    return `${base} ${index}.md`;
   }
 }
 

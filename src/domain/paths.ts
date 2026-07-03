@@ -10,6 +10,18 @@ export function stripMarkdownExtension(path: string): string {
   return path.replace(/\.md$/, "");
 }
 
+const SAFE_URL_RE = /^(https?|obsidian):\/\//i;
+
+/** Only http(s) and obsidian URLs are opened or auto-linked; other schemes are rejected. */
+export function isSafeUrl(url: string): boolean {
+  return SAFE_URL_RE.test(url);
+}
+
+/** User-entered addresses default to https when no accepted scheme is given. */
+export function normalizeHttpUrl(value: string): string {
+  return isSafeUrl(value) ? value : `https://${value}`;
+}
+
 /** Hostname as the default title of URL nodes; malformed URLs fall back to the raw text. */
 export function urlHostname(url: string): string {
   try {

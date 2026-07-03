@@ -15,6 +15,11 @@ export interface NodePlacement {
   y: number;
 }
 
+/** Placement putting the center of a default-sized node at `point`. */
+export function centeredPlacement(point: NodePlacement): NodePlacement {
+  return { x: point.x - DEFAULT_NODE_WIDTH / 2, y: point.y - DEFAULT_NODE_HEIGHT / 2 };
+}
+
 export function createCluster(title: string, layout: RoadmapLayout): RoadmapCluster {
   return { id: nanoid(), title, layout };
 }

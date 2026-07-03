@@ -1,63 +1,35 @@
-import {
-  Component,
-  MarkdownRenderer,
-  Menu,
-  Notice,
-  TextFileView,
-  TFile,
-  type App,
-  type TAbstractFile,
-  type WorkspaceLeaf,
-} from "obsidian";
+import { Menu, Notice, TextFileView, TFile, type TAbstractFile, type WorkspaceLeaf } from "obsidian";
 import { ReactFlowProvider, type ReactFlowInstance } from "@xyflow/react";
 import { StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { DEFAULT_NODE_HEIGHT, DEFAULT_NODE_WIDTH, VIEW_TYPE_ROADMAP } from "../constants";
-import {
-  copyNode,
-  createAttachmentNode,
-  createImageNode,
-  createNoteNode,
-  createTextNode,
-  createUrlNode,
-  type NodePlacement,
-} from "../domain/create";
-import { facingSide } from "../domain/edges";
+import { VIEW_TYPE_ROADMAP } from "../constants";
+import { centeredPlacement, copyNode, type NodePlacement } from "../domain/create";
 import { nodeOpenTarget } from "../domain/openTarget";
-import { fileKindForPath, IMAGE_EXTENSIONS } from "../domain/paths";
+import { isSafeUrl } from "../domain/paths";
 import { sourceFile } from "../domain/source";
-import type {
-  EdgeDirection,
-  EdgeLine,
-  EdgeSide,
-  RoadmapCluster,
-  RoadmapNode,
-  RoadmapPriority,
-  RoadmapStatus,
-  RoadmapViewport,
-  TextAlignH,
-  TextAlignV,
-} from "../domain/types";
-import { isReservedHeading } from "../markdown/cluster";
+import type { RoadmapNode, RoadmapViewport } from "../domain/types";
+import { availableVaultPath, draggedFiles, nodeForFile } from "../services/vaultFiles";
 import { StateVersionError } from "../state/codec";
 import { loadDocument, rebuildDocument, type DocumentWarning, type LoadedDocument } from "../state/reconcile";
-import { RoadmapSession, type NodeMetaPatch, type RoadmapConnection } from "../state/session";
+import { RoadmapSession, type RoadmapConnection } from "../state/session";
+import {
+  addExistingAttachment,
+  addExistingImage,
+  addExistingNote,
+  addTextNode,
+  addUrlNode,
+  createNewNote,
+} from "./addNode";
+import type { BoardContext } from "./boardContext";
+import { promptEditText, promptGroupIntoCluster } from "./dialogs";
 import { exportBoardPdf } from "./exportPdf";
-import { FileSuggestModal } from "./FileSuggestModal";
+import { showAddNodeMenu, showConnectToEmptyMenu } from "./menus/addNodeMenu";
+import { showClusterContextMenu } from "./menus/clusterMenu";
+import { showEdgeContextMenu } from "./menus/edgeMenu";
+import { showNodeContextMenu } from "./menus/nodeMenu";
 import { NodePreviewPanel } from "./NodePreviewPanel";
-import { PromptModal } from "./PromptModal";
+import { mountPreviewContent } from "./preview";
 import { RoadmapCanvas } from "./RoadmapCanvas";
-
-const COLOR_OPTIONS: { title: string; value: string }[] = [
-  { title: "Red", value: "var(--color-red)" },
-  { title: "Orange", value: "var(--color-orange)" },
-  { title: "Yellow", value: "var(--color-yellow)" },
-  { title: "Green", value: "var(--color-green)" },
-  { title: "Cyan", value: "var(--color-cyan)" },
-  { title: "Blue", value: "var(--color-blue)" },
-  { title: "Purple", value: "var(--color-purple)" },
-  { title: "Pink", value: "var(--color-pink)" },
-];
 
 export interface RoadmapViewHost {
   openAsMarkdown: (leaf: WorkspaceLeaf, file: TFile) => void;
@@ -67,15 +39,10 @@ export interface RoadmapViewHost {
 
 export type AddNodeCommand = "create-note" | "add-note" | "add-url" | "add-image" | "add-text" | "add-attachment";
 
-type AppWithDragManager = App & {
-  dragManager?: { draggable?: { file?: unknown; files?: unknown[] } };
-};
-
-const PASTE_OFFSET = 24;
+/** Offset applied per element when pasting or dropping several at once, so copies fan out. */
+const CASCADE_OFFSET = 24;
 
 const VIEWPORT_SAVE_DELAY = 600;
-
-const SAFE_URL_RE = /^(https?|obsidian):\/\//i;
 
 const WARNING_MESSAGES: Record<DocumentWarning, string> = {
   "rebuilt-state": "state block was missing; rebuilt from the note body.",
@@ -227,6 +194,35 @@ export class RoadmapView extends TextFileView {
     this.renderApp();
   }
 
+  protected async onClose(): Promise<void> {
+    if (this.viewportSaveTimer !== null) {
+      window.clearTimeout(this.viewportSaveTimer);
+      this.viewportSaveTimer = null;
+    }
+
+    this.root?.unmount();
+    this.root = null;
+  }
+
+  /** Session-dependent modules (menus, dialogs, add flows) get this narrow surface. */
+  private boardContext(): BoardContext | null {
+    const session = this.session;
+
+    if (session === null) {
+      return null;
+    }
+
+    return { app: this.app, session, commit: () => this.commit() };
+  }
+
+  private editableContext(): BoardContext | null {
+    return this.locked ? null : this.boardContext();
+  }
+
+  private noteFolder(): string | undefined {
+    return this.file?.parent?.path;
+  }
+
   /**
    * Keeps node sources pointing at renamed files and folders. Applied
    * outside the undo history: the rename already happened in the vault, so undoing it
@@ -336,6 +332,11 @@ export class RoadmapView extends TextFileView {
     void this.flow?.fitView();
   }
 
+  readonly toggleLock = (): void => {
+    this.locked = !this.locked;
+    this.renderApp();
+  };
+
   /** Snapshots visible nodes and edges into a PDF written next to the roadmap file. */
   async exportPdf(): Promise<void> {
     const file = this.file;
@@ -356,31 +357,13 @@ export class RoadmapView extends TextFileView {
         return;
       }
 
-      const path = this.availableSiblingPath(file, "pdf");
+      const path = availableVaultPath(this.app.vault, file.parent?.path, file.basename, "pdf");
 
       await this.app.vault.createBinary(path, pdf.buffer.slice(pdf.byteOffset, pdf.byteOffset + pdf.byteLength));
       new Notice(`Exported PDF: ${path}`);
     } catch (error) {
       new Notice(`Failed to export PDF: ${error instanceof Error ? error.message : String(error)}`);
     }
-  }
-
-  private availableSiblingPath(file: TFile, extension: string): string {
-    const folder = file.parent?.path ?? "";
-    const prefix = folder === "" || folder === "/" ? "" : `${folder}/`;
-    const base = `${prefix}${file.basename}`;
-
-    if (this.app.vault.getAbstractFileByPath(`${base}.${extension}`) === null) {
-      return `${base}.${extension}`;
-    }
-
-    let index = 1;
-
-    while (this.app.vault.getAbstractFileByPath(`${base} ${index}.${extension}`) !== null) {
-      index += 1;
-    }
-
-    return `${base} ${index}.${extension}`;
   }
 
   runAddNode(command: AddNodeCommand): void {
@@ -420,7 +403,7 @@ export class RoadmapView extends TextFileView {
     const rect = this.contentEl.getBoundingClientRect();
     const center = this.flow.screenToFlowPosition({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
 
-    return { x: center.x - DEFAULT_NODE_WIDTH / 2, y: center.y - DEFAULT_NODE_HEIGHT / 2 };
+    return centeredPlacement(center);
   }
 
   private readonly handleFlowInit = (instance: ReactFlowInstance | null): void => {
@@ -476,7 +459,7 @@ export class RoadmapView extends TextFileView {
       return;
     }
 
-    this.pasteOffset += PASTE_OFFSET;
+    this.pasteOffset += CASCADE_OFFSET;
     const clones = this.clipboard.map((node) =>
       copyNode(node, node.layout.x + this.pasteOffset, node.layout.y + this.pasteOffset),
     );
@@ -511,29 +494,6 @@ export class RoadmapView extends TextFileView {
     return file instanceof TFile ? this.app.vault.getResourcePath(file) : null;
   };
 
-  private imageFiles(): TFile[] {
-    return this.app.vault.getFiles().filter((file) => IMAGE_EXTENSIONS.has(file.extension.toLowerCase()));
-  }
-
-  private attachmentFiles(): TFile[] {
-    return this.app.vault.getFiles().filter((file) => {
-      const ext = file.extension.toLowerCase();
-
-      return ext !== "md" && !IMAGE_EXTENSIONS.has(ext);
-    });
-  }
-
-  private nodeForFile(file: TFile, placement: NodePlacement): RoadmapNode {
-    switch (fileKindForPath(file.path)) {
-      case "image":
-        return createImageNode(file.path, placement);
-      case "note":
-        return createNoteNode(file.path, placement);
-      case "attachment":
-        return createAttachmentNode(file.path, placement);
-    }
-  }
-
   private readonly handleNodesDuplicated = (items: ReadonlyArray<{ id: string; x: number; y: number }>): void => {
     if (this.session === null || items.length === 0) {
       return;
@@ -552,21 +512,6 @@ export class RoadmapView extends TextFileView {
     this.session.addNodes(clones);
     this.focusNodes(clones.map((node) => node.id));
     this.commit();
-  };
-
-  protected async onClose(): Promise<void> {
-    if (this.viewportSaveTimer !== null) {
-      window.clearTimeout(this.viewportSaveTimer);
-      this.viewportSaveTimer = null;
-    }
-
-    this.root?.unmount();
-    this.root = null;
-  }
-
-  readonly toggleLock = (): void => {
-    this.locked = !this.locked;
-    this.renderApp();
   };
 
   private readonly handleViewportChange = (viewport: RoadmapViewport): void => {
@@ -651,100 +596,6 @@ export class RoadmapView extends TextFileView {
     this.commit();
   };
 
-  private showClusterContextMenu(cluster: RoadmapCluster, event: MouseEvent): void {
-    const id = cluster.id;
-    const collapsed = cluster.collapsed === true;
-    const menu = new Menu();
-
-    menu.addItem((item) =>
-      item
-        .setTitle(collapsed ? "Expand" : "Collapse")
-        .setIcon(collapsed ? "chevron-down" : "chevron-right")
-        .onClick(() => this.handleClusterToggleCollapse(id)),
-    );
-
-    if (!collapsed) {
-      menu.addItem((item) =>
-        item
-          .setTitle("Arrange nodes")
-          .setIcon("layout-grid")
-          .onClick(() => this.handleClusterArrange(id)),
-      );
-    }
-
-    menu.addSeparator();
-    menu.addItem((item) =>
-      item
-        .setTitle("Rename…")
-        .setIcon("pencil")
-        .onClick(() => this.renameCluster(cluster)),
-    );
-    menu.addItem((item) =>
-      item
-        .setTitle("No color")
-        .setChecked(cluster.style?.color === undefined)
-        .onClick(() => this.setClusterColor(id, null)),
-    );
-
-    for (const { title, value } of COLOR_OPTIONS) {
-      menu.addItem((item) =>
-        item
-          .setTitle(title)
-          .setChecked(cluster.style?.color === value)
-          .onClick(() => this.setClusterColor(id, value)),
-      );
-    }
-
-    menu.addSeparator();
-    menu.addItem((item) =>
-      item
-        .setTitle("Delete cluster (keep nodes)")
-        .setIcon("ungroup")
-        .onClick(() => {
-          this.session?.dissolveCluster(id);
-          this.commit();
-        }),
-    );
-    menu.addItem((item) =>
-      item
-        .setTitle("Delete cluster and its nodes")
-        .setIcon("trash-2")
-        .onClick(() => {
-          this.session?.deleteClusterAndNodes(id);
-          this.commit();
-        }),
-    );
-    menu.showAtMouseEvent(event);
-  }
-
-  private setClusterColor(id: string, color: string | null): void {
-    this.session?.setClusterColor(id, color);
-    this.commit();
-  }
-
-  private renameCluster(cluster: RoadmapCluster): void {
-    new PromptModal(this.app, {
-      title: "Cluster name",
-      placeholder: "Cluster",
-      initialValue: cluster.title,
-      cta: "Rename",
-      onSubmit: (value) => {
-        if (value.length === 0) {
-          return;
-        }
-
-        if (isReservedHeading(value)) {
-          new Notice(`"${value}" is a reserved section name.`);
-
-          return;
-        }
-
-        this.session?.renameCluster(cluster.id, value);
-        this.commit();
-      },
-    }).open();
-  }
-
   private readonly handleNodeOpen = (id: string, newLeaf: boolean): void => {
     const node = this.session?.state.nodes[id];
 
@@ -759,7 +610,7 @@ export class RoadmapView extends TextFileView {
     }
 
     if (target.kind === "url") {
-      if (SAFE_URL_RE.test(target.url)) {
+      if (isSafeUrl(target.url)) {
         window.open(target.url);
       }
 
@@ -770,9 +621,10 @@ export class RoadmapView extends TextFileView {
   };
 
   private readonly handleNodePreview = (id: string): void => {
-    const node = this.session?.state.nodes[id];
+    const ctx = this.boardContext();
+    const node = ctx?.session.state.nodes[id];
 
-    if (node === undefined) {
+    if (ctx === null || node === undefined) {
       return;
     }
 
@@ -783,7 +635,7 @@ export class RoadmapView extends TextFileView {
     }
 
     if (node.source.type === "text") {
-      this.editTextNode(id);
+      promptEditText(ctx, id);
 
       return;
     }
@@ -803,203 +655,93 @@ export class RoadmapView extends TextFileView {
     }
   };
 
-  private readonly renderPreviewContent = (node: RoadmapNode, el: HTMLElement): (() => void) => {
-    const component = new Component();
+  private readonly mountPreview = (node: RoadmapNode, el: HTMLElement): (() => void) =>
+    mountPreviewContent(this.app, node, el);
 
-    component.load();
+  private readonly handleCreateNote = (placement: NodePlacement): void => {
+    const ctx = this.boardContext();
 
-    if (node.source.type === "url") {
-      el.createEl("a", { text: node.source.url, href: node.source.url });
-
-      return () => component.unload();
+    if (ctx !== null) {
+      void createNewNote(ctx, this.noteFolder(), placement);
     }
-
-    const path = sourceFile(node.source);
-    const file = path === null ? null : this.app.vault.getAbstractFileByPath(path);
-
-    if (!(file instanceof TFile)) {
-      el.setText("Source file not found.");
-
-      return () => component.unload();
-    }
-
-    if (node.source.type === "image" || IMAGE_EXTENSIONS.has(file.extension.toLowerCase())) {
-      el.createEl("img", {
-        cls: "rm-preview__image",
-        attr: { src: this.app.vault.getResourcePath(file) },
-      });
-
-      return () => component.unload();
-    }
-
-    if (node.source.type === "attachment") {
-      void MarkdownRenderer.render(this.app, `![[${file.path}]]`, el, file.path, component);
-
-      return () => component.unload();
-    }
-
-    void this.app.vault.cachedRead(file).then((markdown) => {
-      void MarkdownRenderer.render(this.app, markdown, el, file.path, component);
-    });
-
-    return () => component.unload();
   };
 
   private readonly handleAddNote = (placement: NodePlacement): void => {
-    new FileSuggestModal(this.app, this.app.vault.getMarkdownFiles(), "Select a note to add", (file) => {
-      this.session?.addNode(createNoteNode(file.path, placement));
-      this.commit();
-    }).open();
+    const ctx = this.boardContext();
+
+    if (ctx !== null) {
+      addExistingNote(ctx, placement);
+    }
   };
 
   private readonly handleAddImage = (placement: NodePlacement): void => {
-    new FileSuggestModal(this.app, this.imageFiles(), "Select an image to add", (file) => {
-      this.session?.addNode(createImageNode(file.path, placement));
-      this.commit();
-    }).open();
+    const ctx = this.boardContext();
+
+    if (ctx !== null) {
+      addExistingImage(ctx, placement);
+    }
   };
 
   private readonly handleAddAttachment = (placement: NodePlacement): void => {
-    new FileSuggestModal(this.app, this.attachmentFiles(), "Select an attachment to add", (file) => {
-      this.session?.addNode(createAttachmentNode(file.path, placement));
-      this.commit();
-    }).open();
-  };
+    const ctx = this.boardContext();
 
-  private readonly handleCreateNote = (placement: NodePlacement): void => {
-    void this.createNote(placement);
+    if (ctx !== null) {
+      addExistingAttachment(ctx, placement);
+    }
   };
-
-  private normalizeUrl(value: string): string {
-    return SAFE_URL_RE.test(value) ? value : `https://${value}`;
-  }
 
   private readonly handleAddUrl = (placement: NodePlacement): void => {
-    new PromptModal(this.app, {
-      title: "Add URL",
-      placeholder: "https://example.com",
-      cta: "Add",
-      onSubmit: (value) => {
-        if (value.length === 0 || this.session === null) {
-          return;
-        }
+    const ctx = this.boardContext();
 
-        this.session.addNode(createUrlNode(this.normalizeUrl(value), placement));
-        this.commit();
-      },
-    }).open();
+    if (ctx !== null) {
+      addUrlNode(ctx, placement);
+    }
   };
 
   private readonly handleAddText = (placement: NodePlacement): void => {
-    new PromptModal(this.app, {
-      title: "Add text",
-      placeholder: "Text",
-      cta: "Add",
-      onSubmit: (value) => {
-        if (value.length === 0 || this.session === null) {
-          return;
-        }
+    const ctx = this.boardContext();
 
-        this.session.addNode(createTextNode(value, placement));
-        this.commit();
-      },
-    }).open();
+    if (ctx !== null) {
+      addTextNode(ctx, placement);
+    }
   };
-
-  private editTextNode(id: string): void {
-    const node = this.session?.state.nodes[id];
-
-    if (node === undefined || node.source.type !== "text") {
-      return;
-    }
-
-    new PromptModal(this.app, {
-      title: "Edit text",
-      placeholder: "Text",
-      initialValue: node.title ?? "",
-      cta: "Save",
-      onSubmit: (value) => {
-        if (value.length === 0) {
-          return;
-        }
-
-        this.session?.updateNodeMeta(id, { title: value });
-        this.commit();
-      },
-    }).open();
-  }
-
-  private editNodeUrl(id: string): void {
-    const node = this.session?.state.nodes[id];
-
-    if (node === undefined || node.source.type !== "url") {
-      return;
-    }
-
-    new PromptModal(this.app, {
-      title: "Node URL",
-      placeholder: "https://example.com",
-      initialValue: node.source.url,
-      cta: "Save",
-      onSubmit: (value) => {
-        if (value.length === 0) {
-          return;
-        }
-
-        this.session?.setNodeUrl(id, this.normalizeUrl(value));
-        this.commit();
-      },
-    }).open();
-  }
 
   private readonly handleCreateNodeAt = (placement: NodePlacement, event: MouseEvent): void => {
     if (this.locked) {
       return;
     }
 
-    const centered: NodePlacement = {
-      x: placement.x - DEFAULT_NODE_WIDTH / 2,
-      y: placement.y - DEFAULT_NODE_HEIGHT / 2,
-    };
-    const menu = new Menu();
+    showAddNodeMenu(
+      {
+        createNote: this.handleCreateNote,
+        addNote: this.handleAddNote,
+        addUrl: this.handleAddUrl,
+        addImage: this.handleAddImage,
+        addText: this.handleAddText,
+        addAttachment: this.handleAddAttachment,
+      },
+      centeredPlacement(placement),
+      event,
+    );
+  };
 
-    menu.addItem((item) =>
-      item
-        .setTitle("Create new note")
-        .setIcon("file-plus")
-        .onClick(() => this.handleCreateNote(centered)),
+  private readonly handleConnectToEmpty = (
+    source: string,
+    sourceHandle: string | null,
+    placement: NodePlacement,
+    event: MouseEvent,
+  ): void => {
+    const ctx = this.boardContext();
+
+    if (ctx === null) {
+      return;
+    }
+
+    showConnectToEmptyMenu(
+      ctx,
+      { folder: this.noteFolder(), fromId: source, fromHandle: sourceHandle, placement: centeredPlacement(placement) },
+      event,
     );
-    menu.addItem((item) =>
-      item
-        .setTitle("Add existing note")
-        .setIcon("search")
-        .onClick(() => this.handleAddNote(centered)),
-    );
-    menu.addItem((item) =>
-      item
-        .setTitle("Add URL")
-        .setIcon("link")
-        .onClick(() => this.handleAddUrl(centered)),
-    );
-    menu.addItem((item) =>
-      item
-        .setTitle("Add image")
-        .setIcon("image")
-        .onClick(() => this.handleAddImage(centered)),
-    );
-    menu.addItem((item) =>
-      item
-        .setTitle("Add text")
-        .setIcon("type")
-        .onClick(() => this.handleAddText(centered)),
-    );
-    menu.addItem((item) =>
-      item
-        .setTitle("Add attachment")
-        .setIcon("paperclip")
-        .onClick(() => this.handleAddAttachment(centered)),
-    );
-    menu.showAtMouseEvent(event);
   };
 
   private readonly handleDeleteElements = (nodeIds: string[], edgeIds: string[]): void => {
@@ -1026,368 +768,47 @@ export class RoadmapView extends TextFileView {
     this.commit();
   };
 
-  private readonly handleConnectToEmpty = (
-    source: string,
-    sourceHandle: string | null,
-    placement: NodePlacement,
-    event: MouseEvent,
-  ): void => {
-    const centered: NodePlacement = {
-      x: placement.x - DEFAULT_NODE_WIDTH / 2,
-      y: placement.y - DEFAULT_NODE_HEIGHT / 2,
-    };
-    const menu = new Menu();
-
-    menu.addItem((item) =>
-      item
-        .setTitle("Create new note")
-        .setIcon("file-plus")
-        .onClick(() => {
-          void this.createNoteWithEdge(source, sourceHandle, centered);
-        }),
-    );
-    menu.addItem((item) =>
-      item
-        .setTitle("Add existing note")
-        .setIcon("search")
-        .onClick(() => {
-          new FileSuggestModal(this.app, this.app.vault.getMarkdownFiles(), "Select a note to add", (file) => {
-            this.session?.addNodeWithEdge(createNoteNode(file.path, centered), source, sourceHandle, null);
-            this.commit();
-          }).open();
-        }),
-    );
-    menu.showAtMouseEvent(event);
-  };
-
-  private async createNoteWithEdge(
-    source: string,
-    sourceHandle: string | null,
-    placement: NodePlacement,
-  ): Promise<void> {
-    if (this.session === null) {
-      return;
-    }
-
-    let file: TFile;
-
-    try {
-      file = await this.app.vault.create(this.availableNotePath("Untitled Node"), "");
-    } catch (error) {
-      new Notice(`Failed to create note: ${error instanceof Error ? error.message : String(error)}`);
-
-      return;
-    }
-
-    this.session.addNodeWithEdge(createNoteNode(file.path, placement), source, sourceHandle, null);
-    this.commit();
-  }
-
   private readonly handleEdgeContextMenu = (id: string, event: MouseEvent): void => {
-    const edge = this.session?.state.edges[id];
+    const ctx = this.editableContext();
+    const edge = ctx?.session.state.edges[id];
 
-    if (edge === undefined || this.locked) {
+    if (ctx === null || edge === undefined) {
       return;
     }
 
-    const line = edge.style?.line ?? "solid";
-    const menu = new Menu();
-    const lines: { title: string; value: EdgeLine | "solid" }[] = [
-      { title: "Solid line", value: "solid" },
-      { title: "Dashed line", value: "dashed" },
-      { title: "Dotted line", value: "dotted" },
-    ];
-
-    for (const { title, value } of lines) {
-      menu.addItem((item) =>
-        item
-          .setTitle(title)
-          .setChecked(line === value)
-          .onClick(() => this.updateEdge(id, { line: value })),
-      );
-    }
-
-    menu.addSeparator();
-    const directions: { title: string; value: EdgeDirection }[] = [
-      { title: "Undirected", value: "none" },
-      { title: "Directed", value: "forward" },
-      { title: "Bidirectional", value: "both" },
-    ];
-
-    for (const { title, value } of directions) {
-      menu.addItem((item) =>
-        item
-          .setTitle(title)
-          .setChecked(edge.direction === value)
-          .onClick(() => this.updateEdge(id, { direction: value })),
-      );
-    }
-
-    if (edge.direction === "forward") {
-      menu.addSeparator();
-      menu.addItem((item) =>
-        item
-          .setTitle("Reverse direction")
-          .setIcon("arrow-left-right")
-          .onClick(() => this.reverseEdge(id)),
-      );
-    }
-
-    menu.addSeparator();
-    menu.addItem((item) =>
-      item
-        .setTitle(edge.label === undefined ? "Add label" : "Edit label")
-        .setIcon("type")
-        .onClick(() => this.editEdgeLabel(id)),
-    );
-
-    if (edge.label !== undefined) {
-      menu.addItem((item) =>
-        item
-          .setTitle("Remove label")
-          .setIcon("x")
-          .onClick(() => this.updateEdge(id, { label: "" })),
-      );
-    }
-
-    menu.addSeparator();
-    menu.addItem((item) =>
-      item
-        .setTitle("Float source")
-        .setChecked(edge.fromSide === undefined)
-        .onClick(() => this.toggleEdgeFloat(id, "from")),
-    );
-    menu.addItem((item) =>
-      item
-        .setTitle("Float target")
-        .setChecked(edge.toSide === undefined)
-        .onClick(() => this.toggleEdgeFloat(id, "to")),
-    );
-    menu.showAtMouseEvent(event);
+    showEdgeContextMenu(ctx, edge, event);
   };
-
-  private toggleEdgeFloat(id: string, end: "from" | "to"): void {
-    const edge = this.session?.state.edges[id];
-
-    if (edge === undefined) {
-      return;
-    }
-
-    const floating = end === "from" ? edge.fromSide === undefined : edge.toSide === undefined;
-    let side: EdgeSide | undefined;
-
-    if (floating) {
-      const self = edge[end];
-      const other = end === "from" ? edge.to : edge.from;
-      const selfNode = self.type === "node" ? this.session?.state.nodes[self.id] : undefined;
-      const otherNode = other.type === "node" ? this.session?.state.nodes[other.id] : undefined;
-
-      side = selfNode !== undefined && otherNode !== undefined ? facingSide(selfNode.layout, otherNode.layout) : "top";
-    }
-
-    this.session?.setEdgeEndpointSide(id, end, side);
-    this.commit();
-  }
-
-  private reverseEdge(id: string): void {
-    this.session?.reverseEdge(id);
-    this.commit();
-  }
-
-  private editEdgeLabel(id: string): void {
-    const edge = this.session?.state.edges[id];
-
-    if (edge === undefined) {
-      return;
-    }
-
-    new PromptModal(this.app, {
-      title: edge.label === undefined ? "Add edge label" : "Edit edge label",
-      placeholder: "Label text",
-      initialValue: edge.label ?? "",
-      cta: "Save",
-      onSubmit: (value) => this.updateEdge(id, { label: value }),
-    }).open();
-  }
-
-  private updateEdge(
-    id: string,
-    patch: { direction?: EdgeDirection; line?: EdgeLine | "solid"; label?: string },
-  ): void {
-    this.session?.updateEdge(id, patch);
-    this.commit();
-  }
 
   private readonly handleNodeContextMenu = (id: string, event: MouseEvent): void => {
-    if (this.locked) {
+    const ctx = this.editableContext();
+
+    if (ctx === null) {
       return;
     }
 
-    const cluster = this.session?.state.clusters[id];
+    const cluster = ctx.session.state.clusters[id];
 
     if (cluster !== undefined) {
-      this.showClusterContextMenu(cluster, event);
+      showClusterContextMenu(ctx, cluster, event);
 
       return;
     }
 
-    const node = this.session?.state.nodes[id];
+    const node = ctx.session.state.nodes[id];
 
-    if (node === undefined) {
-      return;
+    if (node !== undefined) {
+      showNodeContextMenu(ctx, node, this.selectedNodeIds, event);
     }
-
-    const align = node.align ?? { h: "left", v: "middle" };
-    const menu = new Menu();
-    const statuses: { title: string; value: RoadmapStatus }[] = [
-      { title: "Draft", value: "draft" },
-      { title: "In progress", value: "in-progress" },
-      { title: "Done", value: "done" },
-      { title: "Archived", value: "archived" },
-    ];
-
-    menu.addItem((item) =>
-      item
-        .setTitle("No status")
-        .setChecked(node.status === undefined)
-        .onClick(() => this.updateNodeMeta(id, { status: null })),
-    );
-
-    for (const { title, value } of statuses) {
-      menu.addItem((item) =>
-        item
-          .setTitle(title)
-          .setChecked(node.status === value)
-          .onClick(() => this.updateNodeMeta(id, { status: value })),
-      );
-    }
-
-    menu.addSeparator();
-    const priorities: { title: string; value: RoadmapPriority }[] = [
-      { title: "Low priority", value: "low" },
-      { title: "Medium priority", value: "medium" },
-      { title: "High priority", value: "high" },
-      { title: "Critical priority", value: "critical" },
-    ];
-
-    menu.addItem((item) =>
-      item
-        .setTitle("No priority")
-        .setChecked(node.priority === undefined)
-        .onClick(() => this.updateNodeMeta(id, { priority: null })),
-    );
-
-    for (const { title, value } of priorities) {
-      menu.addItem((item) =>
-        item
-          .setTitle(title)
-          .setChecked(node.priority === value)
-          .onClick(() => this.updateNodeMeta(id, { priority: value })),
-      );
-    }
-
-    menu.addSeparator();
-    const horizontal: { title: string; value: TextAlignH }[] = [
-      { title: "Align left", value: "left" },
-      { title: "Align center", value: "center" },
-      { title: "Align right", value: "right" },
-    ];
-
-    for (const { title, value } of horizontal) {
-      menu.addItem((item) =>
-        item
-          .setTitle(title)
-          .setChecked(align.h === value)
-          .onClick(() => this.updateNodeAlign(id, { h: value })),
-      );
-    }
-
-    menu.addSeparator();
-    const vertical: { title: string; value: TextAlignV }[] = [
-      { title: "Align top", value: "top" },
-      { title: "Align middle", value: "middle" },
-      { title: "Align bottom", value: "bottom" },
-    ];
-
-    for (const { title, value } of vertical) {
-      menu.addItem((item) =>
-        item
-          .setTitle(title)
-          .setChecked(align.v === value)
-          .onClick(() => this.updateNodeAlign(id, { v: value })),
-      );
-    }
-
-    menu.addSeparator();
-    menu.addItem((item) =>
-      item
-        .setTitle("No color")
-        .setChecked(node.style?.color === undefined)
-        .onClick(() => this.updateNodeMeta(id, { color: null })),
-    );
-
-    for (const { title, value } of COLOR_OPTIONS) {
-      menu.addItem((item) =>
-        item
-          .setTitle(title)
-          .setChecked(node.style?.color === value)
-          .onClick(() => this.updateNodeMeta(id, { color: value })),
-      );
-    }
-
-    menu.addSeparator();
-    menu.addItem((item) =>
-      item
-        .setTitle("Set title…")
-        .setIcon("pencil")
-        .onClick(() => this.editNodeText(id, "title")),
-    );
-    menu.addItem((item) =>
-      item
-        .setTitle("Set description…")
-        .setIcon("text")
-        .onClick(() => this.editNodeText(id, "description")),
-    );
-
-    if (node.source.type === "url") {
-      menu.addItem((item) =>
-        item
-          .setTitle("Set URL…")
-          .setIcon("link")
-          .onClick(() => this.editNodeUrl(id)),
-      );
-    }
-
-    if (node.source.type === "text") {
-      menu.addItem((item) =>
-        item
-          .setTitle("Edit text…")
-          .setIcon("type")
-          .onClick(() => this.editTextNode(id)),
-      );
-    }
-
-    if (node.clusterId == null) {
-      const groupIds = this.selectedNodeIds.includes(id) ? this.selectedNodeIds : [id];
-
-      menu.addSeparator();
-      menu.addItem((item) =>
-        item
-          .setTitle("Group into cluster")
-          .setIcon("group")
-          .onClick(() => this.groupNodes(groupIds)),
-      );
-    }
-
-    menu.showAtMouseEvent(event);
   };
 
   private readonly handleSelectionContextMenu = (ids: string[], event: MouseEvent): void => {
-    if (this.locked) {
+    const ctx = this.editableContext();
+
+    if (ctx === null) {
       return;
     }
 
-    const targets = ids.filter((id) => this.session?.state.nodes[id]?.clusterId == null);
+    const targets = ids.filter((id) => ctx.session.state.nodes[id]?.clusterId == null);
 
     if (targets.length === 0) {
       return;
@@ -1399,144 +820,29 @@ export class RoadmapView extends TextFileView {
       item
         .setTitle("Group into cluster")
         .setIcon("group")
-        .onClick(() => this.groupNodes(targets)),
+        .onClick(() => promptGroupIntoCluster(ctx, targets)),
     );
     menu.showAtMouseEvent(event);
   };
-
-  private groupNodes(ids: readonly string[]): void {
-    const targets = ids.filter((id) => this.session?.state.nodes[id]?.clusterId == null);
-
-    if (this.session === null || targets.length === 0) {
-      return;
-    }
-
-    new PromptModal(this.app, {
-      title: "Cluster name",
-      placeholder: "Cluster",
-      cta: "Group",
-      onSubmit: (value) => {
-        if (isReservedHeading(value)) {
-          new Notice(`"${value}" is a reserved section name.`);
-
-          return;
-        }
-
-        this.session?.createClusterFromNodes(targets, value.length > 0 ? value : "Cluster");
-        this.commit();
-      },
-    }).open();
-  }
-
-  private editNodeText(id: string, field: "title" | "description"): void {
-    const node = this.session?.state.nodes[id];
-
-    if (node === undefined) {
-      return;
-    }
-
-    new PromptModal(this.app, {
-      title: field === "title" ? "Node title" : "Node description",
-      placeholder: field === "title" ? "Title (empty uses the file name)" : "Description",
-      initialValue: (field === "title" ? node.title : node.description) ?? "",
-      cta: "Save",
-      onSubmit: (value) => this.updateNodeMeta(id, { [field]: value }),
-    }).open();
-  }
-
-  private updateNodeAlign(id: string, patch: { h?: TextAlignH; v?: TextAlignV }): void {
-    this.session?.setNodeAlign(id, patch);
-    this.commit();
-  }
-
-  private updateNodeMeta(id: string, patch: NodeMetaPatch): void {
-    this.session?.updateNodeMeta(id, patch);
-    this.commit();
-  }
 
   private readonly handleDropFiles = (placement: NodePlacement, dataTransfer: DataTransfer | null): void => {
     if (this.session === null || this.locked) {
       return;
     }
 
-    const files = this.draggedFiles(dataTransfer);
+    const files = draggedFiles(this.app, dataTransfer, this.file?.path ?? "");
 
     if (files.length === 0) {
       return;
     }
 
     files.forEach((file, index) => {
-      this.session?.addNode(this.nodeForFile(file, { x: placement.x + index * 24, y: placement.y + index * 24 }));
+      const offset = index * CASCADE_OFFSET;
+
+      this.session?.addNode(nodeForFile(file, { x: placement.x + offset, y: placement.y + offset }));
     });
     this.commit();
   };
-
-  private draggedFiles(dataTransfer: DataTransfer | null): TFile[] {
-    const draggable = (this.app as AppWithDragManager).dragManager?.draggable;
-
-    if (draggable?.file instanceof TFile) {
-      return [draggable.file];
-    }
-
-    if (Array.isArray(draggable?.files)) {
-      const files = draggable.files.filter((entry): entry is TFile => entry instanceof TFile);
-
-      if (files.length > 0) {
-        return files;
-      }
-    }
-
-    const linkpath = (dataTransfer?.getData("text/plain") ?? "")
-      .replace(/^!?\[\[/, "")
-      .replace(/\]\]$/, "")
-      .split("|")[0]
-      .split("#")[0]
-      .trim();
-
-    if (linkpath.length === 0) {
-      return [];
-    }
-
-    const file = this.app.metadataCache.getFirstLinkpathDest(linkpath, this.file?.path ?? "");
-
-    return file === null ? [] : [file];
-  }
-
-  private async createNote(placement: NodePlacement): Promise<void> {
-    if (this.session === null) {
-      return;
-    }
-
-    let file: TFile;
-
-    try {
-      file = await this.app.vault.create(this.availableNotePath("Untitled Node"), "");
-    } catch (error) {
-      new Notice(`Failed to create note: ${error instanceof Error ? error.message : String(error)}`);
-
-      return;
-    }
-
-    this.session.addNode(createNoteNode(file.path, placement));
-    this.commit();
-  }
-
-  private availableNotePath(base: string): string {
-    const folder = this.file?.parent?.path;
-    const prefix = folder === undefined || folder === "" || folder === "/" ? "" : `${folder}/`;
-
-    if (this.app.vault.getAbstractFileByPath(`${prefix}${base}.md`) === null) {
-      return `${prefix}${base}.md`;
-    }
-
-    let index = 1;
-
-    while (this.app.vault.getAbstractFileByPath(`${prefix}${base} ${index}.md`) !== null) {
-      index += 1;
-    }
-
-    return `${prefix}${base} ${index}.md`;
-  }
 
   private renderApp(): void {
     if (this.root === null) {
@@ -1640,7 +946,7 @@ export class RoadmapView extends TextFileView {
             <NodePreviewPanel
               key={previewNode.id}
               node={previewNode}
-              mount={this.renderPreviewContent}
+              mount={this.mountPreview}
               refreshNonce={this.previewRefreshNonce}
               onEdit={this.handleEditPreview}
               onClose={this.handleClosePreview}

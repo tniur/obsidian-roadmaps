@@ -23,9 +23,13 @@ export const ROADMAP_PRIORITIES = ["low", "medium", "high", "critical"] as const
 
 export type RoadmapPriority = (typeof ROADMAP_PRIORITIES)[number];
 
-export type TextAlignH = "left" | "center" | "right";
+export const TEXT_ALIGNS_H = ["left", "center", "right"] as const;
 
-export type TextAlignV = "top" | "middle" | "bottom";
+export type TextAlignH = (typeof TEXT_ALIGNS_H)[number];
+
+export const TEXT_ALIGNS_V = ["top", "middle", "bottom"] as const;
+
+export type TextAlignV = (typeof TEXT_ALIGNS_V)[number];
 
 export interface TextAlign {
   h: TextAlignH;
