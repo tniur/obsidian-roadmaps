@@ -1,8 +1,8 @@
 import { BaseEdge, EdgeLabelRenderer, getBezierPath, Position, useInternalNode, type EdgeProps } from "@xyflow/react";
 import type { CSSProperties } from "react";
 import { EDGE_INTERACTION_WIDTH } from "../constants";
-import type { EdgeDirection, EdgeLine, EdgeSide } from "../domain/types";
 import { getEdgeEndpoints } from "./edgeParams";
+import type { RoadmapFlowEdge } from "./flow";
 
 const ARROW_LENGTH = 6;
 const ARROW_SPREAD = 3.375;
@@ -40,15 +40,7 @@ function arrowPath(x: number, y: number, dir: Vec): string {
   ].join(" ");
 }
 
-interface EdgeMeta {
-  direction?: EdgeDirection;
-  line?: EdgeLine;
-  fromSide?: EdgeSide;
-  toSide?: EdgeSide;
-  label?: string;
-}
-
-export function FloatingEdge(props: EdgeProps) {
+export function FloatingEdge(props: EdgeProps<RoadmapFlowEdge>) {
   const { id, source, target, data, style } = props;
   const sourceNode = useInternalNode(source);
   const targetNode = useInternalNode(target);
@@ -57,12 +49,11 @@ export function FloatingEdge(props: EdgeProps) {
     return null;
   }
 
-  const meta = data as EdgeMeta | undefined;
   const { sx, sy, tx, ty, sourcePos, targetPos } = getEdgeEndpoints(
     sourceNode,
     targetNode,
-    meta?.fromSide,
-    meta?.toSide,
+    data?.fromSide,
+    data?.toSide,
   );
   const [path, labelX, labelY] = getBezierPath({
     sourceX: sx,
@@ -72,9 +63,9 @@ export function FloatingEdge(props: EdgeProps) {
     targetY: ty,
     targetPosition: targetPos,
   });
-  const direction = meta?.direction ?? "forward";
-  const line = meta?.line;
-  const label = meta?.label;
+  const direction = data?.direction ?? "forward";
+  const line = data?.line;
+  const label = data?.label;
   const edgeStyle: CSSProperties =
     line === "dotted"
       ? {

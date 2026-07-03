@@ -12,7 +12,7 @@ export function iconTitleNodeBody(icon: string): ComponentType<NodeBodyProps> {
           <span className="rm-node__type-icon">
             <Icon name={icon} />
           </span>
-          <span className="rm-node__title">{data.label}</span>
+          <span className="rm-node__title">{data.displayTitle}</span>
         </div>
         {data.description !== undefined ? <p className="rm-node__desc">{data.description}</p> : null}
         <NodeBadges data={data} />

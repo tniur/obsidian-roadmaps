@@ -269,7 +269,9 @@ export default class RoadmapPlugin extends Plugin {
     const { fileModes } = this;
     const isRoadmapPath = (path: string): boolean => this.isRoadmapPath(path);
     const proto = WorkspaceLeaf.prototype;
+    // eslint-disable-next-line @typescript-eslint/unbound-method -- the patch always invokes it via .call
     const originalSetViewState = proto.setViewState;
+    // eslint-disable-next-line @typescript-eslint/unbound-method -- the patch always invokes it via .call
     const originalDetach = proto.detach;
 
     const patchedSetViewState = function (this: WorkspaceLeaf, viewState: ViewState, eState?: unknown): Promise<void> {

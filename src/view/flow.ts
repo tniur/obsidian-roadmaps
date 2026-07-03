@@ -2,6 +2,9 @@ import type { Edge, Node } from "@xyflow/react";
 import { COLLAPSED_CLUSTER_HEIGHT } from "../constants";
 import { nodeTitle } from "../domain/title";
 import type {
+  EdgeDirection,
+  EdgeLine,
+  EdgeSide,
   RoadmapNode,
   RoadmapNodeKind,
   RoadmapPriority,
@@ -17,8 +20,10 @@ export const ROADMAP_CLUSTER_TYPE = "roadmapCluster";
 export const ROADMAP_EDGE_TYPE = "floating";
 
 export type RoadmapNodeData = {
-  label: string;
-  title?: string;
+  /** Resolved card title: the custom title when set, else derived from the source. */
+  displayTitle: string;
+  /** Explicit user-set title only; image cards caption exclusively on it. */
+  customTitle?: string;
   description?: string;
   kind: RoadmapNodeKind;
   status?: RoadmapStatus;
@@ -30,9 +35,17 @@ export type RoadmapNodeData = {
 };
 
 export type RoadmapClusterData = {
-  label: string;
+  title: string;
   color?: string;
   collapsed: boolean;
+};
+
+export type RoadmapEdgeData = {
+  direction: EdgeDirection;
+  line?: EdgeLine;
+  fromSide?: EdgeSide;
+  toSide?: EdgeSide;
+  label?: string;
 };
 
 export type RoadmapCardNode = Node<RoadmapNodeData, typeof ROADMAP_NODE_TYPE>;
@@ -40,6 +53,8 @@ export type RoadmapCardNode = Node<RoadmapNodeData, typeof ROADMAP_NODE_TYPE>;
 export type RoadmapClusterNode = Node<RoadmapClusterData, typeof ROADMAP_CLUSTER_TYPE>;
 
 export type RoadmapFlowNode = RoadmapCardNode | RoadmapClusterNode;
+
+export type RoadmapFlowEdge = Edge<RoadmapEdgeData, typeof ROADMAP_EDGE_TYPE>;
 
 export function isCardNode(node: RoadmapFlowNode): node is RoadmapCardNode {
   return node.type === ROADMAP_NODE_TYPE;
@@ -68,7 +83,7 @@ export function stateToFlowNodes(
       height: cluster.collapsed === true ? COLLAPSED_CLUSTER_HEIGHT : cluster.layout.height,
       deletable: false,
       data: {
-        label: cluster.title,
+        title: cluster.title,
         color: cluster.style?.color,
         collapsed: cluster.collapsed === true,
       },
@@ -83,8 +98,8 @@ export function stateToFlowNodes(
       width: node.layout.width,
       height: node.layout.height,
       data: {
-        label: nodeTitle(node),
-        title: node.title,
+        displayTitle: nodeTitle(node),
+        customTitle: node.title,
         description: node.description,
         kind: node.kind,
         status: node.status,
@@ -107,28 +122,62 @@ export function stateToFlowNodes(
   return [...clusters, ...nodes];
 }
 
-/**
- * Shallow equality over node/cluster card content. Extra keys on either shape resolve to
- * undefined on the other, so one comparator covers both node and cluster data records.
+/*
+ * The comparators below list their keys through `satisfies Record<keyof T, true>`:
+ * adding a field to a data type fails compilation until the comparator learns about
+ * it, so a new field cannot silently skip re-rendering.
  */
-function flowDataEqual(a: Record<string, unknown>, b: Record<string, unknown>): boolean {
-  const alignA = a.align as TextAlign | undefined;
-  const alignB = b.align as TextAlign | undefined;
 
-  return (
-    a.label === b.label &&
-    a.title === b.title &&
-    a.description === b.description &&
-    a.kind === b.kind &&
-    a.status === b.status &&
-    a.priority === b.priority &&
-    a.color === b.color &&
-    a.missing === b.missing &&
-    a.imageSrc === b.imageSrc &&
-    a.collapsed === b.collapsed &&
-    alignA?.h === alignB?.h &&
-    alignA?.v === alignB?.v
-  );
+const NODE_DATA_KEYS = Object.keys({
+  displayTitle: true,
+  customTitle: true,
+  description: true,
+  kind: true,
+  status: true,
+  priority: true,
+  color: true,
+  align: true,
+  missing: true,
+  imageSrc: true,
+} satisfies Record<keyof RoadmapNodeData, true>) as ReadonlyArray<keyof RoadmapNodeData>;
+
+const CLUSTER_DATA_KEYS = Object.keys({
+  title: true,
+  color: true,
+  collapsed: true,
+} satisfies Record<keyof RoadmapClusterData, true>) as ReadonlyArray<keyof RoadmapClusterData>;
+
+const EDGE_DATA_KEYS = Object.keys({
+  direction: true,
+  line: true,
+  fromSide: true,
+  toSide: true,
+  label: true,
+} satisfies Record<keyof RoadmapEdgeData, true>) as ReadonlyArray<keyof RoadmapEdgeData>;
+
+/** Alignment is a value object recreated on write, so it is compared by content. */
+function alignEqual(a: TextAlign | undefined, b: TextAlign | undefined): boolean {
+  return a?.h === b?.h && a?.v === b?.v;
+}
+
+function cardDataEqual(a: RoadmapNodeData, b: RoadmapNodeData): boolean {
+  return NODE_DATA_KEYS.every((key) => (key === "align" ? alignEqual(a.align, b.align) : a[key] === b[key]));
+}
+
+function clusterDataEqual(a: RoadmapClusterData, b: RoadmapClusterData): boolean {
+  return CLUSTER_DATA_KEYS.every((key) => a[key] === b[key]);
+}
+
+function flowDataEqual(a: RoadmapFlowNode, b: RoadmapFlowNode): boolean {
+  if (isCardNode(a) && isCardNode(b)) {
+    return cardDataEqual(a.data, b.data);
+  }
+
+  if (!isCardNode(a) && !isCardNode(b)) {
+    return clusterDataEqual(a.data, b.data);
+  }
+
+  return false;
 }
 
 /**
@@ -147,7 +196,7 @@ export function reconcileFlowNodes(current: RoadmapFlowNode[], next: RoadmapFlow
       return node;
     }
 
-    const dataEqual = flowDataEqual(existing.data, node.data);
+    const dataEqual = flowDataEqual(existing, node);
 
     if (existing.dragging === true) {
       if (dataEqual) {
@@ -184,7 +233,7 @@ export function reconcileFlowNodes(current: RoadmapFlowNode[], next: RoadmapFlow
   });
 }
 
-export function stateToFlowEdges(state: RoadmapState): Edge[] {
+export function stateToFlowEdges(state: RoadmapState): RoadmapFlowEdge[] {
   return Object.values(state.edges).map((edge) => ({
     id: edge.id,
     source: edge.from.id,
@@ -202,14 +251,12 @@ export function stateToFlowEdges(state: RoadmapState): Edge[] {
   }));
 }
 
-function edgeDataEqual(a: Record<string, unknown> | undefined, b: Record<string, unknown> | undefined): boolean {
-  return (
-    a?.direction === b?.direction &&
-    a?.line === b?.line &&
-    a?.fromSide === b?.fromSide &&
-    a?.toSide === b?.toSide &&
-    a?.label === b?.label
-  );
+function edgeDataEqual(a: RoadmapEdgeData | undefined, b: RoadmapEdgeData | undefined): boolean {
+  if (a === undefined || b === undefined) {
+    return a === b;
+  }
+
+  return EDGE_DATA_KEYS.every((key) => a[key] === b[key]);
 }
 
 /**
@@ -217,7 +264,7 @@ function edgeDataEqual(a: Record<string, unknown> | undefined, b: Record<string,
  * ephemeral `selected` flag over to changed edges, so an unrelated commit no longer
  * drops the current edge selection.
  */
-export function reconcileFlowEdges(current: Edge[], next: Edge[]): Edge[] {
+export function reconcileFlowEdges(current: RoadmapFlowEdge[], next: RoadmapFlowEdge[]): RoadmapFlowEdge[] {
   const currentById = new Map(current.map((edge) => [edge.id, edge]));
 
   return next.map((edge) => {

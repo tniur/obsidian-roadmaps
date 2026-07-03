@@ -220,16 +220,18 @@ export class RoadmapView extends TextFileView {
     super.onPaneMenu(menu, source);
   }
 
-  protected async onOpen(): Promise<void> {
+  protected onOpen(): Promise<void> {
     this.root = createRoot(this.contentEl);
     this.registerDomEvent(this.contentEl.ownerDocument, "keydown", this.handleKeyDown);
     this.registerEvent(this.app.vault.on("modify", this.handleVaultModify));
     this.registerEvent(this.app.vault.on("rename", this.handleVaultRename));
     this.registerEvent(this.app.vault.on("delete", this.handleVaultDelete));
     this.renderApp();
+
+    return Promise.resolve();
   }
 
-  protected async onClose(): Promise<void> {
+  protected onClose(): Promise<void> {
     if (this.viewportSaveTimer !== null) {
       window.clearTimeout(this.viewportSaveTimer);
       this.viewportSaveTimer = null;
@@ -237,6 +239,8 @@ export class RoadmapView extends TextFileView {
 
     this.root?.unmount();
     this.root = null;
+
+    return Promise.resolve();
   }
 
   /** Session-dependent modules (menus, dialogs, add flows) get this narrow surface. */

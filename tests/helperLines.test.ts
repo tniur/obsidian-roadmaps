@@ -8,7 +8,7 @@ function node(id: string, x: number, y: number, width: number, height: number): 
     position: { x, y },
     data: {},
     measured: { width, height },
-  } as Node;
+  };
 }
 
 function drag(id: string, x: number, y: number): NodePositionChange {

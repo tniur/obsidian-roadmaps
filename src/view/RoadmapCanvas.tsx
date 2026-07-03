@@ -8,7 +8,6 @@ import {
   SelectionMode,
   useReactFlow,
   type Connection,
-  type Edge,
   type EdgeChange,
   type FinalConnectionState,
   type NodeChange,
@@ -43,6 +42,7 @@ import {
   stateToFlowNodes,
   type NodeImageResolver,
   type NodeMissingPredicate,
+  type RoadmapFlowEdge,
   type RoadmapFlowNode,
 } from "./flow";
 import { Icon } from "./Icon";
@@ -178,7 +178,7 @@ export function RoadmapCanvas({
   const [dotsVisible, setDotsVisible] = useState(initialDotsVisible);
   const initialViewportRef = useRef(state.viewport);
   const [nodes, setNodes] = useState<RoadmapFlowNode[]>(() => stateToFlowNodes(state, isNodeMissing, resolveImageSrc));
-  const [edges, setEdges] = useState<Edge[]>(() => stateToFlowEdges(state));
+  const [edges, setEdges] = useState<RoadmapFlowEdge[]>(() => stateToFlowEdges(state));
   const [helperLines, setHelperLines] = useState<{ horizontal?: number; vertical?: number }>({});
   const altDragRef = useRef<{
     map: Map<string, string>;
@@ -278,7 +278,7 @@ export function RoadmapCanvas({
     [getNodes],
   );
 
-  const onEdgesChange = useCallback((changes: EdgeChange[]) => {
+  const onEdgesChange = useCallback((changes: EdgeChange<RoadmapFlowEdge>[]) => {
     setEdges((current) => applyEdgeChanges(changes, current));
   }, []);
 
@@ -294,7 +294,7 @@ export function RoadmapCanvas({
   );
 
   const onReconnect = useCallback(
-    (oldEdge: Edge, connection: Connection) => {
+    (oldEdge: RoadmapFlowEdge, connection: Connection) => {
       onReconnectEdge(oldEdge.id, connection);
     },
     [onReconnectEdge],
@@ -506,7 +506,7 @@ export function RoadmapCanvas({
   );
 
   const onEdgeContextMenuInternal = useCallback(
-    (event: ReactMouseEvent, edge: Edge) => {
+    (event: ReactMouseEvent, edge: RoadmapFlowEdge) => {
       event.preventDefault();
       onEdgeContextMenu(edge.id, event.nativeEvent);
     },
@@ -544,7 +544,7 @@ export function RoadmapCanvas({
   );
 
   const onDeleteInternal = useCallback(
-    ({ nodes: deletedNodes, edges: deletedEdges }: { nodes: RoadmapFlowNode[]; edges: Edge[] }) => {
+    ({ nodes: deletedNodes, edges: deletedEdges }: { nodes: RoadmapFlowNode[]; edges: RoadmapFlowEdge[] }) => {
       onDeleteElements(
         deletedNodes.map((node) => node.id),
         deletedEdges.map((edge) => edge.id),

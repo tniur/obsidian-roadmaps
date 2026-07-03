@@ -55,7 +55,7 @@ export function ClusterNodeView({ id, data, selected }: NodeProps<RoadmapCluster
           >
             <Icon name={collapsed ? "chevron-right" : "chevron-down"} />
           </button>
-          <span className="rm-cluster__title">{cluster.label}</span>
+          <span className="rm-cluster__title">{cluster.title}</span>
           {!collapsed ? (
             <button type="button" className="rm-cluster__action nodrag" aria-label="Arrange nodes" onClick={onArrange}>
               <Icon name="layout-grid" />

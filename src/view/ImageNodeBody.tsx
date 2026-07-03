@@ -3,7 +3,7 @@ import { NodeBadges } from "./NodeBadges";
 import type { NodeBodyProps } from "./nodeRegistry";
 
 export function ImageNodeBody({ data }: NodeBodyProps) {
-  const hasTitle = data.title !== undefined && data.title.length > 0;
+  const hasTitle = data.customTitle !== undefined && data.customTitle.length > 0;
   const hasDescription = data.description !== undefined && data.description.length > 0;
   const showHeader = data.imageSrc === undefined || hasTitle || hasDescription;
 
@@ -17,7 +17,7 @@ export function ImageNodeBody({ data }: NodeBodyProps) {
           <span className="rm-node__type-icon">
             <Icon name="image" />
           </span>
-          {hasTitle ? <span className="rm-node__title">{data.title}</span> : null}
+          {hasTitle ? <span className="rm-node__title">{data.customTitle}</span> : null}
         </div>
       ) : null}
       {hasDescription ? <p className="rm-node__desc">{data.description}</p> : null}

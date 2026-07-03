@@ -32,8 +32,8 @@ export function RoadmapToolbar({
       <ToolbarButton icon="undo-2" label="Undo" disabled={!canUndo} onClick={onUndo} />
       <ToolbarButton icon="redo-2" label="Redo" disabled={!canRedo} onClick={onRedo} />
       <ToolbarButton icon="frame" label="Fit to nodes" onClick={() => void fitView()} />
-      <ToolbarButton icon="zoom-in" label="Zoom in" onClick={() => zoomIn()} />
-      <ToolbarButton icon="zoom-out" label="Zoom out" onClick={() => zoomOut()} />
+      <ToolbarButton icon="zoom-in" label="Zoom in" onClick={() => void zoomIn()} />
+      <ToolbarButton icon="zoom-out" label="Zoom out" onClick={() => void zoomOut()} />
       <ToolbarButton icon="file-down" label="Export as PDF" onClick={onExportPdf} />
       <ToolbarButton
         icon={locked ? "lock" : "unlock"}

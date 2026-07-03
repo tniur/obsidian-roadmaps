@@ -31,7 +31,7 @@ export function RoadmapNodeView({ id, data, selected }: NodeProps<RoadmapCardNod
             <Icon name="alert-triangle" />
           </span>
         ) : null}
-        {Body !== null ? <Body data={node} /> : <span className="rm-node__title">{node.label}</span>}
+        {Body !== null ? <Body data={node} /> : <span className="rm-node__title">{node.displayTitle}</span>}
       </div>
       <NodeResizer
         minWidth={MIN_NODE_WIDTH}
