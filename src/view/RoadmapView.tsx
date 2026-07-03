@@ -42,6 +42,7 @@ import { isReservedHeading } from "../markdown/cluster";
 import { StateVersionError } from "../state/codec";
 import { loadDocument, rebuildDocument, type DocumentWarning, type LoadedDocument } from "../state/reconcile";
 import { RoadmapSession, type NodeMetaPatch, type RoadmapConnection } from "../state/session";
+import { exportBoardPdf } from "./exportPdf";
 import { FileSuggestModal } from "./FileSuggestModal";
 import { NodePreviewPanel } from "./NodePreviewPanel";
 import { PromptModal } from "./PromptModal";
@@ -335,6 +336,53 @@ export class RoadmapView extends TextFileView {
     void this.flow?.fitView();
   }
 
+  /** Snapshots visible nodes and edges into a PDF written next to the roadmap file. */
+  async exportPdf(): Promise<void> {
+    const file = this.file;
+    const viewport = this.contentEl.querySelector<HTMLElement>(".react-flow__viewport");
+    const boardEl = this.contentEl.querySelector<HTMLElement>(".rm-view");
+
+    if (this.session === null || this.flow === null || file === null || viewport === null) {
+      return;
+    }
+
+    try {
+      const background = getComputedStyle(boardEl ?? this.contentEl).backgroundColor;
+      const pdf = await exportBoardPdf(viewport, this.flow.getNodes(), background);
+
+      if (pdf === null) {
+        new Notice("Nothing to export: the board is empty.");
+
+        return;
+      }
+
+      const path = this.availableSiblingPath(file, "pdf");
+
+      await this.app.vault.createBinary(path, pdf.buffer.slice(pdf.byteOffset, pdf.byteOffset + pdf.byteLength));
+      new Notice(`Exported PDF: ${path}`);
+    } catch (error) {
+      new Notice(`Failed to export PDF: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  private availableSiblingPath(file: TFile, extension: string): string {
+    const folder = file.parent?.path ?? "";
+    const prefix = folder === "" || folder === "/" ? "" : `${folder}/`;
+    const base = `${prefix}${file.basename}`;
+
+    if (this.app.vault.getAbstractFileByPath(`${base}.${extension}`) === null) {
+      return `${base}.${extension}`;
+    }
+
+    let index = 1;
+
+    while (this.app.vault.getAbstractFileByPath(`${base} ${index}.${extension}`) !== null) {
+      index += 1;
+    }
+
+    return `${base} ${index}.${extension}`;
+  }
+
   runAddNode(command: AddNodeCommand): void {
     const placement = this.canvasCenterPlacement();
 
@@ -377,6 +425,10 @@ export class RoadmapView extends TextFileView {
 
   private readonly handleFlowInit = (instance: ReactFlowInstance | null): void => {
     this.flow = instance;
+  };
+
+  private readonly handleExportPdf = (): void => {
+    void this.exportPdf();
   };
 
   /** Clipboard entries carry absolute coordinates: cluster members store cluster-relative
@@ -1551,6 +1603,7 @@ export class RoadmapView extends TextFileView {
               onToggleLock={this.toggleLock}
               onViewportChange={this.handleViewportChange}
               onFlowInit={this.handleFlowInit}
+              onExportPdf={this.handleExportPdf}
               canUndo={this.session.canUndo}
               canRedo={this.session.canRedo}
               onUndo={this.undoEdit}

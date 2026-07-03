@@ -76,6 +76,7 @@ interface RoadmapCanvasProps {
   onToggleLock: () => void;
   onViewportChange: (viewport: RoadmapViewport) => void;
   onFlowInit: (instance: ReactFlowInstance | null) => void;
+  onExportPdf: () => void;
   canUndo: boolean;
   canRedo: boolean;
   onUndo: () => void;
@@ -118,6 +119,7 @@ export function RoadmapCanvas({
   onToggleLock,
   onViewportChange,
   onFlowInit,
+  onExportPdf,
   canUndo,
   canRedo,
   onUndo,
@@ -626,6 +628,7 @@ export function RoadmapCanvas({
             canRedo={canRedo}
             onUndo={onUndo}
             onRedo={onRedo}
+            onExportPdf={onExportPdf}
           />
         </ReactFlow>
         {nodes.length === 0 && !locked ? (

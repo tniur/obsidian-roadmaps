@@ -174,6 +174,15 @@ export default class RoadmapPlugin extends Plugin {
       (view) => view.isBoardLoaded(),
       (view) => view.toggleLock(),
     );
+    this.addBoardCommand(
+      "export-pdf",
+      "Export as PDF",
+      "file-down",
+      (view) => view.isBoardLoaded(),
+      (view) => {
+        void view.exportPdf();
+      },
+    );
   }
 
   /** Registers a command that applies only while a roadmap view is active. */

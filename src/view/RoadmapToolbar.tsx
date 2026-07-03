@@ -11,6 +11,7 @@ interface RoadmapToolbarProps {
   canRedo: boolean;
   onUndo: () => void;
   onRedo: () => void;
+  onExportPdf: () => void;
 }
 
 export function RoadmapToolbar({
@@ -22,6 +23,7 @@ export function RoadmapToolbar({
   canRedo,
   onUndo,
   onRedo,
+  onExportPdf,
 }: RoadmapToolbarProps) {
   const { zoomIn, zoomOut, fitView } = useReactFlow();
 
@@ -32,6 +34,7 @@ export function RoadmapToolbar({
       <ToolbarButton icon="frame" label="Fit to nodes" onClick={() => void fitView()} />
       <ToolbarButton icon="zoom-in" label="Zoom in" onClick={() => zoomIn()} />
       <ToolbarButton icon="zoom-out" label="Zoom out" onClick={() => zoomOut()} />
+      <ToolbarButton icon="file-down" label="Export as PDF" onClick={onExportPdf} />
       <ToolbarButton
         icon={locked ? "lock" : "unlock"}
         label={locked ? "Unlock board" : "Lock board"}
