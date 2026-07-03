@@ -46,6 +46,18 @@ interface Snapshot {
   content: string;
 }
 
+/**
+ * Side-effects of a mutation beyond the hidden state block. `body` transforms the
+ * readable Markdown (node blocks, cluster headings); `relations` rewrites the
+ * `## Relations` section; `history: false` skips the undo snapshot for changes that are
+ * not edits (camera moves, external vault renames).
+ */
+interface CommitOptions {
+  body?: (content: string) => string;
+  relations?: boolean;
+  history?: boolean;
+}
+
 const HISTORY_LIMIT = 200;
 
 /**
@@ -53,6 +65,7 @@ const HISTORY_LIMIT = 200;
  * immutable state snapshots and keep the content in sync so the view can persist the
  * latest text. Layout-only changes touch just the hidden state block; structural
  * changes also update the readable Markdown body (node markers and `## Relations`).
+ * Every mutation funnels through `commit`, which owns that persist policy.
  *
  * Each mutation records the prior snapshot so `undo`/`redo` can step through the edit
  * history. Snapshots are cheap to keep because state and content are replaced wholesale
@@ -95,6 +108,19 @@ export class RoadmapSession {
     this.redoStack.length = 0;
   }
 
+  /** Single seam every mutation persists through; `CommitOptions` documents the policy. */
+  private commit(next: RoadmapState, opts: CommitOptions = {}): void {
+    if (opts.history !== false) {
+      this.begin();
+    }
+
+    this.stateValue = next;
+    const body = opts.body === undefined ? this.contentValue : opts.body(this.contentValue);
+    const content = writeState(body, next);
+
+    this.contentValue = opts.relations === true ? writeRelations(content, next) : content;
+  }
+
   undo(): boolean {
     const prev = this.undoStack.pop();
 
@@ -124,12 +150,10 @@ export class RoadmapSession {
   }
 
   addNode(node: RoadmapNode): void {
-    this.begin();
-    this.stateValue = {
-      ...this.stateValue,
-      nodes: { ...this.stateValue.nodes, [node.id]: node },
-    };
-    this.contentValue = writeState(insertNodeBlock(this.contentValue, node), this.stateValue);
+    this.commit(
+      { ...this.stateValue, nodes: { ...this.stateValue.nodes, [node.id]: node } },
+      { body: (content) => insertNodeBlock(content, node) },
+    );
   }
 
   addNodes(nodes: readonly RoadmapNode[]): void {
@@ -137,17 +161,16 @@ export class RoadmapSession {
       return;
     }
 
-    this.begin();
-    let content = this.contentValue;
     const next = { ...this.stateValue.nodes };
 
     for (const node of nodes) {
       next[node.id] = node;
-      content = insertNodeBlock(content, node);
     }
 
-    this.stateValue = { ...this.stateValue, nodes: next };
-    this.contentValue = writeState(content, this.stateValue);
+    this.commit(
+      { ...this.stateValue, nodes: next },
+      { body: (content) => nodes.reduce((acc, node) => insertNodeBlock(acc, node), content) },
+    );
   }
 
   /**
@@ -178,7 +201,6 @@ export class RoadmapSession {
       return;
     }
 
-    this.begin();
     const layout = {
       x: box.x - CLUSTER_PADDING,
       y: box.y - CLUSTER_PADDING,
@@ -198,23 +220,23 @@ export class RoadmapSession {
 
     const clusters = { ...this.stateValue.clusters, [cluster.id]: cluster };
     const edges = withoutInternalEdges(this.stateValue.edges, nodes);
-    const edgesChanged = edges !== this.stateValue.edges;
 
-    this.stateValue = { ...this.stateValue, clusters, nodes, edges };
-    let content = writeClusterSection(
-      this.contentValue,
-      cluster,
-      members.map((node) => node.id),
+    this.commit(
+      { ...this.stateValue, clusters, nodes, edges },
+      {
+        body: (content) =>
+          writeClusterSection(
+            content,
+            cluster,
+            members.map((node) => node.id),
+          ),
+        relations: edges !== this.stateValue.edges,
+      },
     );
-
-    content = writeState(content, this.stateValue);
-    this.contentValue = edgesChanged ? writeRelations(content, this.stateValue) : content;
   }
 
   addNodeWithEdge(node: RoadmapNode, fromNodeId: string, fromHandle?: string | null, toHandle?: string | null): void {
-    this.begin();
     const nodes = { ...this.stateValue.nodes, [node.id]: node };
-    const content = insertNodeBlock(this.contentValue, node);
     const edge = createEdge(
       this.endpointFor(fromNodeId),
       { type: "node", id: node.id },
@@ -223,8 +245,10 @@ export class RoadmapSession {
     );
     const edges = { ...this.stateValue.edges, [edge.id]: edge };
 
-    this.stateValue = { ...this.stateValue, nodes, edges };
-    this.contentValue = writeRelations(writeState(content, this.stateValue), this.stateValue);
+    this.commit(
+      { ...this.stateValue, nodes, edges },
+      { body: (content) => insertNodeBlock(content, node), relations: true },
+    );
   }
 
   moveNode(id: string, x: number, y: number): void {
@@ -246,13 +270,9 @@ export class RoadmapSession {
       changed = true;
     }
 
-    if (!changed) {
-      return;
+    if (changed) {
+      this.commit({ ...this.stateValue, nodes });
     }
-
-    this.begin();
-    this.stateValue = { ...this.stateValue, nodes };
-    this.contentValue = writeState(this.contentValue, this.stateValue);
   }
 
   /**
@@ -271,9 +291,7 @@ export class RoadmapSession {
       return;
     }
 
-    this.begin();
     const nodes = { ...this.stateValue.nodes };
-    let content = this.contentValue;
 
     for (const { id, clusterId, x, y } of changes) {
       const node = nodes[id];
@@ -287,22 +305,19 @@ export class RoadmapSession {
         },
       };
 
-      if (clusterId === null) {
-        delete next.clusterId;
-      } else {
-        next.clusterId = clusterId;
-      }
-
+      setOptional(next, "clusterId", clusterId ?? undefined);
       nodes[id] = next;
-      content = moveNodeToCluster(content, id, clusterId);
     }
 
     const edges = withoutInternalEdges(this.stateValue.edges, nodes);
-    const edgesChanged = edges !== this.stateValue.edges;
 
-    this.stateValue = { ...this.stateValue, nodes, edges };
-    content = writeState(content, this.stateValue);
-    this.contentValue = edgesChanged ? writeRelations(content, this.stateValue) : content;
+    this.commit(
+      { ...this.stateValue, nodes, edges },
+      {
+        body: (content) => changes.reduce((acc, { id, clusterId }) => moveNodeToCluster(acc, id, clusterId), content),
+        relations: edges !== this.stateValue.edges,
+      },
+    );
   }
 
   resizeNode(id: string, width: number, height: number, x: number, y: number): void {
@@ -312,12 +327,10 @@ export class RoadmapSession {
       return;
     }
 
-    this.begin();
-    this.stateValue = {
+    this.commit({
       ...this.stateValue,
       nodes: { ...this.stateValue.nodes, [id]: { ...node, layout: { x, y, width, height } } },
-    };
-    this.contentValue = writeState(this.contentValue, this.stateValue);
+    });
   }
 
   moveClusters(moves: ReadonlyArray<{ id: string; x: number; y: number }>): void {
@@ -335,13 +348,9 @@ export class RoadmapSession {
       changed = true;
     }
 
-    if (!changed) {
-      return;
+    if (changed) {
+      this.commit({ ...this.stateValue, clusters });
     }
-
-    this.begin();
-    this.stateValue = { ...this.stateValue, clusters };
-    this.contentValue = writeState(this.contentValue, this.stateValue);
   }
 
   resizeCluster(id: string, width: number, height: number, x: number, y: number): void {
@@ -351,15 +360,10 @@ export class RoadmapSession {
       return;
     }
 
-    this.begin();
-    this.stateValue = {
+    this.commit({
       ...this.stateValue,
-      clusters: {
-        ...this.stateValue.clusters,
-        [id]: { ...cluster, layout: { x, y, width, height } },
-      },
-    };
-    this.contentValue = writeState(this.contentValue, this.stateValue);
+      clusters: { ...this.stateValue.clusters, [id]: { ...cluster, layout: { x, y, width, height } } },
+    });
   }
 
   toggleClusterCollapsed(id: string): void {
@@ -369,20 +373,10 @@ export class RoadmapSession {
       return;
     }
 
-    this.begin();
     const next = { ...cluster };
 
-    if (cluster.collapsed === true) {
-      delete next.collapsed;
-    } else {
-      next.collapsed = true;
-    }
-
-    this.stateValue = {
-      ...this.stateValue,
-      clusters: { ...this.stateValue.clusters, [id]: next },
-    };
-    this.contentValue = writeState(this.contentValue, this.stateValue);
+    setOptional(next, "collapsed", cluster.collapsed === true ? undefined : true);
+    this.commit({ ...this.stateValue, clusters: { ...this.stateValue.clusters, [id]: next } });
   }
 
   /** Lays out the cluster's member nodes in a tidy grid (reading order), resizing the cluster
@@ -401,7 +395,6 @@ export class RoadmapSession {
       return;
     }
 
-    this.begin();
     const nodes = { ...this.stateValue.nodes };
 
     for (const [nodeId, position] of arrangement.positions) {
@@ -410,15 +403,14 @@ export class RoadmapSession {
       nodes[nodeId] = { ...node, layout: { ...node.layout, x: position.x, y: position.y } };
     }
 
-    this.stateValue = {
+    this.commit({
       ...this.stateValue,
       nodes,
       clusters: {
         ...this.stateValue.clusters,
         [id]: { ...cluster, layout: { ...cluster.layout, width: arrangement.width, height: arrangement.height } },
       },
-    };
-    this.contentValue = writeState(this.contentValue, this.stateValue);
+    });
   }
 
   renameCluster(id: string, title: string): void {
@@ -434,16 +426,12 @@ export class RoadmapSession {
       return;
     }
 
-    this.begin();
     const next = { ...cluster, title: safeTitle };
 
-    this.stateValue = {
-      ...this.stateValue,
-      clusters: { ...this.stateValue.clusters, [id]: next },
-    };
-    const content = replaceClusterHeading(this.contentValue, next);
-
-    this.contentValue = writeRelations(writeState(content, this.stateValue), this.stateValue);
+    this.commit(
+      { ...this.stateValue, clusters: { ...this.stateValue.clusters, [id]: next } },
+      { body: (content) => replaceClusterHeading(content, next), relations: true },
+    );
   }
 
   setClusterColor(id: string, color: string | null): void {
@@ -453,22 +441,12 @@ export class RoadmapSession {
       return;
     }
 
-    this.begin();
     const style = { ...cluster.style };
 
-    if (color === null || color.length === 0) {
-      delete style.color;
-    } else {
-      style.color = color;
-    }
-
+    setOptional(style, "color", color === null || color.length === 0 ? undefined : color);
     const next = { ...cluster, style: Object.keys(style).length > 0 ? style : undefined };
 
-    this.stateValue = {
-      ...this.stateValue,
-      clusters: { ...this.stateValue.clusters, [id]: next },
-    };
-    this.contentValue = writeState(this.contentValue, this.stateValue);
+    this.commit({ ...this.stateValue, clusters: { ...this.stateValue.clusters, [id]: next } });
   }
 
   private memberNodeIds(clusterId: string): string[] {
@@ -498,7 +476,6 @@ export class RoadmapSession {
       return;
     }
 
-    this.begin();
     const memberIds = this.memberNodeIds(id);
     const nodes = { ...this.stateValue.nodes };
 
@@ -520,15 +497,10 @@ export class RoadmapSession {
     const clusters = { ...this.stateValue.clusters };
 
     delete clusters[id];
-    this.stateValue = {
-      ...this.stateValue,
-      nodes,
-      clusters,
-      edges: this.edgesWithoutEndpoints(new Set([id])),
-    };
-    const content = dissolveClusterSection(this.contentValue, id, memberIds);
-
-    this.contentValue = writeRelations(writeState(content, this.stateValue), this.stateValue);
+    this.commit(
+      { ...this.stateValue, nodes, clusters, edges: this.edgesWithoutEndpoints(new Set([id])) },
+      { body: (content) => dissolveClusterSection(content, id, memberIds), relations: true },
+    );
   }
 
   /** Deletes the cluster and removes its member nodes from the roadmap. Source files are not
@@ -540,27 +512,23 @@ export class RoadmapSession {
       return;
     }
 
-    this.begin();
     const memberIds = this.memberNodeIds(id);
     const nodes = { ...this.stateValue.nodes };
-    let content = this.contentValue;
 
     for (const memberId of memberIds) {
       delete nodes[memberId];
-      content = removeNodeBlock(content, memberId);
     }
 
-    content = removeClusterHeading(content, id);
     const clusters = { ...this.stateValue.clusters };
 
     delete clusters[id];
-    this.stateValue = {
-      ...this.stateValue,
-      nodes,
-      clusters,
-      edges: this.edgesWithoutEndpoints(new Set([id, ...memberIds])),
-    };
-    this.contentValue = writeRelations(writeState(content, this.stateValue), this.stateValue);
+    this.commit(
+      { ...this.stateValue, nodes, clusters, edges: this.edgesWithoutEndpoints(new Set([id, ...memberIds])) },
+      {
+        body: (content) => removeClusterHeading(memberIds.reduce(removeNodeBlock, content), id),
+        relations: true,
+      },
+    );
   }
 
   setNodeAlign(id: string, patch: { h?: TextAlignH; v?: TextAlignV }): void {
@@ -577,12 +545,7 @@ export class RoadmapSession {
       return;
     }
 
-    this.begin();
-    this.stateValue = {
-      ...this.stateValue,
-      nodes: { ...this.stateValue.nodes, [id]: { ...node, align } },
-    };
-    this.contentValue = writeState(this.contentValue, this.stateValue);
+    this.commit({ ...this.stateValue, nodes: { ...this.stateValue.nodes, [id]: { ...node, align } } });
   }
 
   updateNodeMeta(id: string, patch: NodeMetaPatch): void {
@@ -595,34 +558,29 @@ export class RoadmapSession {
     const next: RoadmapNode = { ...node };
 
     if ("status" in patch) {
-      if (patch.status == null) delete next.status;
-      else next.status = patch.status;
+      setOptional(next, "status", patch.status ?? undefined);
     }
 
     if ("priority" in patch) {
-      if (patch.priority == null) delete next.priority;
-      else next.priority = patch.priority;
+      setOptional(next, "priority", patch.priority ?? undefined);
     }
 
     if ("title" in patch) {
       const title = patch.title == null ? "" : sanitizeInline(patch.title);
 
-      if (title.length === 0) delete next.title;
-      else next.title = title;
+      setOptional(next, "title", title.length === 0 ? undefined : title);
     }
 
     if ("description" in patch) {
       const description = patch.description == null ? "" : sanitizeInline(patch.description);
 
-      if (description.length === 0) delete next.description;
-      else next.description = description;
+      setOptional(next, "description", description.length === 0 ? undefined : description);
     }
 
     if ("color" in patch) {
       const style = { ...next.style };
 
-      if (patch.color == null || patch.color.length === 0) delete style.color;
-      else style.color = patch.color;
+      setOptional(style, "color", patch.color == null || patch.color.length === 0 ? undefined : patch.color);
       next.style = Object.keys(style).length > 0 ? style : undefined;
     }
 
@@ -636,18 +594,15 @@ export class RoadmapSession {
       return;
     }
 
-    this.begin();
-    this.stateValue = { ...this.stateValue, nodes: { ...this.stateValue.nodes, [id]: next } };
     const touchesBody = "status" in patch || "priority" in patch || "title" in patch || "description" in patch;
-    let content = touchesBody ? updateNodeBlock(this.contentValue, next) : this.contentValue;
 
-    content = writeState(content, this.stateValue);
-
-    if ("title" in patch) {
-      content = writeRelations(content, this.stateValue);
-    }
-
-    this.contentValue = content;
+    this.commit(
+      { ...this.stateValue, nodes: { ...this.stateValue.nodes, [id]: next } },
+      {
+        body: touchesBody ? (content) => updateNodeBlock(content, next) : undefined,
+        relations: "title" in patch,
+      },
+    );
   }
 
   setNodeUrl(id: string, url: string): void {
@@ -657,13 +612,12 @@ export class RoadmapSession {
       return;
     }
 
-    this.begin();
     const next: RoadmapNode = { ...node, source: { type: "url", url } };
 
-    this.stateValue = { ...this.stateValue, nodes: { ...this.stateValue.nodes, [id]: next } };
-    const content = writeState(updateNodeBlock(this.contentValue, next), this.stateValue);
-
-    this.contentValue = writeRelations(content, this.stateValue);
+    this.commit(
+      { ...this.stateValue, nodes: { ...this.stateValue.nodes, [id]: next } },
+      { body: (content) => updateNodeBlock(content, next), relations: true },
+    );
   }
 
   deleteNode(id: string): void {
@@ -677,17 +631,16 @@ export class RoadmapSession {
       return;
     }
 
-    this.begin();
-    let content = this.contentValue;
     const nodes = { ...this.stateValue.nodes };
 
     for (const id of present) {
       delete nodes[id];
-      content = removeNodeBlock(content, id);
     }
 
-    this.stateValue = { ...this.stateValue, nodes, edges: this.edgesWithoutEndpoints(new Set(present)) };
-    this.contentValue = writeRelations(writeState(content, this.stateValue), this.stateValue);
+    this.commit(
+      { ...this.stateValue, nodes, edges: this.edgesWithoutEndpoints(new Set(present)) },
+      { body: (content) => present.reduce(removeNodeBlock, content), relations: true },
+    );
   }
 
   /**
@@ -713,24 +666,20 @@ export class RoadmapSession {
 
     if (reverse !== undefined) {
       if (reverse.direction !== "both") {
-        this.begin();
         const next: RoadmapEdge = { ...reverse, direction: "both" };
 
-        this.stateValue = { ...this.stateValue, edges: { ...this.stateValue.edges, [reverse.id]: next } };
-        this.contentValue = writeRelations(writeState(this.contentValue, this.stateValue), this.stateValue);
+        this.commit(
+          { ...this.stateValue, edges: { ...this.stateValue.edges, [reverse.id]: next } },
+          { relations: true },
+        );
       }
 
       return;
     }
 
-    this.begin();
     const edge = createEdge(from, to, asSide(fromHandle), asSide(toHandle));
 
-    this.stateValue = {
-      ...this.stateValue,
-      edges: { ...this.stateValue.edges, [edge.id]: edge },
-    };
-    this.contentValue = writeRelations(writeState(this.contentValue, this.stateValue), this.stateValue);
+    this.commit({ ...this.stateValue, edges: { ...this.stateValue.edges, [edge.id]: edge } }, { relations: true });
   }
 
   private endpointFor(id: string): RoadmapEndpoint {
@@ -770,15 +719,13 @@ export class RoadmapSession {
       return;
     }
 
-    this.begin();
     const edges = { ...this.stateValue.edges };
 
     for (const id of present) {
       delete edges[id];
     }
 
-    this.stateValue = { ...this.stateValue, edges };
-    this.contentValue = writeRelations(writeState(this.contentValue, this.stateValue), this.stateValue);
+    this.commit({ ...this.stateValue, edges }, { relations: true });
   }
 
   deleteElements(nodeIds: readonly string[], edgeIds: readonly string[]): void {
@@ -795,13 +742,10 @@ export class RoadmapSession {
       return;
     }
 
-    this.begin();
-    let content = this.contentValue;
     const nodes = { ...this.stateValue.nodes };
 
     for (const id of removed) {
       delete nodes[id];
-      content = removeNodeBlock(content, id);
     }
 
     const edges = { ...this.stateValue.edges };
@@ -810,8 +754,10 @@ export class RoadmapSession {
       delete edges[id];
     }
 
-    this.stateValue = { ...this.stateValue, nodes, edges };
-    this.contentValue = writeRelations(writeState(content, this.stateValue), this.stateValue);
+    this.commit(
+      { ...this.stateValue, nodes, edges },
+      { body: (content) => [...removed].reduce(removeNodeBlock, content), relations: true },
+    );
   }
 
   updateEdge(id: string, patch: { direction?: EdgeDirection; line?: EdgeLine | "solid"; label?: string }): void {
@@ -830,22 +776,13 @@ export class RoadmapSession {
     if (patch.label !== undefined) {
       const label = sanitizeInline(patch.label);
 
-      if (label.length === 0) {
-        delete next.label;
-      } else {
-        next.label = label;
-      }
+      setOptional(next, "label", label.length === 0 ? undefined : label);
     }
 
     if (patch.line !== undefined) {
       const style = { ...edge.style };
 
-      if (patch.line === "solid") {
-        delete style.line;
-      } else {
-        style.line = patch.line;
-      }
-
+      setOptional(style, "line", patch.line === "solid" ? undefined : patch.line);
       next.style = Object.keys(style).length > 0 ? style : undefined;
     }
 
@@ -853,9 +790,7 @@ export class RoadmapSession {
       return;
     }
 
-    this.begin();
-    this.stateValue = { ...this.stateValue, edges: { ...this.stateValue.edges, [id]: next } };
-    this.contentValue = writeRelations(writeState(this.contentValue, this.stateValue), this.stateValue);
+    this.commit({ ...this.stateValue, edges: { ...this.stateValue.edges, [id]: next } }, { relations: true });
   }
 
   reverseEdge(id: string): void {
@@ -865,23 +800,11 @@ export class RoadmapSession {
       return;
     }
 
-    this.begin();
     const next: RoadmapEdge = { ...edge, from: edge.to, to: edge.from };
 
-    if (edge.toSide !== undefined) {
-      next.fromSide = edge.toSide;
-    } else {
-      delete next.fromSide;
-    }
-
-    if (edge.fromSide !== undefined) {
-      next.toSide = edge.fromSide;
-    } else {
-      delete next.toSide;
-    }
-
-    this.stateValue = { ...this.stateValue, edges: { ...this.stateValue.edges, [id]: next } };
-    this.contentValue = writeRelations(writeState(this.contentValue, this.stateValue), this.stateValue);
+    setOptional(next, "fromSide", edge.toSide);
+    setOptional(next, "toSide", edge.fromSide);
+    this.commit({ ...this.stateValue, edges: { ...this.stateValue.edges, [id]: next } }, { relations: true });
   }
 
   setEdgeEndpointSide(id: string, end: "from" | "to", side: EdgeSide | undefined): void {
@@ -891,25 +814,10 @@ export class RoadmapSession {
       return;
     }
 
-    this.begin();
     const next: RoadmapEdge = { ...edge };
 
-    if (end === "from") {
-      if (side === undefined) {
-        delete next.fromSide;
-      } else {
-        next.fromSide = side;
-      }
-    } else {
-      if (side === undefined) {
-        delete next.toSide;
-      } else {
-        next.toSide = side;
-      }
-    }
-
-    this.stateValue = { ...this.stateValue, edges: { ...this.stateValue.edges, [id]: next } };
-    this.contentValue = writeState(this.contentValue, this.stateValue);
+    setOptional(next, end === "from" ? "fromSide" : "toSide", side);
+    this.commit({ ...this.stateValue, edges: { ...this.stateValue.edges, [id]: next } });
   }
 
   /**
@@ -928,8 +836,7 @@ export class RoadmapSession {
       return;
     }
 
-    this.stateValue = { ...this.stateValue, viewport };
-    this.contentValue = writeState(this.contentValue, this.stateValue);
+    this.commit({ ...this.stateValue, viewport }, { history: false });
   }
 
   /**
@@ -940,8 +847,7 @@ export class RoadmapSession {
   applySourceRename(oldPath: string, newPath: string): boolean {
     const prefix = `${oldPath}/`;
     const nodes = { ...this.stateValue.nodes };
-    let content = this.contentValue;
-    let touched = false;
+    const repointed: RoadmapNode[] = [];
 
     for (const [id, node] of Object.entries(this.stateValue.nodes)) {
       const file = sourceFile(node.source);
@@ -965,16 +871,21 @@ export class RoadmapSession {
       const next: RoadmapNode = { ...node, source: { ...node.source, file: nextFile } as RoadmapNodeSource };
 
       nodes[id] = next;
-      content = updateNodeBlock(content, next);
-      touched = true;
+      repointed.push(next);
     }
 
-    if (!touched) {
+    if (repointed.length === 0) {
       return false;
     }
 
-    this.stateValue = { ...this.stateValue, nodes };
-    this.contentValue = writeRelations(writeState(content, this.stateValue), this.stateValue);
+    this.commit(
+      { ...this.stateValue, nodes },
+      {
+        history: false,
+        body: (content) => repointed.reduce((acc, node) => updateNodeBlock(acc, node), content),
+        relations: true,
+      },
+    );
 
     return true;
   }
@@ -1010,7 +921,6 @@ export class RoadmapSession {
     const mirror = others.find((other) => endpointsEqual(other.from, to) && endpointsEqual(other.to, from));
 
     if (mirror !== undefined) {
-      this.begin();
       const edges = { ...this.stateValue.edges };
 
       delete edges[id];
@@ -1019,31 +929,16 @@ export class RoadmapSession {
         edges[mirror.id] = { ...mirror, direction: "both" };
       }
 
-      this.stateValue = { ...this.stateValue, edges };
-      this.contentValue = writeRelations(writeState(this.contentValue, this.stateValue), this.stateValue);
+      this.commit({ ...this.stateValue, edges }, { relations: true });
 
       return;
     }
 
-    const fromSide = asSide(connection.sourceHandle);
-    const toSide = asSide(connection.targetHandle);
     const next: RoadmapEdge = { ...edge, from, to };
 
-    if (fromSide === undefined) {
-      delete next.fromSide;
-    } else {
-      next.fromSide = fromSide;
-    }
-
-    if (toSide === undefined) {
-      delete next.toSide;
-    } else {
-      next.toSide = toSide;
-    }
-
-    this.begin();
-    this.stateValue = { ...this.stateValue, edges: { ...this.stateValue.edges, [id]: next } };
-    this.contentValue = writeRelations(writeState(this.contentValue, this.stateValue), this.stateValue);
+    setOptional(next, "fromSide", asSide(connection.sourceHandle));
+    setOptional(next, "toSide", asSide(connection.targetHandle));
+    this.commit({ ...this.stateValue, edges: { ...this.stateValue.edges, [id]: next } }, { relations: true });
   }
 }
 
@@ -1052,6 +947,18 @@ export interface RoadmapConnection {
   target: string;
   sourceHandle: string | null;
   targetHandle: string | null;
+}
+
+type OptionalKeys<T> = { [K in keyof T]-?: undefined extends T[K] ? K : never }[keyof T];
+
+/** Sets an optional property or removes it entirely, so `undefined` never lands in state
+ * (and therefore never leaks into the serialized compact form). */
+function setOptional<T extends object, K extends OptionalKeys<T>>(target: T, key: K, value: T[K] | undefined): void {
+  if (value === undefined) {
+    Reflect.deleteProperty(target, key);
+  } else {
+    target[key] = value;
+  }
 }
 
 function endpointNodeId(endpoint: RoadmapEdge["from"]): string {
