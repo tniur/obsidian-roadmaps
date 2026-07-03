@@ -18,7 +18,8 @@ import {
 } from "./constants";
 import { availableVaultPath } from "./services/vaultFiles";
 import { createRoadmapDocument } from "./state/document";
-import { RoadmapView, type AddNodeCommand, type RoadmapViewHost } from "./view/RoadmapView";
+import { ADD_NODE_ACTIONS } from "./view/addNodeActions";
+import { RoadmapView, type RoadmapViewHost } from "./view/RoadmapView";
 
 const MARKDOWN_VIEW_TYPE = "markdown";
 
@@ -36,15 +37,6 @@ interface RoadmapSettings {
 const DEFAULT_SETTINGS: RoadmapSettings = {
   showBackgroundDots: true,
 };
-
-const ADD_NODE_COMMANDS: ReadonlyArray<{ id: AddNodeCommand; name: string; icon: string }> = [
-  { id: "create-note", name: "Create new note", icon: "file-plus" },
-  { id: "add-note", name: "Add existing note", icon: "search" },
-  { id: "add-url", name: "Add URL", icon: "link" },
-  { id: "add-image", name: "Add image", icon: "image" },
-  { id: "add-text", name: "Add text", icon: "type" },
-  { id: "add-attachment", name: "Add attachment", icon: "paperclip" },
-];
 
 export default class RoadmapPlugin extends Plugin {
   private readonly fileModes: Record<string, ViewMode> = {};
@@ -137,10 +129,10 @@ export default class RoadmapPlugin extends Plugin {
       },
     });
 
-    for (const { id, name, icon } of ADD_NODE_COMMANDS) {
+    for (const { id, label, icon } of ADD_NODE_ACTIONS) {
       this.addBoardCommand(
         id,
-        name,
+        label,
         icon,
         (view) => view.isBoardEditable(),
         (view) => view.runAddNode(id),

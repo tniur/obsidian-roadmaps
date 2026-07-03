@@ -12,14 +12,7 @@ import { availableVaultPath, draggedFiles, nodeForFile } from "../services/vault
 import { StateVersionError } from "../state/codec";
 import { loadDocument, rebuildDocument, type DocumentWarning, type LoadedDocument } from "../state/reconcile";
 import { RoadmapSession, type RoadmapConnection } from "../state/session";
-import {
-  addExistingAttachment,
-  addExistingImage,
-  addExistingNote,
-  addTextNode,
-  addUrlNode,
-  createNewNote,
-} from "./addNode";
+import { runAddNodeAction, type AddNodeActionId } from "./addNodeActions";
 import type { BoardContext } from "./boardContext";
 import { promptEditText, promptGroupIntoCluster } from "./dialogs";
 import { exportBoardPdf } from "./exportPdf";
@@ -29,15 +22,19 @@ import { showEdgeContextMenu } from "./menus/edgeMenu";
 import { showNodeContextMenu } from "./menus/nodeMenu";
 import { NodePreviewPanel } from "./NodePreviewPanel";
 import { mountPreviewContent } from "./preview";
-import { RoadmapCanvas } from "./RoadmapCanvas";
+import {
+  RoadmapCanvas,
+  type CanvasBoardActions,
+  type CanvasClusterActions,
+  type CanvasEdgeActions,
+  type CanvasNodeActions,
+} from "./RoadmapCanvas";
 
 export interface RoadmapViewHost {
   openAsMarkdown: (leaf: WorkspaceLeaf, file: TFile) => void;
   getShowBackgroundDots: () => boolean;
   setShowBackgroundDots: (value: boolean) => void;
 }
-
-export type AddNodeCommand = "create-note" | "add-note" | "add-url" | "add-image" | "add-text" | "add-attachment";
 
 /** Offset applied per element when pasting or dropping several at once, so copies fan out. */
 const CASCADE_OFFSET = 24;
@@ -65,12 +62,50 @@ export class RoadmapView extends TextFileView {
   private viewportSaveTimer: number | null = null;
   private diskData: string | null = null;
   private flow: ReactFlowInstance | null = null;
+  private readonly nodeActions: CanvasNodeActions;
+  private readonly edgeActions: CanvasEdgeActions;
+  private readonly clusterActions: CanvasClusterActions;
+  private readonly boardActions: CanvasBoardActions;
 
   constructor(
     leaf: WorkspaceLeaf,
     private readonly host: RoadmapViewHost,
   ) {
     super(leaf);
+    this.nodeActions = {
+      onMoved: this.handleNodesMoved,
+      onReparent: this.handleNodesReparent,
+      onDuplicate: this.handleNodesDuplicated,
+      onResized: this.handleNodeResized,
+      onOpen: this.handleNodeOpen,
+      onPreview: this.handleNodePreview,
+      onContextMenu: this.handleNodeContextMenu,
+      onSelectionContextMenu: this.handleSelectionContextMenu,
+      onSelectionChange: this.handleSelectionChange,
+    };
+    this.edgeActions = {
+      onConnect: this.handleConnectNodes,
+      onReconnect: this.handleReconnectEdge,
+      onConnectToEmpty: this.handleConnectToEmpty,
+      onContextMenu: this.handleEdgeContextMenu,
+    };
+    this.clusterActions = {
+      onToggleCollapse: this.handleClusterToggleCollapse,
+      onArrange: this.handleClusterArrange,
+    };
+    this.boardActions = {
+      onUndo: this.undoEdit,
+      onRedo: this.redoEdit,
+      onToggleLock: this.toggleLock,
+      onExportPdf: this.handleExportPdf,
+      onDotsVisibleChange: host.setShowBackgroundDots,
+      onViewportChange: this.handleViewportChange,
+      onFlowInit: this.handleFlowInit,
+      onAddAction: this.runAddActionAt,
+      onPaneContextMenu: this.handlePaneContextMenu,
+      onDropFiles: this.handleDropFiles,
+      onDeleteElements: this.handleDeleteElements,
+    };
   }
 
   getViewType(): string {
@@ -366,34 +401,21 @@ export class RoadmapView extends TextFileView {
     }
   }
 
-  runAddNode(command: AddNodeCommand): void {
+  runAddNode(id: AddNodeActionId): void {
     const placement = this.canvasCenterPlacement();
 
-    if (this.session === null || this.locked || placement === null) {
-      return;
-    }
-
-    switch (command) {
-      case "create-note":
-        this.handleCreateNote(placement);
-        break;
-      case "add-note":
-        this.handleAddNote(placement);
-        break;
-      case "add-url":
-        this.handleAddUrl(placement);
-        break;
-      case "add-image":
-        this.handleAddImage(placement);
-        break;
-      case "add-text":
-        this.handleAddText(placement);
-        break;
-      case "add-attachment":
-        this.handleAddAttachment(placement);
-        break;
+    if (placement !== null) {
+      this.runAddActionAt(id, placement);
     }
   }
+
+  private readonly runAddActionAt = (id: AddNodeActionId, placement: NodePlacement): void => {
+    const ctx = this.editableContext();
+
+    if (ctx !== null) {
+      runAddNodeAction(id, ctx, this.noteFolder(), placement);
+    }
+  };
 
   private canvasCenterPlacement(): NodePlacement | null {
     if (this.flow === null) {
@@ -658,71 +680,12 @@ export class RoadmapView extends TextFileView {
   private readonly mountPreview = (node: RoadmapNode, el: HTMLElement): (() => void) =>
     mountPreviewContent(this.app, node, el);
 
-  private readonly handleCreateNote = (placement: NodePlacement): void => {
-    const ctx = this.boardContext();
-
-    if (ctx !== null) {
-      void createNewNote(ctx, this.noteFolder(), placement);
-    }
-  };
-
-  private readonly handleAddNote = (placement: NodePlacement): void => {
-    const ctx = this.boardContext();
-
-    if (ctx !== null) {
-      addExistingNote(ctx, placement);
-    }
-  };
-
-  private readonly handleAddImage = (placement: NodePlacement): void => {
-    const ctx = this.boardContext();
-
-    if (ctx !== null) {
-      addExistingImage(ctx, placement);
-    }
-  };
-
-  private readonly handleAddAttachment = (placement: NodePlacement): void => {
-    const ctx = this.boardContext();
-
-    if (ctx !== null) {
-      addExistingAttachment(ctx, placement);
-    }
-  };
-
-  private readonly handleAddUrl = (placement: NodePlacement): void => {
-    const ctx = this.boardContext();
-
-    if (ctx !== null) {
-      addUrlNode(ctx, placement);
-    }
-  };
-
-  private readonly handleAddText = (placement: NodePlacement): void => {
-    const ctx = this.boardContext();
-
-    if (ctx !== null) {
-      addTextNode(ctx, placement);
-    }
-  };
-
-  private readonly handleCreateNodeAt = (placement: NodePlacement, event: MouseEvent): void => {
+  private readonly handlePaneContextMenu = (placement: NodePlacement, event: MouseEvent): void => {
     if (this.locked) {
       return;
     }
 
-    showAddNodeMenu(
-      {
-        createNote: this.handleCreateNote,
-        addNote: this.handleAddNote,
-        addUrl: this.handleAddUrl,
-        addImage: this.handleAddImage,
-        addText: this.handleAddText,
-        addAttachment: this.handleAddAttachment,
-      },
-      centeredPlacement(placement),
-      event,
-    );
+    showAddNodeMenu(this.runAddActionAt, centeredPlacement(placement), event);
   };
 
   private readonly handleConnectToEmpty = (
@@ -901,45 +864,18 @@ export class RoadmapView extends TextFileView {
           <ReactFlowProvider>
             <RoadmapCanvas
               state={this.session.state}
-              isNodeMissing={this.isNodeMissing}
-              resolveImageSrc={this.resolveImageSrc}
-              initialDotsVisible={this.host.getShowBackgroundDots()}
-              onDotsVisibleChange={this.host.setShowBackgroundDots}
               locked={this.locked}
-              onToggleLock={this.toggleLock}
-              onViewportChange={this.handleViewportChange}
-              onFlowInit={this.handleFlowInit}
-              onExportPdf={this.handleExportPdf}
               canUndo={this.session.canUndo}
               canRedo={this.session.canRedo}
-              onUndo={this.undoEdit}
-              onRedo={this.redoEdit}
+              initialDotsVisible={this.host.getShowBackgroundDots()}
               focusIds={this.focusIds}
               focusNonce={this.focusNonce}
-              onNodesMoved={this.handleNodesMoved}
-              onNodesReparent={this.handleNodesReparent}
-              onNodesDuplicate={this.handleNodesDuplicated}
-              onNodeResized={this.handleNodeResized}
-              onClusterToggleCollapse={this.handleClusterToggleCollapse}
-              onClusterArrange={this.handleClusterArrange}
-              onNodeOpen={this.handleNodeOpen}
-              onNodePreview={this.handleNodePreview}
-              onSelectionChange={this.handleSelectionChange}
-              onCreateNote={this.handleCreateNote}
-              onAddNote={this.handleAddNote}
-              onAddUrl={this.handleAddUrl}
-              onAddImage={this.handleAddImage}
-              onAddText={this.handleAddText}
-              onAddAttachment={this.handleAddAttachment}
-              onCreateNodeAt={this.handleCreateNodeAt}
-              onDropFiles={this.handleDropFiles}
-              onDeleteElements={this.handleDeleteElements}
-              onConnectNodes={this.handleConnectNodes}
-              onReconnectEdge={this.handleReconnectEdge}
-              onConnectToEmpty={this.handleConnectToEmpty}
-              onEdgeContextMenu={this.handleEdgeContextMenu}
-              onNodeContextMenu={this.handleNodeContextMenu}
-              onSelectionContextMenu={this.handleSelectionContextMenu}
+              isNodeMissing={this.isNodeMissing}
+              resolveImageSrc={this.resolveImageSrc}
+              nodeActions={this.nodeActions}
+              edgeActions={this.edgeActions}
+              clusterActions={this.clusterActions}
+              boardActions={this.boardActions}
             />
           </ReactFlowProvider>
           {previewNode !== undefined ? (

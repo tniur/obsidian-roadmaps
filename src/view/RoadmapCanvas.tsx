@@ -27,6 +27,7 @@ import {
 import { nanoid } from "nanoid";
 import type { NodePlacement } from "../domain/create";
 import type { RoadmapState, RoadmapViewport } from "../domain/types";
+import type { AddNodeActionId } from "./addNodeActions";
 import { ClusterNodeView } from "./ClusterNodeView";
 import { FloatingEdge } from "./FloatingEdge";
 import { getHelperLines } from "./alignment";
@@ -66,91 +67,111 @@ function clientPoint(event: MouseEvent | TouchEvent): { x: number; y: number } |
   return touch === undefined ? null : { x: touch.clientX, y: touch.clientY };
 }
 
-interface RoadmapCanvasProps {
-  state: RoadmapState;
-  isNodeMissing: NodeMissingPredicate;
-  resolveImageSrc: NodeImageResolver;
-  initialDotsVisible: boolean;
-  onDotsVisibleChange: (value: boolean) => void;
-  locked: boolean;
-  onToggleLock: () => void;
-  onViewportChange: (viewport: RoadmapViewport) => void;
-  onFlowInit: (instance: ReactFlowInstance | null) => void;
-  onExportPdf: () => void;
-  canUndo: boolean;
-  canRedo: boolean;
+export interface CanvasNodeActions {
+  onMoved: (moves: ReadonlyArray<{ id: string; x: number; y: number }>) => void;
+  onReparent: (items: ReadonlyArray<{ id: string; clusterId: string | null; x: number; y: number }>) => void;
+  onDuplicate: (items: ReadonlyArray<{ id: string; x: number; y: number }>) => void;
+  onResized: (id: string, width: number, height: number, x: number, y: number) => void;
+  onOpen: (id: string, newLeaf: boolean) => void;
+  onPreview: (id: string) => void;
+  onContextMenu: (id: string, event: MouseEvent) => void;
+  onSelectionContextMenu: (ids: string[], event: MouseEvent) => void;
+  onSelectionChange: (ids: string[]) => void;
+}
+
+export interface CanvasEdgeActions {
+  onConnect: (source: string, target: string, sourceHandle: string | null, targetHandle: string | null) => void;
+  onReconnect: (id: string, connection: Connection) => void;
+  onConnectToEmpty: (source: string, sourceHandle: string | null, placement: NodePlacement, event: MouseEvent) => void;
+  onContextMenu: (id: string, event: MouseEvent) => void;
+}
+
+export interface CanvasClusterActions {
+  onToggleCollapse: (id: string) => void;
+  onArrange: (id: string) => void;
+}
+
+export interface CanvasBoardActions {
   onUndo: () => void;
   onRedo: () => void;
-  focusIds: string[];
-  focusNonce: number;
-  onNodesMoved: (moves: ReadonlyArray<{ id: string; x: number; y: number }>) => void;
-  onNodesReparent: (items: ReadonlyArray<{ id: string; clusterId: string | null; x: number; y: number }>) => void;
-  onNodesDuplicate: (items: ReadonlyArray<{ id: string; x: number; y: number }>) => void;
-  onNodeResized: (id: string, width: number, height: number, x: number, y: number) => void;
-  onClusterToggleCollapse: (id: string) => void;
-  onClusterArrange: (id: string) => void;
-  onNodeOpen: (id: string, newLeaf: boolean) => void;
-  onNodePreview: (id: string) => void;
-  onSelectionChange: (ids: string[]) => void;
-  onCreateNote: (placement: NodePlacement) => void;
-  onAddNote: (placement: NodePlacement) => void;
-  onAddUrl: (placement: NodePlacement) => void;
-  onAddImage: (placement: NodePlacement) => void;
-  onAddText: (placement: NodePlacement) => void;
-  onAddAttachment: (placement: NodePlacement) => void;
-  onCreateNodeAt: (placement: NodePlacement, event: MouseEvent) => void;
+  onToggleLock: () => void;
+  onExportPdf: () => void;
+  onDotsVisibleChange: (value: boolean) => void;
+  onViewportChange: (viewport: RoadmapViewport) => void;
+  onFlowInit: (instance: ReactFlowInstance | null) => void;
+  onAddAction: (id: AddNodeActionId, placement: NodePlacement) => void;
+  onPaneContextMenu: (placement: NodePlacement, event: MouseEvent) => void;
   onDropFiles: (placement: NodePlacement, dataTransfer: DataTransfer | null) => void;
   onDeleteElements: (nodeIds: string[], edgeIds: string[]) => void;
-  onConnectNodes: (source: string, target: string, sourceHandle: string | null, targetHandle: string | null) => void;
-  onReconnectEdge: (id: string, connection: Connection) => void;
-  onConnectToEmpty: (source: string, sourceHandle: string | null, placement: NodePlacement, event: MouseEvent) => void;
-  onEdgeContextMenu: (id: string, event: MouseEvent) => void;
-  onNodeContextMenu: (id: string, event: MouseEvent) => void;
-  onSelectionContextMenu: (ids: string[], event: MouseEvent) => void;
+}
+
+/**
+ * Callbacks are grouped by concern so the canvas surface stays narrow; the view keeps
+ * each group as a stable object, and hooks below depend on the destructured functions.
+ */
+interface RoadmapCanvasProps {
+  state: RoadmapState;
+  locked: boolean;
+  canUndo: boolean;
+  canRedo: boolean;
+  initialDotsVisible: boolean;
+  /** Bumping `focusNonce` re-selects exactly `focusIds` (paste and duplicate flows). */
+  focusIds: string[];
+  focusNonce: number;
+  isNodeMissing: NodeMissingPredicate;
+  resolveImageSrc: NodeImageResolver;
+  nodeActions: CanvasNodeActions;
+  edgeActions: CanvasEdgeActions;
+  clusterActions: CanvasClusterActions;
+  boardActions: CanvasBoardActions;
 }
 
 export function RoadmapCanvas({
   state,
-  isNodeMissing,
-  resolveImageSrc,
-  initialDotsVisible,
-  onDotsVisibleChange,
   locked,
-  onToggleLock,
-  onViewportChange,
-  onFlowInit,
-  onExportPdf,
   canUndo,
   canRedo,
-  onUndo,
-  onRedo,
+  initialDotsVisible,
   focusIds,
   focusNonce,
-  onNodesMoved,
-  onNodesReparent,
-  onNodesDuplicate,
-  onNodeResized,
-  onClusterToggleCollapse,
-  onClusterArrange,
-  onNodeOpen,
-  onNodePreview,
-  onSelectionChange,
-  onCreateNote,
-  onAddNote,
-  onAddUrl,
-  onAddImage,
-  onAddText,
-  onAddAttachment,
-  onCreateNodeAt,
-  onDropFiles,
-  onDeleteElements,
-  onConnectNodes,
-  onReconnectEdge,
-  onConnectToEmpty,
-  onEdgeContextMenu,
-  onNodeContextMenu,
-  onSelectionContextMenu,
+  isNodeMissing,
+  resolveImageSrc,
+  nodeActions,
+  edgeActions,
+  clusterActions,
+  boardActions,
 }: RoadmapCanvasProps) {
+  const {
+    onMoved: onNodesMoved,
+    onReparent: onNodesReparent,
+    onDuplicate: onNodesDuplicate,
+    onResized: onNodeResized,
+    onOpen: onNodeOpen,
+    onPreview: onNodePreview,
+    onContextMenu: onNodeContextMenu,
+    onSelectionContextMenu,
+    onSelectionChange,
+  } = nodeActions;
+  const {
+    onConnect: onConnectNodes,
+    onReconnect: onReconnectEdge,
+    onConnectToEmpty,
+    onContextMenu: onEdgeContextMenu,
+  } = edgeActions;
+  const { onToggleCollapse: onClusterToggleCollapse, onArrange: onClusterArrange } = clusterActions;
+  const {
+    onUndo,
+    onRedo,
+    onToggleLock,
+    onExportPdf,
+    onDotsVisibleChange,
+    onViewportChange,
+    onFlowInit,
+    onAddAction,
+    onPaneContextMenu,
+    onDropFiles,
+    onDeleteElements,
+  } = boardActions;
   const reactFlow = useReactFlow();
   const { screenToFlowPosition, getNodes } = reactFlow;
   const flowId = useId();
@@ -517,9 +538,9 @@ export function RoadmapCanvas({
       const native = "nativeEvent" in event ? event.nativeEvent : event;
       const placement = screenToFlowPosition({ x: native.clientX, y: native.clientY });
 
-      onCreateNodeAt(placement, native);
+      onPaneContextMenu(placement, native);
     },
-    [screenToFlowPosition, onCreateNodeAt],
+    [screenToFlowPosition, onPaneContextMenu],
   );
 
   const onDeleteInternal = useCallback(
@@ -609,16 +630,7 @@ export function RoadmapCanvas({
         >
           {dotsVisible ? <Background variant={BackgroundVariant.Dots} /> : null}
           <HelperLines horizontal={helperLines.horizontal} vertical={helperLines.vertical} />
-          {!locked ? (
-            <NodeToolbar
-              onCreateNote={onCreateNote}
-              onAddNote={onAddNote}
-              onAddUrl={onAddUrl}
-              onAddImage={onAddImage}
-              onAddText={onAddText}
-              onAddAttachment={onAddAttachment}
-            />
-          ) : null}
+          {!locked ? <NodeToolbar onAction={onAddAction} /> : null}
           <RoadmapToolbar
             dotsVisible={dotsVisible}
             onToggleDots={toggleDots}

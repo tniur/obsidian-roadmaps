@@ -1,36 +1,23 @@
 import { Menu } from "obsidian";
 import type { NodePlacement } from "../../domain/create";
 import { addExistingNoteWithEdge, createNewNoteWithEdge } from "../addNode";
+import { ADD_NODE_ACTIONS, type AddNodeActionId } from "../addNodeActions";
 import type { BoardContext } from "../boardContext";
 
-export interface AddNodeActions {
-  createNote: (placement: NodePlacement) => void;
-  addNote: (placement: NodePlacement) => void;
-  addUrl: (placement: NodePlacement) => void;
-  addImage: (placement: NodePlacement) => void;
-  addText: (placement: NodePlacement) => void;
-  addAttachment: (placement: NodePlacement) => void;
-}
-
-const ADD_NODE_ITEMS: ReadonlyArray<{ title: string; icon: string; action: keyof AddNodeActions }> = [
-  { title: "Create new note", icon: "file-plus", action: "createNote" },
-  { title: "Add existing note", icon: "search", action: "addNote" },
-  { title: "Add URL", icon: "link", action: "addUrl" },
-  { title: "Add image", icon: "image", action: "addImage" },
-  { title: "Add text", icon: "type", action: "addText" },
-  { title: "Add attachment", icon: "paperclip", action: "addAttachment" },
-];
-
-/** Right-click on empty canvas: create or attach any node type at that spot. */
-export function showAddNodeMenu(actions: AddNodeActions, placement: NodePlacement, event: MouseEvent): void {
+/** Right-click on empty canvas: one entry per registered add action. */
+export function showAddNodeMenu(
+  run: (id: AddNodeActionId, placement: NodePlacement) => void,
+  placement: NodePlacement,
+  event: MouseEvent,
+): void {
   const menu = new Menu();
 
-  for (const { title, icon, action } of ADD_NODE_ITEMS) {
+  for (const { id, label, icon } of ADD_NODE_ACTIONS) {
     menu.addItem((item) =>
       item
-        .setTitle(title)
+        .setTitle(label)
         .setIcon(icon)
-        .onClick(() => actions[action](placement)),
+        .onClick(() => run(id, placement)),
     );
   }
 
