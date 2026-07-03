@@ -26,7 +26,7 @@ export function RoadmapToolbar({
   const { zoomIn, zoomOut, fitView } = useReactFlow();
 
   return (
-    <Panel position="bottom-right" className="rm-toolbar">
+    <Panel position="bottom-right" className="rm-panel rm-toolbar">
       <ToolbarButton icon="undo-2" label="Undo" disabled={!canUndo} onClick={onUndo} />
       <ToolbarButton icon="redo-2" label="Redo" disabled={!canRedo} onClick={onRedo} />
       <ToolbarButton icon="frame" label="Fit to nodes" onClick={() => void fitView()} />

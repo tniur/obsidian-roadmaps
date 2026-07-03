@@ -31,7 +31,7 @@ export function NodeToolbar({
   }, [getViewport, width, height]);
 
   return (
-    <Panel position="top-left" className="rm-node-toolbar">
+    <Panel position="top-left" className="rm-panel rm-node-toolbar">
       <ToolbarButton icon="plus" label="Create note" onClick={() => onCreateNote(placement())} />
       <ToolbarButton icon="search" label="Add note from vault" onClick={() => onAddNote(placement())} />
       <ToolbarButton icon="link" label="Add URL" onClick={() => onAddUrl(placement())} />

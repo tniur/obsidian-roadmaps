@@ -44,6 +44,7 @@ import {
   type NodeMissingPredicate,
   type RoadmapFlowNode,
 } from "./flow";
+import { Icon } from "./Icon";
 import { NodeToolbar } from "./NodeToolbar";
 import { RoadmapNodeView } from "./RoadmapNodeView";
 import { RoadmapToolbar } from "./RoadmapToolbar";
@@ -627,6 +628,15 @@ export function RoadmapCanvas({
             onRedo={onRedo}
           />
         </ReactFlow>
+        {nodes.length === 0 && !locked ? (
+          <div className="rm-empty">
+            <span className="rm-empty__icon">
+              <Icon name="map" />
+            </span>
+            <span className="rm-empty__title">This board is empty</span>
+            <span className="rm-empty__hint">Right-click the canvas or use the toolbar to add the first node</span>
+          </div>
+        ) : null}
       </div>
     </NodeCallbacksContext.Provider>
   );

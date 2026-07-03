@@ -29,3 +29,5 @@ export const MIN_CLUSTER_HEIGHT = 120;
 export const COLLAPSED_CLUSTER_HEIGHT = 40;
 
 export const CLUSTER_NODE_GAP = 24;
+
+export const EDGE_INTERACTION_WIDTH = 24;

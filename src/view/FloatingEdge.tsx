@@ -1,5 +1,6 @@
 import { BaseEdge, EdgeLabelRenderer, getBezierPath, Position, useInternalNode, type EdgeProps } from "@xyflow/react";
 import type { CSSProperties } from "react";
+import { EDGE_INTERACTION_WIDTH } from "../constants";
 import type { EdgeDirection, EdgeLine, EdgeSide } from "../domain/types";
 import { getEdgeEndpoints } from "./edgeParams";
 
@@ -88,7 +89,7 @@ export function FloatingEdge(props: EdgeProps) {
 
   return (
     <>
-      <BaseEdge id={id} path={path} style={edgeStyle} interactionWidth={24} />
+      <BaseEdge id={id} path={path} style={edgeStyle} interactionWidth={EDGE_INTERACTION_WIDTH} />
       {direction === "forward" || direction === "both" ? (
         <path className="rm-edge-arrow" d={arrowPath(tx, ty, inwardDirection(targetPos))} />
       ) : null}

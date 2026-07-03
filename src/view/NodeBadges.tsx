@@ -10,7 +10,7 @@ export function NodeBadges({ data }: NodeBodyProps) {
     <div className="rm-node__meta">
       {data.status !== undefined ? (
         <span className="rm-node__badge" data-status={data.status}>
-          {data.status}
+          {data.status.replace("-", " ")}
         </span>
       ) : null}
       {data.priority !== undefined ? (
