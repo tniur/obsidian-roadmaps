@@ -1,4 +1,4 @@
-import type { Edge, Node } from "@xyflow/react";
+import type { Edge, Node, ReactFlowInstance } from "@xyflow/react";
 import { COLLAPSED_CLUSTER_HEIGHT } from "../constants";
 import { nodeTitle } from "../domain/title";
 import type {
@@ -56,8 +56,45 @@ export type RoadmapFlowNode = RoadmapCardNode | RoadmapClusterNode;
 
 export type RoadmapFlowEdge = Edge<RoadmapEdgeData, typeof ROADMAP_EDGE_TYPE>;
 
+export type RoadmapFlowInstance = ReactFlowInstance<RoadmapFlowNode, RoadmapFlowEdge>;
+
 export function isCardNode(node: RoadmapFlowNode): node is RoadmapCardNode {
   return node.type === ROADMAP_NODE_TYPE;
+}
+
+/** Structural frame of a rendered node; also matches the export snapshot shape. */
+export interface FlowNodeFrame {
+  position: { x: number; y: number };
+  width?: number;
+  height?: number;
+  measured?: { width?: number; height?: number };
+}
+
+/** Rendered size of a node: the measured DOM size when available, else the stored one. */
+export function nodeSize(frame: FlowNodeFrame): { width: number; height: number } {
+  return {
+    width: frame.measured?.width ?? frame.width ?? 0,
+    height: frame.measured?.height ?? frame.height ?? 0,
+  };
+}
+
+/** Containment test in the node's own coordinate space (children are cluster-relative). */
+export function nodeContainsPoint(frame: FlowNodeFrame, point: { x: number; y: number }): boolean {
+  const { width, height } = nodeSize(frame);
+
+  return (
+    point.x >= frame.position.x &&
+    point.x <= frame.position.x + width &&
+    point.y >= frame.position.y &&
+    point.y <= frame.position.y + height
+  );
+}
+
+/** Absolute position of a flow node: cluster members store cluster-relative coordinates. */
+export function absoluteNodePosition(node: RoadmapFlowNode, all: readonly RoadmapFlowNode[]): { x: number; y: number } {
+  const parent = node.parentId == null ? undefined : all.find((entry) => entry.id === node.parentId);
+
+  return { x: (parent?.position.x ?? 0) + node.position.x, y: (parent?.position.y ?? 0) + node.position.y };
 }
 
 export type NodeMissingPredicate = (node: RoadmapNode) => boolean;

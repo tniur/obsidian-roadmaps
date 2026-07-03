@@ -1,5 +1,6 @@
 import { toPng } from "html-to-image";
 import { PDFDocument } from "pdf-lib";
+import { nodeSize } from "./flow";
 
 /**
  * Board snapshot export: the flow viewport element is re-rendered at a fixed
@@ -37,13 +38,6 @@ interface ExportLayout {
   transform: string;
 }
 
-function frameSize(node: ExportNodeFrame): { width: number; height: number } {
-  return {
-    width: node.measured?.width ?? node.width ?? 0,
-    height: node.measured?.height ?? node.height ?? 0,
-  };
-}
-
 /** Bounding box of visible nodes in absolute flow coordinates. Child nodes are stored
  * relative to their cluster, so the parent offset is applied before measuring. */
 export function visibleBounds(nodes: ExportNodeFrame[]): ExportRect | null {
@@ -61,7 +55,7 @@ export function visibleBounds(nodes: ExportNodeFrame[]): ExportRect | null {
     const parent = node.parentId === undefined ? undefined : byId.get(node.parentId);
     const x = (parent?.position.x ?? 0) + node.position.x;
     const y = (parent?.position.y ?? 0) + node.position.y;
-    const { width, height } = frameSize(node);
+    const { width, height } = nodeSize(node);
 
     minX = Math.min(minX, x);
     minY = Math.min(minY, y);

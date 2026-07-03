@@ -11,7 +11,6 @@ import {
   type EdgeChange,
   type FinalConnectionState,
   type NodeChange,
-  type ReactFlowInstance,
 } from "@xyflow/react";
 import {
   type DragEvent,
@@ -33,6 +32,9 @@ import { getHelperLines } from "./alignment";
 import { HelperLines } from "./HelperLines";
 import { NodeCallbacksContext, type NodeCallbacks } from "./nodeCallbacks";
 import {
+  absoluteNodePosition,
+  nodeContainsPoint,
+  nodeSize,
   reconcileFlowEdges,
   reconcileFlowNodes,
   ROADMAP_CLUSTER_TYPE,
@@ -43,6 +45,7 @@ import {
   type NodeImageResolver,
   type NodeMissingPredicate,
   type RoadmapFlowEdge,
+  type RoadmapFlowInstance,
   type RoadmapFlowNode,
 } from "./flow";
 import { Icon } from "./Icon";
@@ -56,6 +59,9 @@ const nodeTypes = {
 };
 
 const edgeTypes = { [ROADMAP_EDGE_TYPE]: FloatingEdge };
+
+/** Ephemeral ids for alt-drag copies; the copies are replaced by real nodes on drop. */
+const ALT_COPY_ID_PREFIX = "dup-";
 
 function clientPoint(event: MouseEvent | TouchEvent): { x: number; y: number } | null {
   if ("clientX" in event) {
@@ -98,7 +104,7 @@ export interface CanvasBoardActions {
   onExportPdf: () => void;
   onDotsVisibleChange: (value: boolean) => void;
   onViewportChange: (viewport: RoadmapViewport) => void;
-  onFlowInit: (instance: ReactFlowInstance | null) => void;
+  onFlowInit: (instance: RoadmapFlowInstance | null) => void;
   onAddAction: (id: AddNodeActionId, placement: NodePlacement) => void;
   onPaneContextMenu: (placement: NodePlacement, event: MouseEvent) => void;
   onDropFiles: (placement: NodePlacement, dataTransfer: DataTransfer | null) => void;
@@ -172,7 +178,7 @@ export function RoadmapCanvas({
     onDropFiles,
     onDeleteElements,
   } = boardActions;
-  const reactFlow = useReactFlow();
+  const reactFlow = useReactFlow<RoadmapFlowNode, RoadmapFlowEdge>();
   const { screenToFlowPosition, getNodes } = reactFlow;
   const flowId = useId();
   const [dotsVisible, setDotsVisible] = useState(initialDotsVisible);
@@ -301,19 +307,7 @@ export function RoadmapCanvas({
   );
 
   const nodeAtPoint = useCallback(
-    (point: { x: number; y: number }): boolean => {
-      return getNodes().some((node) => {
-        const w = node.measured?.width ?? node.width ?? 0;
-        const h = node.measured?.height ?? node.height ?? 0;
-
-        return (
-          point.x >= node.position.x &&
-          point.x <= node.position.x + w &&
-          point.y >= node.position.y &&
-          point.y <= node.position.y + h
-        );
-      });
-    },
+    (point: { x: number; y: number }): boolean => getNodes().some((node) => nodeContainsPoint(node, point)),
     [getNodes],
   );
 
@@ -347,7 +341,7 @@ export function RoadmapCanvas({
         continue;
       }
 
-      const copyId = `dup-${nanoid()}`;
+      const copyId = `${ALT_COPY_ID_PREFIX}${nanoid()}`;
 
       map.set(node.id, copyId);
       frozen.set(node.id, { x: node.position.x, y: node.position.y });
@@ -377,13 +371,9 @@ export function RoadmapCanvas({
       const copy = all.find((node) => node.id === copyId);
 
       if (copy !== undefined) {
-        const parent = copy.parentId == null ? undefined : all.find((node) => node.id === copy.parentId);
+        const absolute = absoluteNodePosition(copy, all);
 
-        items.push({
-          id: originalId,
-          x: (parent?.position.x ?? 0) + copy.position.x,
-          y: (parent?.position.y ?? 0) + copy.position.y,
-        });
+        items.push({ id: originalId, x: absolute.x, y: absolute.y });
       }
     }
 
@@ -412,21 +402,7 @@ export function RoadmapCanvas({
 
   const clusterAtPoint = useCallback(
     (point: { x: number; y: number }): string | null => {
-      const cluster = getNodes().find((node) => {
-        if (node.type !== ROADMAP_CLUSTER_TYPE) {
-          return false;
-        }
-
-        const w = node.measured?.width ?? node.width ?? 0;
-        const h = node.measured?.height ?? node.height ?? 0;
-
-        return (
-          point.x >= node.position.x &&
-          point.x <= node.position.x + w &&
-          point.y >= node.position.y &&
-          point.y <= node.position.y + h
-        );
-      });
+      const cluster = getNodes().find((node) => node.type === ROADMAP_CLUSTER_TYPE && nodeContainsPoint(node, point));
 
       return cluster?.id ?? null;
     },
@@ -444,15 +420,12 @@ export function RoadmapCanvas({
           continue;
         }
 
-        const parent = node.parentId == null ? undefined : getNodes().find((n) => n.id === node.parentId);
-        const absX = (parent?.position.x ?? 0) + node.position.x;
-        const absY = (parent?.position.y ?? 0) + node.position.y;
-        const w = node.measured?.width ?? node.width ?? 0;
-        const h = node.measured?.height ?? node.height ?? 0;
-        const target = clusterAtPoint({ x: absX + w / 2, y: absY + h / 2 });
+        const absolute = absoluteNodePosition(node, getNodes());
+        const { width, height } = nodeSize(node);
+        const target = clusterAtPoint({ x: absolute.x + width / 2, y: absolute.y + height / 2 });
 
         if (target !== (node.parentId ?? null)) {
-          reparents.push({ id: node.id, clusterId: target, x: absX, y: absY });
+          reparents.push({ id: node.id, clusterId: target, x: absolute.x, y: absolute.y });
         } else {
           moves.push({ id: node.id, x: node.position.x, y: node.position.y });
         }

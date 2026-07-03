@@ -1,5 +1,5 @@
 import { Menu, Notice, TextFileView, TFile, type TAbstractFile, type WorkspaceLeaf } from "obsidian";
-import { ReactFlowProvider, type ReactFlowInstance } from "@xyflow/react";
+import { ReactFlowProvider } from "@xyflow/react";
 import { StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { VIEW_TYPE_ROADMAP } from "../constants";
@@ -9,6 +9,7 @@ import { isSafeUrl } from "../domain/paths";
 import { sourceFile } from "../domain/source";
 import type { RoadmapNode, RoadmapViewport } from "../domain/types";
 import { availableVaultPath, draggedFiles, nodeForFile } from "../services/vaultFiles";
+import type { RoadmapFlowInstance } from "./flow";
 import { StateVersionError } from "../state/codec";
 import { loadDocument, rebuildDocument, type DocumentWarning, type LoadedDocument } from "../state/reconcile";
 import { RoadmapSession, type RoadmapConnection } from "../state/session";
@@ -61,7 +62,7 @@ export class RoadmapView extends TextFileView {
   private locked = false;
   private viewportSaveTimer: number | null = null;
   private diskData: string | null = null;
-  private flow: ReactFlowInstance | null = null;
+  private flow: RoadmapFlowInstance | null = null;
   private readonly nodeActions: CanvasNodeActions;
   private readonly edgeActions: CanvasEdgeActions;
   private readonly clusterActions: CanvasClusterActions;
@@ -281,8 +282,23 @@ export class RoadmapView extends TextFileView {
     this.renderApp();
   };
 
-  private readonly handleVaultDelete = (): void => {
-    this.renderApp();
+  /** Re-renders missing-source indicators, but only when the deleted file (or a file
+   * inside the deleted folder) actually backs one of the board's nodes. */
+  private readonly handleVaultDelete = (file: TAbstractFile): void => {
+    if (this.session === null) {
+      return;
+    }
+
+    const prefix = `${file.path}/`;
+    const affected = Object.values(this.session.state.nodes).some((node) => {
+      const path = sourceFile(node.source);
+
+      return path !== null && (path === file.path || path.startsWith(prefix));
+    });
+
+    if (affected) {
+      this.renderApp();
+    }
   };
 
   private readonly handleVaultModify = (file: TAbstractFile): void => {
@@ -432,7 +448,7 @@ export class RoadmapView extends TextFileView {
     return centeredPlacement(center);
   }
 
-  private readonly handleFlowInit = (instance: ReactFlowInstance | null): void => {
+  private readonly handleFlowInit = (instance: RoadmapFlowInstance | null): void => {
     this.flow = instance;
   };
 

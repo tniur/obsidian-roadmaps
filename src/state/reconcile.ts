@@ -22,6 +22,7 @@ import {
 import { isReservedHeading, parseClusterHeading } from "../markdown/cluster";
 import { parseNodeBlock, renderNodeRepresentation, type ParsedNodeBlock } from "../markdown/nodeBlock";
 import { parseRelationsLine, type ParsedRelationEndpoint } from "../markdown/relations";
+import { encodeSource } from "./codec";
 import {
   bodyBounds,
   bodyEdgeIds,
@@ -90,34 +91,9 @@ function defaultCluster(id: string, info: ClusterInfo): RoadmapCluster {
   };
 }
 
+/** Compares sources through their canonical compact encoding from the codec. */
 function sourcesEqual(a: RoadmapNodeSource, b: RoadmapNodeSource): boolean {
-  if (a.type !== b.type) {
-    return false;
-  }
-
-  switch (a.type) {
-    case "note":
-    case "image":
-    case "attachment":
-      return a.file === (b as { file: string }).file;
-
-    case "heading": {
-      const other = b as { file: string; heading: string };
-
-      return a.file === other.file && a.heading === other.heading;
-    }
-
-    case "block": {
-      const other = b as { file: string; blockId: string };
-
-      return a.file === other.file && a.blockId === other.blockId;
-    }
-
-    case "url":
-      return a.url === (b as { url: string }).url;
-    case "text":
-      return true;
-  }
+  return encodeSource(a).join("\0") === encodeSource(b).join("\0");
 }
 
 /**

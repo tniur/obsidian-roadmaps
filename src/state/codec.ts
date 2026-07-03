@@ -35,7 +35,7 @@ function decodeSource(s: CompactSource): RoadmapNodeSource {
   }
 }
 
-function encodeSource(s: RoadmapNodeSource): CompactSource {
+export function encodeSource(s: RoadmapNodeSource): CompactSource {
   switch (s.type) {
     case "note":
       return ["note", s.file];
