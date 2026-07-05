@@ -26,6 +26,19 @@ function sourceHasFile(source: { type: string }, file: string): boolean {
 }
 
 describe("hand edits reconciled back into state", () => {
+  it("resolves shortest-form wikilinks through the injected resolver after a vault rename", () => {
+    const session = freshSession();
+    const node = createNoteNode("notes/react.md", { x: 0, y: 0 });
+
+    session.addNode(node);
+    const renamedByObsidian = session.content.replace("[[notes/react|react]]", "[[react-new|react]]");
+    const resolve = (target: string): string | null => (target === "react-new" ? "notes/react-new.md" : null);
+    const loaded = loadDocument(renamedByObsidian, resolve);
+
+    expect(sourceHasFile(loaded.state.nodes[node.id].source, "notes/react-new.md")).toBe(true);
+    expect(loaded.content).toContain("[[notes/react-new|react]]");
+  });
+
   it("is idempotent on content the plugin wrote itself", () => {
     const session = freshSession();
     const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
@@ -207,7 +220,7 @@ describe("bare wikilinks written in the body", () => {
     expect(adopted).toBeDefined();
     expect(adopted?.kind).toBe("note");
     expect(adopted?.title).toBe("Fresh");
-    expect(loaded.content).toMatch(/<!-- roadmap-node:id=\S+ type=note -->\n\[\[notes\/new\|Fresh\]\]/);
+    expect(loaded.content).toMatch(/<!-- roadmap-node:id=\S+ type=note -->\n- \[ \] \[\[notes\/new\|Fresh\]\]/);
     expect(Object.keys(loaded.state.nodes)).toHaveLength(2);
   });
 

@@ -128,13 +128,17 @@ export class RoadmapView extends TextFileView {
    * newer-version state block opens the view read-only instead of throwing, and never
    * rewrites the file.
    */
+  /** Canonicalizes wikilink targets (Obsidian may write them in shortest form). */
+  private readonly resolveLinkTarget = (target: string): string | null =>
+    this.app.metadataCache.getFirstLinkpathDest(target, this.file?.path ?? "")?.path ?? null;
+
   setViewData(data: string): void {
     this.loadError = null;
     this.diskData = data;
     let loaded: LoadedDocument;
 
     try {
-      loaded = loadDocument(data);
+      loaded = loadDocument(data, this.resolveLinkTarget);
     } catch (error) {
       const newerVersion = error instanceof StateVersionError;
 
@@ -172,7 +176,7 @@ export class RoadmapView extends TextFileView {
   }
 
   private readonly handleRebuildFromBody = (): void => {
-    const rebuilt = rebuildDocument(this.data);
+    const rebuilt = rebuildDocument(this.data, this.resolveLinkTarget);
 
     this.loadError = null;
     this.data = rebuilt.content;

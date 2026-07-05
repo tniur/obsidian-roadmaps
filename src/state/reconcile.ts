@@ -20,7 +20,12 @@ import {
   type RoadmapState,
 } from "../domain/types";
 import { isReservedHeading, parseClusterHeading } from "../markdown/cluster";
-import { parseNodeBlock, renderNodeRepresentation, type ParsedNodeBlock } from "../markdown/nodeBlock";
+import {
+  parseNodeBlock,
+  renderNodeRepresentation,
+  type LinkTargetResolver,
+  type ParsedNodeBlock,
+} from "../markdown/nodeBlock";
 import { parseRelationsLine, type ParsedRelationEndpoint } from "../markdown/relations";
 import { encodeSource } from "./codec";
 import {
@@ -178,7 +183,7 @@ function fitNewClusters(
   }
 }
 
-export function reconcileState(state: RoadmapState, content: string): RoadmapState {
+export function reconcileState(state: RoadmapState, content: string, resolveTarget?: LinkTargetResolver): RoadmapState {
   const { clusters: bodyClusters, membership } = parseBody(content);
   const presentNodes = bodyNodeIds(content);
   const trackNodes = presentNodes.size > 0;
@@ -199,7 +204,7 @@ export function reconcileState(state: RoadmapState, content: string): RoadmapSta
       const body = nodeBlockBody(content, id);
 
       if (body !== null && body !== renderNodeRepresentation(node).trim()) {
-        const parsed = parseNodeBlock(node.kind, body);
+        const parsed = parseNodeBlock(node.kind, body, resolveTarget);
 
         if (parsed !== null) {
           const merged = mergeParsedBlock(node, parsed);
@@ -280,7 +285,11 @@ function defaultNodeLayout(index: number): RoadmapNode["layout"] {
   };
 }
 
-function resolveEndpoint(state: RoadmapState, endpoint: ParsedRelationEndpoint): RoadmapEndpoint | null {
+function resolveEndpoint(
+  state: RoadmapState,
+  endpoint: ParsedRelationEndpoint,
+  resolveTarget?: LinkTargetResolver,
+): RoadmapEndpoint | null {
   if (endpoint.clusterTitle !== undefined) {
     const cluster = Object.values(state.clusters).find((entry) => entry.title === endpoint.clusterTitle);
 
@@ -292,12 +301,13 @@ function resolveEndpoint(state: RoadmapState, endpoint: ParsedRelationEndpoint):
 
   if (endpoint.linkTarget !== undefined) {
     const target = endpoint.linkTarget;
+    const resolved = resolveTarget?.(target) ?? null;
 
     node =
       nodes.find((entry) => {
         const file = sourceFile(entry.source);
 
-        return file === target || file === `${target}.md`;
+        return file === target || file === `${target}.md` || (resolved !== null && file === resolved);
       }) ?? nodes.find((entry) => nodeTitle(entry) === endpoint.linkAlias);
   } else if (endpoint.url !== undefined) {
     node = nodes.find((entry) => entry.source.type === "url" && entry.source.url === endpoint.url);
@@ -322,6 +332,7 @@ function relationEdgesFromBody(
   state: RoadmapState,
   content: string,
   includeMarked: boolean,
+  resolveTarget?: LinkTargetResolver,
 ): Record<string, RoadmapEdge> | null {
   let edges: Record<string, RoadmapEdge> | null = null;
 
@@ -336,8 +347,8 @@ function relationEdgesFromBody(
       continue;
     }
 
-    const from = resolveEndpoint(state, parsed.from);
-    const to = resolveEndpoint(state, parsed.to);
+    const from = resolveEndpoint(state, parsed.from, resolveTarget);
+    const to = resolveEndpoint(state, parsed.to, resolveTarget);
 
     if (from === null || to === null || (from.type === to.type && from.id === to.id)) {
       continue;
@@ -365,13 +376,18 @@ function relationEdgesFromBody(
 
 /** Node reconstructed from its body marker and readable block, or null when the marker
  * kind is unknown or the block does not parse. */
-function nodeFromMarker(content: string, marker: { id: string; kind: string }, index: number): RoadmapNode | null {
+function nodeFromMarker(
+  content: string,
+  marker: { id: string; kind: string },
+  index: number,
+  resolveTarget?: LinkTargetResolver,
+): RoadmapNode | null {
   if (!isNodeKind(marker.kind)) {
     return null;
   }
 
   const body = nodeBlockBody(content, marker.id);
-  const parsed = body === null ? null : parseNodeBlock(marker.kind, body);
+  const parsed = body === null ? null : parseNodeBlock(marker.kind, body, resolveTarget);
 
   if (parsed === null) {
     return null;
@@ -398,7 +414,11 @@ function nodeFromMarker(content: string, marker: { id: string; kind: string }, i
  * the surrounding section; layout falls back to a grid slot, or a spot inside the
  * owning cluster.
  */
-export function adoptNodeMarkers(state: RoadmapState, content: string): RoadmapState {
+export function adoptNodeMarkers(
+  state: RoadmapState,
+  content: string,
+  resolveTarget?: LinkTargetResolver,
+): RoadmapState {
   let nodes: Record<string, RoadmapNode> | null = null;
   const { membership } = parseBody(content);
 
@@ -407,7 +427,7 @@ export function adoptNodeMarkers(state: RoadmapState, content: string): RoadmapS
       return;
     }
 
-    const node = nodeFromMarker(content, marker, index);
+    const node = nodeFromMarker(content, marker, index, resolveTarget);
 
     if (node === null) {
       return;
@@ -433,11 +453,11 @@ export function adoptNodeMarkers(state: RoadmapState, content: string): RoadmapS
  * representation), clusters from marked headings, and edges from `## Relations` lines.
  * Layout cannot be recovered, so nodes fall back to a grid.
  */
-export function rebuildState(content: string): RoadmapState {
+export function rebuildState(content: string, resolveTarget?: LinkTargetResolver): RoadmapState {
   const state = emptyState();
 
   bodyNodeMarkers(content).forEach((marker, index) => {
-    const node = nodeFromMarker(content, marker, index);
+    const node = nodeFromMarker(content, marker, index, resolveTarget);
 
     if (node !== null) {
       state.nodes[marker.id] = node;
@@ -476,7 +496,7 @@ export function rebuildState(content: string): RoadmapState {
     }
   }
 
-  return { ...state, edges: relationEdgesFromBody(state, content, true) ?? state.edges };
+  return { ...state, edges: relationEdgesFromBody(state, content, true, resolveTarget) ?? state.edges };
 }
 
 const BARE_WIKILINK_LINE_RE = /^(?:-\s+(?:\[[ xX]\]\s+)?)?\[\[([^\][|#^]+)(?:\|([^\]]*))?\]\]\s*$/;
@@ -585,8 +605,12 @@ export function ensureClusterMarkers(content: string): string {
  * yet. The caller rewrites the section, which replaces adopted lines with their
  * canonical, marker-carrying form.
  */
-export function adoptRelationEdges(state: RoadmapState, content: string): RoadmapState {
-  const edges = relationEdgesFromBody(state, content, false);
+export function adoptRelationEdges(
+  state: RoadmapState,
+  content: string,
+  resolveTarget?: LinkTargetResolver,
+): RoadmapState {
+  const edges = relationEdgesFromBody(state, content, false, resolveTarget);
 
   return edges === null ? state : { ...state, edges };
 }
@@ -607,7 +631,7 @@ export interface LoadedDocument {
  * `data` must be persisted by the caller. Throws on a corrupted or newer-version state
  * block (see `readState`), leaving the file untouched.
  */
-export function loadDocument(data: string): LoadedDocument {
+export function loadDocument(data: string, resolveTarget?: LinkTargetResolver): LoadedDocument {
   const warnings: DocumentWarning[] = [];
   const parsed = readState(data);
   let marked = ensureClusterMarkers(data);
@@ -620,27 +644,40 @@ export function loadDocument(data: string): LoadedDocument {
   let state: RoadmapState;
 
   if (parsed === null) {
-    state = rebuildState(marked);
+    state = rebuildState(marked, resolveTarget);
 
     if (Object.keys(state.nodes).length > 0 || Object.keys(state.clusters).length > 0) {
       warnings.push("rebuilt-state");
     }
   } else {
-    state = reconcileState(parsed, marked);
-    state = adoptNodeMarkers(state, marked);
-    state = adoptRelationEdges(state, marked);
+    state = reconcileState(parsed, marked, resolveTarget);
+    state = adoptNodeMarkers(state, marked, resolveTarget);
+    state = adoptRelationEdges(state, marked, resolveTarget);
   }
 
   let content = state === parsed && marked === data ? data : writeRelations(writeState(marked, state), state);
   const present = bodyNodeIds(content);
-  const orphans = Object.values(state.nodes).filter((node) => !present.has(node.id));
+  let restored = false;
+  let normalized = false;
 
-  if (orphans.length > 0) {
-    for (const node of orphans) {
+  /* Blocks missing from the body are restored; hand-edited ones whose content was just
+     merged into state are rewritten to canonical form (full vault paths, ordered lines),
+     mirroring how the Relations section is canonicalized. */
+  for (const node of Object.values(state.nodes)) {
+    if (!present.has(node.id)) {
       content = updateNodeBlock(content, node);
+      restored = true;
+    } else if (nodeBlockBody(content, node.id) !== renderNodeRepresentation(node).trim()) {
+      content = updateNodeBlock(content, node);
+      normalized = true;
     }
+  }
 
+  if (restored || normalized) {
     content = writeRelations(writeState(content, state), state);
+  }
+
+  if (restored) {
     warnings.push("restored-nodes");
   }
 
@@ -653,9 +690,9 @@ export function loadDocument(data: string): LoadedDocument {
  * the user from the load-error screen — layout is not recoverable, so this is never
  * done silently.
  */
-export function rebuildDocument(data: string): LoadedDocument {
+export function rebuildDocument(data: string, resolveTarget?: LinkTargetResolver): LoadedDocument {
   const marked = adoptBareWikilinks(ensureClusterMarkers(data));
-  const state = rebuildState(marked);
+  const state = rebuildState(marked, resolveTarget);
   const content = writeRelations(writeState(marked, state), state);
 
   return { state, content, warnings: ["rebuilt-state"] };

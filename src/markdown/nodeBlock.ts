@@ -122,11 +122,22 @@ function parseTags(rest: string): ParsedTags {
 }
 
 /**
+ * Turns a wikilink target into a vault path. Obsidian may write links in shortest
+ * form (`[[react]]` for `notes/react.md`), so callers with vault access supply a
+ * resolver backed by the metadata cache; null means the target did not resolve.
+ */
+export type LinkTargetResolver = (target: string) => string | null;
+
+/**
  * Best-effort inverse of `renderNodeBlock`'s representation, used to rebuild state
  * entries from the readable body when the hidden state block is lost. Returns null
  * when the block does not carry enough to reconstruct the node's source.
  */
-export function parseNodeBlock(kind: RoadmapNodeKind, body: string): ParsedNodeBlock | null {
+export function parseNodeBlock(
+  kind: RoadmapNodeKind,
+  body: string,
+  resolveTarget?: LinkTargetResolver,
+): ParsedNodeBlock | null {
   if (kind === "text") {
     const text = unescapeTextContent(body.trim());
 
@@ -146,7 +157,7 @@ export function parseNodeBlock(kind: RoadmapNodeKind, body: string): ParsedNodeB
       return null;
     }
 
-    const result: ParsedNodeBlock = { source: { type: "image", file: embed[1] } };
+    const result: ParsedNodeBlock = { source: { type: "image", file: resolveTarget?.(embed[1]) ?? embed[1] } };
     const bold = lines[1] !== undefined ? BOLD_LINE_RE.exec(lines[1]) : null;
 
     if (bold !== null) {
@@ -201,7 +212,7 @@ export function parseNodeBlock(kind: RoadmapNodeKind, body: string): ParsedNodeB
       return null;
     }
 
-    source = { type: "block", file: noteFilePath(file), blockId: block };
+    source = { type: "block", file: resolveTarget?.(file) ?? noteFilePath(file), blockId: block };
   } else if (kind === "heading" || target.includes("#")) {
     const [file, heading] = target.split("#");
 
@@ -209,11 +220,11 @@ export function parseNodeBlock(kind: RoadmapNodeKind, body: string): ParsedNodeB
       return null;
     }
 
-    source = { type: "heading", file: noteFilePath(file), heading };
+    source = { type: "heading", file: resolveTarget?.(file) ?? noteFilePath(file), heading };
   } else if (kind === "attachment") {
-    source = { type: "attachment", file: target };
+    source = { type: "attachment", file: resolveTarget?.(target) ?? target };
   } else {
-    source = { type: "note", file: noteFilePath(target) };
+    source = { type: "note", file: resolveTarget?.(target) ?? noteFilePath(target) };
   }
 
   const result: ParsedNodeBlock = { source, ...parseTags(content) };
