@@ -200,6 +200,11 @@
   background: var(--rm-surface);
   border-left: var(--rm-border-width) solid var(--rm-border);
   box-shadow: var(--rm-shadow-overlay);
+}
+
+/* Applied only while the panel is entering: hidden tabs go through display:none, which
+   would restart an always-on animation every time the board becomes visible again. */
+.rm-preview--entering {
   animation: rm-preview-in var(--rm-transition-med);
 }
 
@@ -211,7 +216,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .rm-preview {
+  .rm-preview--entering {
     animation: none;
   }
 }

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState, type AnimationEvent } from "react";
 import { nodeTitle } from "../domain/title";
 import type { RoadmapNode } from "../domain/types";
 import { ToolbarButton } from "./ToolbarButton";
@@ -19,8 +19,15 @@ interface NodePreviewPanelProps {
 export function NodePreviewPanel({ node, mount, refreshNonce, onEdit, onClose }: NodePreviewPanelProps) {
   const bodyRef = useRef<HTMLDivElement>(null);
   const nodeRef = useRef(node);
+  const [entering, setEntering] = useState(true);
 
   nodeRef.current = node;
+
+  const handleAnimationEnd = (event: AnimationEvent<HTMLDivElement>): void => {
+    if (event.target === event.currentTarget) {
+      setEntering(false);
+    }
+  };
 
   useEffect(() => {
     const el = bodyRef.current;
@@ -39,7 +46,7 @@ export function NodePreviewPanel({ node, mount, refreshNonce, onEdit, onClose }:
   }, [mount, refreshNonce]);
 
   return (
-    <div className="rm-preview">
+    <div className={entering ? "rm-preview rm-preview--entering" : "rm-preview"} onAnimationEnd={handleAnimationEnd}>
       <div className="rm-preview__header">
         <span className="rm-preview__title">{nodeTitle(node)}</span>
         <ToolbarButton icon="pencil" label="Edit in Obsidian" onClick={onEdit} />
