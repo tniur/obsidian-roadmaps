@@ -649,6 +649,16 @@
   opacity: 1;
 }
 
+/* Board lock disables connecting; hide the inert anchors instead of teasing them. */
+.rm-handle.react-flow__handle:not(.connectable) {
+  display: none;
+}
+
+/* Locked boards keep edges fully inert: no hover highlight, no selection clicks. */
+.rm-canvas[data-locked="true"] .react-flow__edge {
+  pointer-events: none;
+}
+
 .rm-handle.react-flow__handle:hover {
   box-shadow: 0 0 0 var(--rm-ring-width-handle) var(--rm-ring);
 }

@@ -323,13 +323,21 @@ export default class RoadmapPlugin extends Plugin {
     });
   }
 
+  /** Focus lands on the editor right away, so keyboard shortcuts (undo, search) work
+   * without an extra click into the text. */
   private readonly openAsMarkdown = (leaf: WorkspaceLeaf, file: TFile): void => {
     this.fileModes[(leaf as LeafWithId).id ?? file.path] = MARKDOWN_VIEW_TYPE;
-    void leaf.setViewState({
-      type: MARKDOWN_VIEW_TYPE,
-      active: true,
-      state: { file: file.path },
-    });
+    void leaf
+      .setViewState({
+        type: MARKDOWN_VIEW_TYPE,
+        active: true,
+        state: { file: file.path },
+      })
+      .then(() => {
+        if (leaf.view instanceof MarkdownView) {
+          leaf.view.editor.focus();
+        }
+      });
   };
 
   private async createRoadmap(): Promise<void> {

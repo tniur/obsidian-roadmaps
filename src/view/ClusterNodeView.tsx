@@ -18,7 +18,7 @@ const RESIZE_EDGES = ["right", "bottom", "bottom-right"] as const;
 
 const HANDLE_SIDES = [Position.Top, Position.Right, Position.Bottom, Position.Left];
 
-export function ClusterNodeView({ id, data, selected }: NodeProps<RoadmapClusterNode>) {
+export function ClusterNodeView({ id, data, selected, isConnectable }: NodeProps<RoadmapClusterNode>) {
   const cluster = data;
   const callbacks = useNodeCallbacks();
   const collapsed = cluster.collapsed;
@@ -56,7 +56,7 @@ export function ClusterNodeView({ id, data, selected }: NodeProps<RoadmapCluster
             <Icon name={collapsed ? "chevron-right" : "chevron-down"} />
           </button>
           <span className="rm-cluster__title">{cluster.title}</span>
-          {!collapsed ? (
+          {!collapsed && callbacks?.locked !== true ? (
             <button type="button" className="rm-cluster__action nodrag" aria-label="Arrange nodes" onClick={onArrange}>
               <Icon name="layout-grid" />
             </button>
@@ -76,7 +76,14 @@ export function ClusterNodeView({ id, data, selected }: NodeProps<RoadmapCluster
           ))
         : null}
       {HANDLE_SIDES.map((side) => (
-        <Handle key={side} id={side} type="source" position={side} className="rm-handle" />
+        <Handle
+          key={side}
+          id={side}
+          type="source"
+          position={side}
+          className="rm-handle"
+          isConnectable={isConnectable}
+        />
       ))}
     </>
   );

@@ -8,7 +8,7 @@ import { getNodeRenderer } from "./nodeRegistry";
 
 const HANDLE_SIDES = [Position.Top, Position.Right, Position.Bottom, Position.Left];
 
-export function RoadmapNodeView({ id, data, selected }: NodeProps<RoadmapCardNode>) {
+export function RoadmapNodeView({ id, data, selected, isConnectable }: NodeProps<RoadmapCardNode>) {
   const node = data;
   const Body = getNodeRenderer(node.kind);
   const callbacks = useNodeCallbacks();
@@ -42,7 +42,14 @@ export function RoadmapNodeView({ id, data, selected }: NodeProps<RoadmapCardNod
         }}
       />
       {HANDLE_SIDES.map((side) => (
-        <Handle key={side} id={side} type="source" position={side} className="rm-handle" />
+        <Handle
+          key={side}
+          id={side}
+          type="source"
+          position={side}
+          className="rm-handle"
+          isConnectable={isConnectable}
+        />
       ))}
     </>
   );

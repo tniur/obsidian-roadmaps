@@ -7,6 +7,7 @@ import {
   ReactFlow,
   SelectionMode,
   useReactFlow,
+  useStore,
   type Connection,
   type EdgeChange,
   type FinalConnectionState,
@@ -62,6 +63,10 @@ const edgeTypes = { [ROADMAP_EDGE_TYPE]: FloatingEdge };
 
 /** Ephemeral ids for alt-drag copies; the copies are replaced by real nodes on drop. */
 const ALT_COPY_ID_PREFIX = "dup-";
+
+const DOUBLE_CLICK_ZOOM_FACTOR = 2;
+
+const DOUBLE_CLICK_ZOOM_DURATION = 200;
 
 function clientPoint(event: MouseEvent | TouchEvent): { x: number; y: number } | null {
   if ("clientX" in event) {
@@ -179,7 +184,9 @@ export function RoadmapCanvas({
     onDeleteElements,
   } = boardActions;
   const reactFlow = useReactFlow<RoadmapFlowNode, RoadmapFlowEdge>();
-  const { screenToFlowPosition, getNodes } = reactFlow;
+  const { screenToFlowPosition, getNodes, getViewport, setViewport } = reactFlow;
+  const minZoom = useStore((store) => store.minZoom);
+  const maxZoom = useStore((store) => store.maxZoom);
   const flowId = useId();
   const [dotsVisible, setDotsVisible] = useState(initialDotsVisible);
   const initialViewportRef = useRef(state.viewport);
@@ -526,6 +533,40 @@ export function RoadmapCanvas({
     [onDeleteElements],
   );
 
+  /**
+   * Double-click zoom for the empty pane only. React Flow's built-in one is disabled:
+   * its filter lets the gesture through on non-draggable (locked) nodes, hijacking the
+   * open-on-double-click semantics of cards and clusters.
+   */
+  const onCanvasDoubleClick = useCallback(
+    (event: ReactMouseEvent<HTMLDivElement>) => {
+      const target = event.target as Element;
+
+      if (
+        target.closest(".react-flow__node, .react-flow__edge, .react-flow__panel") !== null ||
+        target.closest(".react-flow__pane") === null
+      ) {
+        return;
+      }
+
+      const rect = event.currentTarget.getBoundingClientRect();
+      const { zoom } = getViewport();
+      const factor = event.shiftKey ? 1 / DOUBLE_CLICK_ZOOM_FACTOR : DOUBLE_CLICK_ZOOM_FACTOR;
+      const nextZoom = Math.min(maxZoom, Math.max(minZoom, zoom * factor));
+      const point = screenToFlowPosition({ x: event.clientX, y: event.clientY });
+
+      void setViewport(
+        {
+          x: event.clientX - rect.left - point.x * nextZoom,
+          y: event.clientY - rect.top - point.y * nextZoom,
+          zoom: nextZoom,
+        },
+        { duration: DOUBLE_CLICK_ZOOM_DURATION },
+      );
+    },
+    [getViewport, setViewport, screenToFlowPosition, minZoom, maxZoom],
+  );
+
   const onDragOver = useCallback((event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     event.dataTransfer.dropEffect = "copy";
@@ -562,7 +603,13 @@ export function RoadmapCanvas({
 
   return (
     <NodeCallbacksContext.Provider value={nodeCallbacks}>
-      <div className="rm-canvas" onDragOver={onDragOver} onDrop={onDrop}>
+      <div
+        className="rm-canvas"
+        data-locked={locked}
+        onDoubleClick={onCanvasDoubleClick}
+        onDragOver={onDragOver}
+        onDrop={onDrop}
+      >
         <ReactFlow
           id={flowId}
           nodes={nodes}
@@ -577,6 +624,7 @@ export function RoadmapCanvas({
           onConnect={onConnect}
           onReconnect={onReconnect}
           edgesReconnectable={!locked}
+          edgesFocusable={!locked}
           onConnectEnd={onConnectEnd}
           onNodeDragStart={onNodeDragStart}
           onNodeDragStop={onNodeDragStop}
@@ -597,6 +645,7 @@ export function RoadmapCanvas({
           selectionMode={SelectionMode.Partial}
           panOnDrag={[1, 2]}
           panOnScroll
+          zoomOnDoubleClick={false}
           proOptions={{ hideAttribution: true }}
           defaultViewport={initialViewportRef.current}
           fitView={initialViewportRef.current === undefined}

@@ -355,24 +355,25 @@ export class RoadmapView extends TextFileView {
     }
   };
 
+  /** Undo counts as an edit, so the board lock blocks it together with mutations. */
   readonly undoEdit = (): void => {
-    if (this.session?.undo() === true) {
+    if (!this.locked && this.session?.undo() === true) {
       this.commit();
     }
   };
 
   readonly redoEdit = (): void => {
-    if (this.session?.redo() === true) {
+    if (!this.locked && this.session?.redo() === true) {
       this.commit();
     }
   };
 
   canUndoEdit(): boolean {
-    return this.session?.canUndo === true;
+    return !this.locked && this.session?.canUndo === true;
   }
 
   canRedoEdit(): boolean {
-    return this.session?.canRedo === true;
+    return !this.locked && this.session?.canRedo === true;
   }
 
   isBoardLoaded(): boolean {
@@ -677,7 +678,9 @@ export class RoadmapView extends TextFileView {
     }
 
     if (node.source.type === "text") {
-      promptEditText(ctx, id);
+      if (!this.locked) {
+        promptEditText(ctx, id);
+      }
 
       return;
     }
@@ -714,7 +717,7 @@ export class RoadmapView extends TextFileView {
     placement: NodePlacement,
     event: MouseEvent,
   ): void => {
-    const ctx = this.boardContext();
+    const ctx = this.editableContext();
 
     if (ctx === null) {
       return;
@@ -885,8 +888,8 @@ export class RoadmapView extends TextFileView {
             <RoadmapCanvas
               state={this.session.state}
               locked={this.locked}
-              canUndo={this.session.canUndo}
-              canRedo={this.session.canRedo}
+              canUndo={this.canUndoEdit()}
+              canRedo={this.canRedoEdit()}
               initialDotsVisible={this.host.getShowBackgroundDots()}
               focusIds={this.focusIds}
               focusNonce={this.focusNonce}
