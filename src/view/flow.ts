@@ -90,6 +90,34 @@ export function nodeContainsPoint(frame: FlowNodeFrame, point: { x: number; y: n
   );
 }
 
+/**
+ * A rubber-band that touches a cluster container selects the cluster as a whole: its
+ * members drop out of the selection so the group acts as one object (delete, drag).
+ * Directly clicked members stay selectable — their cluster is not selected then.
+ */
+export function normalizeClusterSelection(nodes: RoadmapFlowNode[]): RoadmapFlowNode[] {
+  const selectedClusters = new Set(
+    nodes.filter((node) => node.type === ROADMAP_CLUSTER_TYPE && node.selected === true).map((node) => node.id),
+  );
+
+  if (selectedClusters.size === 0) {
+    return nodes;
+  }
+
+  let changed = false;
+  const result = nodes.map((node) => {
+    if (node.selected === true && node.parentId != null && selectedClusters.has(node.parentId)) {
+      changed = true;
+
+      return { ...node, selected: false };
+    }
+
+    return node;
+  });
+
+  return changed ? result : nodes;
+}
+
 /** Absolute position of a flow node: cluster members store cluster-relative coordinates. */
 export function absoluteNodePosition(node: RoadmapFlowNode, all: readonly RoadmapFlowNode[]): { x: number; y: number } {
   const parent = node.parentId == null ? undefined : all.find((entry) => entry.id === node.parentId);
@@ -118,7 +146,6 @@ export function stateToFlowNodes(
       position: { x: cluster.layout.x, y: cluster.layout.y },
       width: cluster.layout.width,
       height: cluster.collapsed === true ? COLLAPSED_CLUSTER_HEIGHT : cluster.layout.height,
-      deletable: false,
       data: {
         title: cluster.title,
         color: cluster.style?.color,

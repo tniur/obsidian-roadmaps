@@ -16,6 +16,7 @@ import { RoadmapSession, type RoadmapConnection } from "../state/session";
 import type { NodeSink } from "./addNode";
 import { runAddNodeAction, type AddNodeActionId } from "./addNodeActions";
 import type { BoardContext } from "./boardContext";
+import { ChoiceModal } from "./ChoiceModal";
 import { promptEditText, promptGroupIntoCluster } from "./dialogs";
 import { exportBoardPdf } from "./exportPdf";
 import { showAddNodeMenu } from "./menus/addNodeMenu";
@@ -773,13 +774,44 @@ export class RoadmapView extends TextFileView {
     );
   };
 
+  /** A selection containing clusters asks how to treat their nodes before deleting. */
   private readonly handleDeleteElements = (nodeIds: string[], edgeIds: string[]): void => {
-    if (this.session === null || (nodeIds.length === 0 && edgeIds.length === 0)) {
+    const ctx = this.editableContext();
+
+    if (ctx === null || (nodeIds.length === 0 && edgeIds.length === 0)) {
       return;
     }
 
-    this.session.deleteElements(nodeIds, edgeIds);
-    this.commit();
+    const clusterIds = nodeIds.filter((id) => ctx.session.state.clusters[id] !== undefined);
+
+    if (clusterIds.length === 0) {
+      ctx.session.deleteElements(nodeIds, edgeIds);
+      ctx.commit();
+
+      return;
+    }
+
+    /* React Flow lists children of a deleted parent too; members of the clusters being
+       deleted are governed by the dialog choice, not by the free-node list. */
+    const clusterSet = new Set(clusterIds);
+    const freeNodeIds = nodeIds.filter((id) => {
+      const node = ctx.session.state.nodes[id];
+
+      return node !== undefined && !clusterSet.has(node.clusterId ?? "");
+    });
+    const pick = (mode: "keep-nodes" | "with-nodes"): void => {
+      ctx.session.deleteSelection(freeNodeIds, edgeIds, clusterIds, mode);
+      ctx.commit();
+    };
+
+    new ChoiceModal(this.app, {
+      title: clusterIds.length === 1 ? "Delete cluster" : "Delete clusters",
+      message: "Vault files are not affected either way.",
+      choices: [
+        { label: "Keep nodes", onPick: () => pick("keep-nodes") },
+        { label: "Delete nodes too", warning: true, onPick: () => pick("with-nodes") },
+      ],
+    }).open();
   };
 
   private readonly handleConnectNodes = (

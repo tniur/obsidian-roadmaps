@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createCluster } from "../src/domain/create";
+import { createCluster, createNoteNode } from "../src/domain/create";
 import type { RoadmapCluster, RoadmapNode } from "../src/domain/types";
 import { parseClusterHeading } from "../src/markdown/cluster";
 import {
@@ -252,20 +252,21 @@ describe("clusters storage", () => {
     expect(flowEdges[0]?.target).toBe("n2");
   });
 
-  it("forbids direct edges inside one cluster (node↔node and node↔own cluster)", () => {
+  it("allows edges between nodes of one cluster but not to their own container", () => {
     const session = sessionWithTwoNodes();
 
     session.createClusterFromNodes(["n1", "n2"], "Group");
     const clusterId = Object.keys(session.state.clusters)[0];
 
     session.addEdge("n1", "n2");
-    expect(Object.keys(session.state.edges)).toHaveLength(0);
+    expect(Object.keys(session.state.edges)).toHaveLength(1);
+    expect(session.content).toContain("## Relations");
 
     session.addEdge("n1", clusterId);
-    expect(Object.keys(session.state.edges)).toHaveLength(0);
+    expect(Object.keys(session.state.edges)).toHaveLength(1);
   });
 
-  it("ignores a reconnect that would land inside one cluster", () => {
+  it("ignores a reconnect that would link a node to its own container", () => {
     const session = sessionWithTwoNodes();
 
     session.addEdge("n1", "n2");
@@ -321,6 +322,50 @@ describe("clusters storage", () => {
     expect(session.content).not.toContain("## Group");
     expect(session.content).not.toContain("[[notes/a|a]]");
     expect(session.content).toContain("[[notes/b|b]]");
+  });
+
+  it("deletes a mixed selection of clusters and free nodes in one undo step", () => {
+    const session = sessionWithTwoNodes();
+    const free = createNoteNode("notes/c.md", { x: 900, y: 0 });
+
+    session.addNode(free);
+    session.createClusterFromNodes(["n1", "n2"], "Group");
+    session.addEdge("n1", "n2");
+    const clusterId = Object.keys(session.state.clusters)[0];
+
+    session.deleteSelection([free.id], [], [clusterId], "keep-nodes");
+
+    expect(session.state.clusters[clusterId]).toBeUndefined();
+    expect(session.state.nodes[free.id]).toBeUndefined();
+    expect(session.state.nodes.n1?.clusterId ?? null).toBeNull();
+    expect(session.state.nodes.n2?.clusterId ?? null).toBeNull();
+    expect(Object.keys(session.state.edges)).toHaveLength(1);
+    expect(session.content).not.toContain("## Group");
+    expect(session.content).not.toContain("[[notes/c|c]]");
+
+    session.undo();
+
+    expect(session.state.clusters[clusterId]).toBeDefined();
+    expect(session.state.nodes[free.id]).toBeDefined();
+    expect(session.state.nodes.n1?.clusterId).toBe(clusterId);
+  });
+
+  it("deletes a mixed selection removing cluster nodes when asked", () => {
+    const session = sessionWithTwoNodes();
+    const free = createNoteNode("notes/c.md", { x: 900, y: 0 });
+
+    session.addNode(free);
+    session.createClusterFromNodes(["n1"], "Group");
+    const clusterId = Object.keys(session.state.clusters)[0];
+
+    session.deleteSelection([free.id], [], [clusterId], "with-nodes");
+
+    expect(session.state.clusters[clusterId]).toBeUndefined();
+    expect(session.state.nodes.n1).toBeUndefined();
+    expect(session.state.nodes[free.id]).toBeUndefined();
+    expect(session.state.nodes.n2).toBeDefined();
+    expect(session.content).not.toContain("## Group");
+    expect(session.content).not.toContain("[[notes/a|a]]");
   });
 
   it("arranges member nodes into a grid inside the cluster", () => {

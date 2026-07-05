@@ -38,6 +38,7 @@ import {
   absoluteNodePosition,
   nodeContainsPoint,
   nodeSize,
+  normalizeClusterSelection,
   reconcileFlowEdges,
   reconcileFlowNodes,
   ROADMAP_CLUSTER_TYPE,
@@ -232,7 +233,16 @@ export function RoadmapCanvas({
   }, [focusNonce, focusIds, storeApi]);
 
   const onNodesChange = useCallback(
-    (changes: NodeChange<RoadmapFlowNode>[]) => {
+    (rawChanges: NodeChange<RoadmapFlowNode>[]) => {
+      /* Deletion goes through the session (and may await a confirmation dialog), so
+         React Flow's optimistic removals are suppressed — otherwise cancelling would
+         leave the board visually missing elements until the next state commit. */
+      const changes = rawChanges.filter((change) => change.type !== "remove");
+
+      if (changes.length === 0) {
+        return;
+      }
+
       const alt = altDragRef.current;
 
       if (alt !== null) {
@@ -260,7 +270,7 @@ export function RoadmapCanvas({
           }
         }
 
-        setNodes((current) => applyNodeChanges(augmented, current));
+        setNodes((current) => normalizeClusterSelection(applyNodeChanges(augmented, current)));
 
         return;
       }
@@ -300,12 +310,18 @@ export function RoadmapCanvas({
       setHelperLines((prev) =>
         prev.horizontal === lines.horizontal && prev.vertical === lines.vertical ? prev : lines,
       );
-      setNodes((current) => applyNodeChanges(changes, current));
+      setNodes((current) => normalizeClusterSelection(applyNodeChanges(changes, current)));
     },
     [getNodes],
   );
 
-  const onEdgesChange = useCallback((changes: EdgeChange<RoadmapFlowEdge>[]) => {
+  const onEdgesChange = useCallback((rawChanges: EdgeChange<RoadmapFlowEdge>[]) => {
+    const changes = rawChanges.filter((change) => change.type !== "remove");
+
+    if (changes.length === 0) {
+      return;
+    }
+
     setEdges((current) => applyEdgeChanges(changes, current));
   }, []);
 

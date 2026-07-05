@@ -88,7 +88,7 @@ describe("cluster membership consistency", () => {
     expect(reloaded.nodes[clone.id].layout.x).toBe(500);
   });
 
-  it("drops an edge that becomes internal when grouping connected nodes", () => {
+  it("keeps a node↔node edge when grouping connected nodes into a cluster", () => {
     const session = freshSession();
     const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
     const b = createNoteNode("notes/b.md", { x: 300, y: 0 });
@@ -97,11 +97,27 @@ describe("cluster membership consistency", () => {
     session.addEdge(a.id, b.id);
     session.createClusterFromNodes([a.id, b.id], "Group");
 
-    expect(Object.keys(session.state.edges)).toHaveLength(0);
-    expect(session.content).not.toContain("## Relations");
+    expect(Object.keys(session.state.edges)).toHaveLength(1);
+    expect(session.content).toContain("## Relations");
   });
 
-  it("drops an edge that becomes internal when a node is dragged into the cluster", () => {
+  it("drops a node↔cluster edge when the node is dragged into that cluster", () => {
+    const session = freshSession();
+    const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
+    const b = createNoteNode("notes/b.md", { x: 600, y: 0 });
+
+    session.addNodes([a, b]);
+    session.createClusterFromNodes([a.id], "Group");
+    const cluster = Object.values(session.state.clusters)[0];
+
+    session.addEdge(b.id, cluster.id);
+    session.setNodesCluster([{ id: b.id, clusterId: cluster.id, x: cluster.layout.x + 40, y: cluster.layout.y + 60 }]);
+
+    expect(session.state.nodes[b.id].clusterId).toBe(cluster.id);
+    expect(Object.keys(session.state.edges)).toHaveLength(0);
+  });
+
+  it("keeps a node↔node edge when one end is dragged into the other's cluster", () => {
     const session = freshSession();
     const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
     const b = createNoteNode("notes/b.md", { x: 600, y: 0 });
@@ -114,7 +130,7 @@ describe("cluster membership consistency", () => {
     session.setNodesCluster([{ id: b.id, clusterId: cluster.id, x: cluster.layout.x + 40, y: cluster.layout.y + 60 }]);
 
     expect(session.state.nodes[b.id].clusterId).toBe(cluster.id);
-    expect(Object.keys(session.state.edges)).toHaveLength(0);
+    expect(Object.keys(session.state.edges)).toHaveLength(1);
   });
 });
 

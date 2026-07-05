@@ -4,6 +4,7 @@ import { createRoadmapDocument, readState } from "../src/state/document";
 import { RoadmapSession } from "../src/state/session";
 import {
   isCardNode,
+  normalizeClusterSelection,
   reconcileFlowEdges,
   reconcileFlowNodes,
   stateToFlowEdges,
@@ -26,6 +27,30 @@ function sessionWithNodes(): { session: RoadmapSession; ids: string[] } {
 
   return { session, ids: [a.id, b.id] };
 }
+
+describe("cluster selection normalization", () => {
+  it("deselects members when their cluster is selected, leaving others alone", () => {
+    const { session, ids } = sessionWithNodes();
+
+    session.createClusterFromNodes([ids[0]], "Group");
+    const flow = stateToFlowNodes(session.state).map((node) => ({ ...node, selected: true }));
+    const normalized = normalizeClusterSelection(flow);
+    const member = normalized.find((node) => node.id === ids[0]);
+    const outside = normalized.find((node) => node.id === ids[1]);
+    const cluster = normalized.find((node) => !isCardNode(node));
+
+    expect(cluster?.selected).toBe(true);
+    expect(member?.selected).toBe(false);
+    expect(outside?.selected).toBe(true);
+  });
+
+  it("returns the same array when no cluster is selected", () => {
+    const { session } = sessionWithNodes();
+    const flow = stateToFlowNodes(session.state).map((node) => ({ ...node, selected: true }));
+
+    expect(normalizeClusterSelection(flow)).toBe(flow);
+  });
+});
 
 describe("identity-preserving flow reconcile", () => {
   it("keeps untouched node objects by reference when another node moves", () => {

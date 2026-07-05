@@ -455,77 +455,121 @@ export class RoadmapSession {
       .map((node) => node.id);
   }
 
-  private edgesWithoutEndpoints(dropped: ReadonlySet<string>): Record<string, RoadmapEdge> {
-    const edges: Record<string, RoadmapEdge> = {};
-
-    for (const [id, edge] of Object.entries(this.stateValue.edges)) {
-      if (!dropped.has(edge.from.id) && !dropped.has(edge.to.id)) {
-        edges[id] = edge;
-      }
-    }
-
-    return edges;
-  }
-
   /** Deletes the cluster but keeps its nodes, rebasing their layouts to absolute and moving
    * their body blocks out to the unclustered region so they survive as top-level. */
   dissolveCluster(id: string): void {
-    const cluster = this.stateValue.clusters[id];
-
-    if (cluster === undefined) {
-      return;
-    }
-
-    const memberIds = this.memberNodeIds(id);
-    const nodes = { ...this.stateValue.nodes };
-
-    for (const memberId of memberIds) {
-      const node = nodes[memberId];
-      const next: RoadmapNode = {
-        ...node,
-        layout: {
-          ...node.layout,
-          x: node.layout.x + cluster.layout.x,
-          y: node.layout.y + cluster.layout.y,
-        },
-      };
-
-      delete next.clusterId;
-      nodes[memberId] = next;
-    }
-
-    const clusters = { ...this.stateValue.clusters };
-
-    delete clusters[id];
-    this.commit(
-      { ...this.stateValue, nodes, clusters, edges: this.edgesWithoutEndpoints(new Set([id])) },
-      { body: (content) => dissolveClusterSection(content, id, memberIds), relations: true },
-    );
+    this.deleteSelection([], [], [id], "keep-nodes");
   }
 
   /** Deletes the cluster and removes its member nodes from the roadmap. Source files are not
    * touched: removing entities from the roadmap must never delete vault files. */
   deleteClusterAndNodes(id: string): void {
-    const cluster = this.stateValue.clusters[id];
+    this.deleteSelection([], [], [id], "with-nodes");
+  }
 
-    if (cluster === undefined) {
+  /**
+   * Removes a mixed selection in one history step. Free nodes and explicitly selected
+   * edges always go; clusters follow `clusterMode` — their nodes either survive as
+   * top-level (layout rebased to absolute, body blocks moved to the unclustered region)
+   * or leave the roadmap with them. Vault files are never touched. Edges losing an
+   * endpoint are dropped.
+   */
+  deleteSelection(
+    nodeIds: readonly string[],
+    edgeIds: readonly string[],
+    clusterIds: readonly string[],
+    clusterMode: "keep-nodes" | "with-nodes",
+  ): void {
+    const targetClusters = clusterIds.filter((id) => this.stateValue.clusters[id] !== undefined);
+    const removedNodes = new Set(nodeIds.filter((id) => this.stateValue.nodes[id] !== undefined));
+    const memberIds = new Map(targetClusters.map((id) => [id, this.memberNodeIds(id)]));
+
+    if (clusterMode === "with-nodes") {
+      for (const members of memberIds.values()) {
+        for (const id of members) {
+          removedNodes.add(id);
+        }
+      }
+    }
+
+    const droppedEdges = new Set(edgeIds.filter((id) => this.stateValue.edges[id] !== undefined));
+    const removedEndpoints = new Set([...removedNodes, ...targetClusters]);
+
+    for (const [edgeId, edge] of Object.entries(this.stateValue.edges)) {
+      if (removedEndpoints.has(edge.from.id) || removedEndpoints.has(edge.to.id)) {
+        droppedEdges.add(edgeId);
+      }
+    }
+
+    if (removedNodes.size === 0 && droppedEdges.size === 0 && targetClusters.length === 0) {
       return;
     }
 
-    const memberIds = this.memberNodeIds(id);
     const nodes = { ...this.stateValue.nodes };
 
-    for (const memberId of memberIds) {
-      delete nodes[memberId];
+    for (const id of removedNodes) {
+      delete nodes[id];
     }
 
     const clusters = { ...this.stateValue.clusters };
 
-    delete clusters[id];
+    if (clusterMode === "keep-nodes") {
+      for (const [clusterId, members] of memberIds) {
+        const cluster = clusters[clusterId];
+
+        for (const memberId of members) {
+          const node = nodes[memberId];
+
+          if (node === undefined) {
+            continue;
+          }
+
+          const next: RoadmapNode = {
+            ...node,
+            layout: {
+              ...node.layout,
+              x: node.layout.x + cluster.layout.x,
+              y: node.layout.y + cluster.layout.y,
+            },
+          };
+
+          delete next.clusterId;
+          nodes[memberId] = next;
+        }
+      }
+    }
+
+    for (const id of targetClusters) {
+      delete clusters[id];
+    }
+
+    const edges: Record<string, RoadmapEdge> = {};
+
+    for (const [id, edge] of Object.entries(this.stateValue.edges)) {
+      if (!droppedEdges.has(id)) {
+        edges[id] = edge;
+      }
+    }
+
     this.commit(
-      { ...this.stateValue, nodes, clusters, edges: this.edgesWithoutEndpoints(new Set([id, ...memberIds])) },
+      { ...this.stateValue, nodes, clusters, edges },
       {
-        body: (content) => removeClusterHeading(memberIds.reduce(removeNodeBlock, content), id),
+        body: (content) => {
+          let next = [...removedNodes].reduce(removeNodeBlock, content);
+
+          for (const [clusterId, members] of memberIds) {
+            next =
+              clusterMode === "keep-nodes"
+                ? dissolveClusterSection(
+                    next,
+                    clusterId,
+                    members.filter((id) => !removedNodes.has(id)),
+                  )
+                : removeClusterHeading(next, clusterId);
+          }
+
+          return next;
+        },
         relations: true,
       },
     );
@@ -625,22 +669,7 @@ export class RoadmapSession {
   }
 
   deleteNodes(ids: readonly string[]): void {
-    const present = ids.filter((id) => this.stateValue.nodes[id] !== undefined);
-
-    if (present.length === 0) {
-      return;
-    }
-
-    const nodes = { ...this.stateValue.nodes };
-
-    for (const id of present) {
-      delete nodes[id];
-    }
-
-    this.commit(
-      { ...this.stateValue, nodes, edges: this.edgesWithoutEndpoints(new Set(present)) },
-      { body: (content) => present.reduce(removeNodeBlock, content), relations: true },
-    );
+    this.deleteSelection(ids, [], [], "keep-nodes");
   }
 
   /**
@@ -686,16 +715,10 @@ export class RoadmapSession {
     return this.stateValue.clusters[id] !== undefined ? { type: "cluster", id } : { type: "node", id };
   }
 
-  /** Forbids direct connections inside one cluster: node↔node sharing a cluster, or a node
-   * linking to its own container. Cross-cluster links are allowed. */
+  /** Forbids linking a node to its own container — a self-loop of the cluster. Edges
+   * between nodes of one cluster are allowed. */
   private isInternalConnection(from: RoadmapEndpoint, to: RoadmapEndpoint): boolean {
     const clusterOfNode = (id: string): string | null => this.stateValue.nodes[id]?.clusterId ?? null;
-
-    if (from.type === "node" && to.type === "node") {
-      const a = clusterOfNode(from.id);
-
-      return a !== null && a === clusterOfNode(to.id);
-    }
 
     if (from.type === "node" && to.type === "cluster") {
       return clusterOfNode(from.id) === to.id;
@@ -713,51 +736,11 @@ export class RoadmapSession {
   }
 
   deleteEdges(ids: readonly string[]): void {
-    const present = ids.filter((id) => this.stateValue.edges[id] !== undefined);
-
-    if (present.length === 0) {
-      return;
-    }
-
-    const edges = { ...this.stateValue.edges };
-
-    for (const id of present) {
-      delete edges[id];
-    }
-
-    this.commit({ ...this.stateValue, edges }, { relations: true });
+    this.deleteSelection([], ids, [], "keep-nodes");
   }
 
   deleteElements(nodeIds: readonly string[], edgeIds: readonly string[]): void {
-    const removed = new Set(nodeIds.filter((id) => this.stateValue.nodes[id] !== undefined));
-    const droppedEdges = new Set(edgeIds.filter((id) => this.stateValue.edges[id] !== undefined));
-
-    for (const [edgeId, edge] of Object.entries(this.stateValue.edges)) {
-      if (removed.has(endpointNodeId(edge.from)) || removed.has(endpointNodeId(edge.to))) {
-        droppedEdges.add(edgeId);
-      }
-    }
-
-    if (removed.size === 0 && droppedEdges.size === 0) {
-      return;
-    }
-
-    const nodes = { ...this.stateValue.nodes };
-
-    for (const id of removed) {
-      delete nodes[id];
-    }
-
-    const edges = { ...this.stateValue.edges };
-
-    for (const id of droppedEdges) {
-      delete edges[id];
-    }
-
-    this.commit(
-      { ...this.stateValue, nodes, edges },
-      { body: (content) => [...removed].reduce(removeNodeBlock, content), relations: true },
-    );
+    this.deleteSelection(nodeIds, edgeIds, [], "keep-nodes");
   }
 
   updateEdge(id: string, patch: { direction?: EdgeDirection; line?: EdgeLine | "solid"; label?: string }): void {
@@ -993,40 +976,27 @@ function setOptional<T extends object, K extends OptionalKeys<T>>(target: T, key
   }
 }
 
-function endpointNodeId(endpoint: RoadmapEdge["from"]): string {
-  return endpoint.type === "node" ? endpoint.id : "";
-}
-
 function endpointsEqual(a: RoadmapEndpoint, b: RoadmapEndpoint): boolean {
   return a.type === b.type && a.id === b.id;
 }
 
 /**
- * Drops edges that became internal to a cluster after membership changed: node↔node
- * sharing a cluster or a node linked to its own container. Returns the original map
- * when nothing changed, so callers can detect whether Relations need a rewrite.
+ * Drops edges that became a node↔own-container self-loop after membership changed
+ * (a node dragged into a cluster it was linked to). Edges between nodes of one cluster
+ * survive. Returns the original map when nothing changed, so callers can detect whether
+ * Relations need a rewrite.
  */
 function withoutInternalEdges(
   edges: Record<string, RoadmapEdge>,
   nodes: Record<string, RoadmapNode>,
 ): Record<string, RoadmapEdge> {
-  const clusterOf = (endpoint: RoadmapEndpoint): string | null =>
-    endpoint.type === "node" ? (nodes[endpoint.id]?.clusterId ?? null) : endpoint.id;
-  const isInternal = (edge: RoadmapEdge): boolean => {
-    if (edge.from.type === "cluster" && edge.to.type === "cluster") {
-      return false;
-    }
-
-    const a = clusterOf(edge.from);
-    const b = clusterOf(edge.to);
-
-    return a !== null && a === b;
-  };
+  const ownContainer = (node: RoadmapEndpoint, cluster: RoadmapEndpoint): boolean =>
+    node.type === "node" && cluster.type === "cluster" && nodes[node.id]?.clusterId === cluster.id;
   const kept: Record<string, RoadmapEdge> = {};
   let changed = false;
 
   for (const [id, edge] of Object.entries(edges)) {
-    if (isInternal(edge)) {
+    if (ownContainer(edge.from, edge.to) || ownContainer(edge.to, edge.from)) {
       changed = true;
     } else {
       kept[id] = edge;
