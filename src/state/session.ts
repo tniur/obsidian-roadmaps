@@ -262,7 +262,7 @@ export class RoadmapSession {
     for (const { id, x, y } of moves) {
       const node = nodes[id];
 
-      if (node === undefined) {
+      if (node === undefined || (node.layout.x === x && node.layout.y === y)) {
         continue;
       }
 
@@ -340,7 +340,7 @@ export class RoadmapSession {
     for (const { id, x, y } of moves) {
       const cluster = clusters[id];
 
-      if (cluster === undefined) {
+      if (cluster === undefined || (cluster.layout.x === x && cluster.layout.y === y)) {
         continue;
       }
 

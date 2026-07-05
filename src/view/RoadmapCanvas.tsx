@@ -8,6 +8,7 @@ import {
   SelectionMode,
   useReactFlow,
   useStore,
+  useStoreApi,
   type Connection,
   type EdgeChange,
   type FinalConnectionState,
@@ -64,6 +65,9 @@ const edgeTypes = { [ROADMAP_EDGE_TYPE]: FloatingEdge };
 
 /** Ephemeral ids for alt-drag copies; the copies are replaced by real nodes on drop. */
 const ALT_COPY_ID_PREFIX = "dup-";
+
+/** Keeps the dragged alt-copies above resting cards, which sit at the default level. */
+const ALT_COPY_Z_INDEX = 1000;
 
 const DOUBLE_CLICK_ZOOM_FACTOR = 2;
 
@@ -188,6 +192,7 @@ export function RoadmapCanvas({
   } = boardActions;
   const reactFlow = useReactFlow<RoadmapFlowNode, RoadmapFlowEdge>();
   const { screenToFlowPosition, getNodes, getViewport, setViewport } = reactFlow;
+  const storeApi = useStoreApi<RoadmapFlowNode, RoadmapFlowEdge>();
   const minZoom = useStore((store) => store.minZoom);
   const maxZoom = useStore((store) => store.maxZoom);
   const flowId = useId();
@@ -196,9 +201,12 @@ export function RoadmapCanvas({
   const [nodes, setNodes] = useState<RoadmapFlowNode[]>(() => stateToFlowNodes(state, isNodeMissing, resolveImageSrc));
   const [edges, setEdges] = useState<RoadmapFlowEdge[]>(() => stateToFlowEdges(state));
   const [helperLines, setHelperLines] = useState<{ horizontal?: number; vertical?: number }>({});
+  /* A rubber-band selection drag fires BOTH onNodeDragStop and onSelectionDragStop for
+     the same gesture; `finalized` makes the duplicate finalize a no-op. */
   const altDragRef = useRef<{
     map: Map<string, string>;
     frozen: Map<string, { x: number; y: number }>;
+    finalized: boolean;
   } | null>(null);
   const reconnectRef = useRef<{ id: string; end: HandleType } | null>(null);
 
@@ -218,8 +226,10 @@ export function RoadmapCanvas({
       return;
     }
 
-    setNodes((current) => current.map((node) => ({ ...node, selected: focusIds.includes(node.id) })));
-  }, [focusNonce, focusIds]);
+    /* Through the store action rather than a raw `selected` flip, so React Flow's own
+       selection bookkeeping (delete key, onSelectionChange) sees the new nodes. */
+    storeApi.getState().addSelectedNodes(focusIds);
+  }, [focusNonce, focusIds, storeApi]);
 
   const onNodesChange = useCallback(
     (changes: NodeChange<RoadmapFlowNode>[]) => {
@@ -401,14 +411,14 @@ export function RoadmapCanvas({
 
       map.set(node.id, copyId);
       frozen.set(node.id, { x: node.position.x, y: node.position.y });
-      copies.push({ ...node, id: copyId, selected: false, dragging: true });
+      copies.push({ ...node, id: copyId, selected: false, dragging: true, zIndex: ALT_COPY_Z_INDEX });
     }
 
     if (copies.length === 0) {
       return;
     }
 
-    altDragRef.current = { map, frozen };
+    altDragRef.current = { map, frozen, finalized: false };
     setNodes((current) => [...current, ...copies]);
   }, []);
 
@@ -419,7 +429,20 @@ export function RoadmapCanvas({
       return false;
     }
 
-    altDragRef.current = null;
+    if (alt.finalized) {
+      return true;
+    }
+
+    alt.finalized = true;
+
+    /* Selection drags can emit one more position change after the stop handler; keep
+       the freeze interceptor armed until that has passed, then release. */
+    window.setTimeout(() => {
+      if (altDragRef.current === alt) {
+        altDragRef.current = null;
+      }
+    }, 0);
+
     const all = getNodes();
     const items: { id: string; x: number; y: number }[] = [];
 
@@ -433,6 +456,15 @@ export function RoadmapCanvas({
       }
     }
 
+    /* Pin the originals back to their pre-drag spots; the temp copies stay until the
+       committed state swaps them for the real duplicates in the same frame. */
+    setNodes((current) =>
+      current.map((node) => {
+        const frozen = alt.frozen.get(node.id);
+
+        return frozen === undefined ? node : { ...node, position: frozen, dragging: false };
+      }),
+    );
     onNodesDuplicate(items);
 
     return true;

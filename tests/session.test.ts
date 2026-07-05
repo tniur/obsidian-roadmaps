@@ -469,6 +469,21 @@ describe("roadmap session", () => {
     expect(session.state.edges[edgeId]?.toSide).toBe("left");
   });
 
+  it("ignores moves that do not change coordinates", () => {
+    const session = newSession();
+    const node = createNoteNode("notes/a.md", { x: 10, y: 20 });
+
+    session.addNode(node);
+    const before = session.state;
+
+    session.moveNodes([{ id: node.id, x: 10, y: 20 }]);
+
+    expect(session.state).toBe(before);
+    expect(session.canRedo).toBe(false);
+    session.undo();
+    expect(session.state.nodes[node.id]).toBeUndefined();
+  });
+
   it("creates a node and re-points the dragged edge end to it in one undo step", () => {
     const session = newSession();
     const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
