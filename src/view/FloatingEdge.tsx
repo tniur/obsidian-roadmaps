@@ -1,8 +1,35 @@
 import { BaseEdge, EdgeLabelRenderer, getBezierPath, Position, useInternalNode, type EdgeProps } from "@xyflow/react";
-import type { CSSProperties } from "react";
+import type { CSSProperties, MouseEvent as ReactMouseEvent } from "react";
 import { EDGE_INTERACTION_WIDTH } from "../constants";
 import { getEdgeEndpoints } from "./edgeParams";
 import type { RoadmapFlowEdge } from "./flow";
+
+/**
+ * React Flow places its invisible reconnect anchors from handle-based coordinates, so
+ * for a floating end they sit away from the visible endpoint on the node perimeter.
+ * The grip rendered at the real endpoint forwards the grab to the actual anchor.
+ */
+function forwardToReconnectAnchor(event: ReactMouseEvent<SVGCircleElement>, end: "source" | "target"): void {
+  const anchor = (event.target as Element)
+    .closest(".react-flow__edge")
+    ?.querySelector(`.react-flow__edgeupdater-${end}`);
+
+  if (anchor == null) {
+    return;
+  }
+
+  event.preventDefault();
+  event.stopPropagation();
+  anchor.dispatchEvent(
+    new MouseEvent("mousedown", {
+      bubbles: true,
+      cancelable: true,
+      clientX: event.clientX,
+      clientY: event.clientY,
+      button: 0,
+    }),
+  );
+}
 
 const ARROW_LENGTH = 6;
 const ARROW_SPREAD = 3.375;
@@ -86,6 +113,30 @@ export function FloatingEdge(props: EdgeProps<RoadmapFlowEdge>) {
       ) : null}
       {direction === "both" ? (
         <path className="rm-edge-arrow" d={arrowPath(sx, sy, inwardDirection(sourcePos))} />
+      ) : null}
+      {data?.fromSide === undefined ? (
+        <>
+          <circle className="rm-edge-grip-dot" cx={sx} cy={sy} />
+          <circle
+            className="rm-edge-grip"
+            cx={sx}
+            cy={sy}
+            r={EDGE_INTERACTION_WIDTH / 2}
+            onMouseDown={(event) => forwardToReconnectAnchor(event, "source")}
+          />
+        </>
+      ) : null}
+      {data?.toSide === undefined ? (
+        <>
+          <circle className="rm-edge-grip-dot" cx={tx} cy={ty} />
+          <circle
+            className="rm-edge-grip"
+            cx={tx}
+            cy={ty}
+            r={EDGE_INTERACTION_WIDTH / 2}
+            onMouseDown={(event) => forwardToReconnectAnchor(event, "target")}
+          />
+        </>
       ) : null}
       {label !== undefined && label.length > 0 ? (
         <EdgeLabelRenderer>

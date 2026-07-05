@@ -8,10 +8,25 @@ import {
   type NodePlacement,
 } from "../domain/create";
 import { normalizeHttpUrl } from "../domain/paths";
+import type { RoadmapNode } from "../domain/types";
 import { attachmentFiles, availableVaultPath, imageFiles } from "../services/vaultFiles";
 import type { BoardContext } from "./boardContext";
 import { FileSuggestModal } from "./FileSuggestModal";
 import { PromptModal } from "./PromptModal";
+
+/**
+ * Receives the node a flow below has built. The default sink inserts it standalone;
+ * callers that need an edge attached in the same history step (connect-to-empty,
+ * reconnect-to-empty) supply their own.
+ */
+export type NodeSink = (node: RoadmapNode) => void;
+
+function standaloneSink(ctx: BoardContext): NodeSink {
+  return (node) => {
+    ctx.session.addNode(node);
+    ctx.commit();
+  };
+}
 
 const NEW_NOTE_BASENAME = "Untitled Node";
 
@@ -29,6 +44,7 @@ export async function createNewNote(
   ctx: BoardContext,
   folder: string | undefined,
   placement: NodePlacement,
+  sink?: NodeSink,
 ): Promise<void> {
   const file = await createEmptyNote(ctx, folder);
 
@@ -36,61 +52,36 @@ export async function createNewNote(
     return;
   }
 
-  ctx.session.addNode(createNoteNode(file.path, placement));
-  ctx.commit();
+  (sink ?? standaloneSink(ctx))(createNoteNode(file.path, placement));
 }
 
-export async function createNewNoteWithEdge(
-  ctx: BoardContext,
-  folder: string | undefined,
-  fromId: string,
-  fromHandle: string | null,
-  placement: NodePlacement,
-): Promise<void> {
-  const file = await createEmptyNote(ctx, folder);
+export function addExistingNote(ctx: BoardContext, placement: NodePlacement, sink?: NodeSink): void {
+  const deliver = sink ?? standaloneSink(ctx);
 
-  if (file === null) {
-    return;
-  }
-
-  ctx.session.addNodeWithEdge(createNoteNode(file.path, placement), fromId, fromHandle, null);
-  ctx.commit();
-}
-
-export function addExistingNote(ctx: BoardContext, placement: NodePlacement): void {
   new FileSuggestModal(ctx.app, ctx.app.vault.getMarkdownFiles(), "Select a note to add", (file) => {
-    ctx.session.addNode(createNoteNode(file.path, placement));
-    ctx.commit();
+    deliver(createNoteNode(file.path, placement));
   }).open();
 }
 
-export function addExistingNoteWithEdge(
-  ctx: BoardContext,
-  fromId: string,
-  fromHandle: string | null,
-  placement: NodePlacement,
-): void {
-  new FileSuggestModal(ctx.app, ctx.app.vault.getMarkdownFiles(), "Select a note to add", (file) => {
-    ctx.session.addNodeWithEdge(createNoteNode(file.path, placement), fromId, fromHandle, null);
-    ctx.commit();
-  }).open();
-}
+export function addExistingImage(ctx: BoardContext, placement: NodePlacement, sink?: NodeSink): void {
+  const deliver = sink ?? standaloneSink(ctx);
 
-export function addExistingImage(ctx: BoardContext, placement: NodePlacement): void {
   new FileSuggestModal(ctx.app, imageFiles(ctx.app.vault), "Select an image to add", (file) => {
-    ctx.session.addNode(createImageNode(file.path, placement));
-    ctx.commit();
+    deliver(createImageNode(file.path, placement));
   }).open();
 }
 
-export function addExistingAttachment(ctx: BoardContext, placement: NodePlacement): void {
+export function addExistingAttachment(ctx: BoardContext, placement: NodePlacement, sink?: NodeSink): void {
+  const deliver = sink ?? standaloneSink(ctx);
+
   new FileSuggestModal(ctx.app, attachmentFiles(ctx.app.vault), "Select an attachment to add", (file) => {
-    ctx.session.addNode(createAttachmentNode(file.path, placement));
-    ctx.commit();
+    deliver(createAttachmentNode(file.path, placement));
   }).open();
 }
 
-export function addUrlNode(ctx: BoardContext, placement: NodePlacement): void {
+export function addUrlNode(ctx: BoardContext, placement: NodePlacement, sink?: NodeSink): void {
+  const deliver = sink ?? standaloneSink(ctx);
+
   new PromptModal(ctx.app, {
     title: "Add URL",
     placeholder: "https://example.com",
@@ -100,13 +91,14 @@ export function addUrlNode(ctx: BoardContext, placement: NodePlacement): void {
         return;
       }
 
-      ctx.session.addNode(createUrlNode(normalizeHttpUrl(value), placement));
-      ctx.commit();
+      deliver(createUrlNode(normalizeHttpUrl(value), placement));
     },
   }).open();
 }
 
-export function addTextNode(ctx: BoardContext, placement: NodePlacement): void {
+export function addTextNode(ctx: BoardContext, placement: NodePlacement, sink?: NodeSink): void {
+  const deliver = sink ?? standaloneSink(ctx);
+
   new PromptModal(ctx.app, {
     title: "Add text",
     placeholder: "Text",
@@ -116,8 +108,7 @@ export function addTextNode(ctx: BoardContext, placement: NodePlacement): void {
         return;
       }
 
-      ctx.session.addNode(createTextNode(value, placement));
-      ctx.commit();
+      deliver(createTextNode(value, placement));
     },
   }).open();
 }

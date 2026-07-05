@@ -11,6 +11,7 @@ import {
   type Connection,
   type EdgeChange,
   type FinalConnectionState,
+  type HandleType,
   type NodeChange,
 } from "@xyflow/react";
 import {
@@ -24,7 +25,7 @@ import {
   useState,
 } from "react";
 import { nanoid } from "nanoid";
-import type { NodePlacement } from "../domain/create";
+import { asSide, type NodePlacement } from "../domain/create";
 import type { RoadmapState, RoadmapViewport } from "../domain/types";
 import type { AddNodeActionId } from "./addNodeActions";
 import { ClusterNodeView } from "./ClusterNodeView";
@@ -94,6 +95,7 @@ export interface CanvasEdgeActions {
   onConnect: (source: string, target: string, sourceHandle: string | null, targetHandle: string | null) => void;
   onReconnect: (id: string, connection: Connection) => void;
   onConnectToEmpty: (source: string, sourceHandle: string | null, placement: NodePlacement, event: MouseEvent) => void;
+  onReconnectToEmpty: (edgeId: string, end: HandleType, placement: NodePlacement, event: MouseEvent) => void;
   onContextMenu: (id: string, event: MouseEvent) => void;
 }
 
@@ -167,6 +169,7 @@ export function RoadmapCanvas({
     onConnect: onConnectNodes,
     onReconnect: onReconnectEdge,
     onConnectToEmpty,
+    onReconnectToEmpty,
     onContextMenu: onEdgeContextMenu,
   } = edgeActions;
   const { onToggleCollapse: onClusterToggleCollapse, onArrange: onClusterArrange } = clusterActions;
@@ -197,6 +200,7 @@ export function RoadmapCanvas({
     map: Map<string, string>;
     frozen: Map<string, { x: number; y: number }>;
   } | null>(null);
+  const reconnectRef = useRef<{ id: string; end: HandleType } | null>(null);
 
   useEffect(() => {
     setNodes((current) => reconcileFlowNodes(current, stateToFlowNodes(state, isNodeMissing, resolveImageSrc)));
@@ -306,12 +310,49 @@ export function RoadmapCanvas({
     [onConnectNodes],
   );
 
+  /* Applying the new endpoints locally right away avoids a one-frame flash of the old
+     edge between the drop and the state round-trip; a rejected reconnect is restored by
+     the next reconcile because the state stays unchanged. */
   const onReconnect = useCallback(
     (oldEdge: RoadmapFlowEdge, connection: Connection) => {
+      setEdges((current) =>
+        current.map((edge) =>
+          edge.id === oldEdge.id
+            ? {
+                ...edge,
+                source: connection.source,
+                target: connection.target,
+                sourceHandle: connection.sourceHandle,
+                targetHandle: connection.targetHandle,
+                data:
+                  edge.data === undefined
+                    ? edge.data
+                    : {
+                        ...edge.data,
+                        fromSide: asSide(connection.sourceHandle),
+                        toSide: asSide(connection.targetHandle),
+                      },
+              }
+            : edge,
+        ),
+      );
       onReconnectEdge(oldEdge.id, connection);
     },
     [onReconnectEdge],
   );
+
+  const onReconnectStart = useCallback((_event: ReactMouseEvent, edge: RoadmapFlowEdge, handleType: HandleType) => {
+    /* React Flow reports the FIXED end here (the temporary connection is drawn from it);
+       the user is dragging the opposite one. */
+    reconnectRef.current = { id: edge.id, end: handleType === "source" ? "target" : "source" };
+  }, []);
+
+  const onReconnectEnd = useCallback(() => {
+    /* onConnectEnd needs the ref and may fire after this handler; clear on the next tick. */
+    window.setTimeout(() => {
+      reconnectRef.current = null;
+    }, 0);
+  }, []);
 
   const nodeAtPoint = useCallback(
     (point: { x: number; y: number }): boolean => getNodes().some((node) => nodeContainsPoint(node, point)),
@@ -333,9 +374,17 @@ export function RoadmapCanvas({
         return;
       }
 
+      const reconnecting = reconnectRef.current;
+
+      if (reconnecting !== null) {
+        onReconnectToEmpty(reconnecting.id, reconnecting.end, point, event as MouseEvent);
+
+        return;
+      }
+
       onConnectToEmpty(fromNodeId, connection.fromHandle?.id ?? null, point, event as MouseEvent);
     },
-    [screenToFlowPosition, nodeAtPoint, onConnectToEmpty],
+    [screenToFlowPosition, nodeAtPoint, onConnectToEmpty, onReconnectToEmpty],
   );
 
   const startAltDuplicate = useCallback((dragged: RoadmapFlowNode[]) => {
@@ -623,6 +672,8 @@ export function RoadmapCanvas({
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
           onReconnect={onReconnect}
+          onReconnectStart={onReconnectStart}
+          onReconnectEnd={onReconnectEnd}
           edgesReconnectable={!locked}
           edgesFocusable={!locked}
           onConnectEnd={onConnectEnd}

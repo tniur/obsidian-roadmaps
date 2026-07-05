@@ -469,6 +469,36 @@ describe("roadmap session", () => {
     expect(session.state.edges[edgeId]?.toSide).toBe("left");
   });
 
+  it("creates a node and re-points the dragged edge end to it in one undo step", () => {
+    const session = newSession();
+    const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
+    const b = createNoteNode("notes/b.md", { x: 0, y: 0 });
+
+    session.addNode(a);
+    session.addNode(b);
+    session.addEdge(a.id, b.id, "right", "left");
+    const edgeId = Object.keys(session.state.edges)[0];
+
+    session.updateEdge(edgeId, { label: "depends" });
+    const c = createNoteNode("notes/c.md", { x: 50, y: 50 });
+
+    session.addNodeAndReconnectEdge(c, edgeId, "to");
+    const edge = readState(session.content)?.edges[edgeId];
+
+    expect(edge?.to.id).toBe(c.id);
+    expect(edge?.toSide).toBeUndefined();
+    expect(edge?.from.id).toBe(a.id);
+    expect(edge?.fromSide).toBe("right");
+    expect(edge?.label).toBe("depends");
+    expect(session.content).toContain(`id=${c.id}`);
+    expect(session.content).toContain("[[notes/c|c]]");
+
+    session.undo();
+
+    expect(session.state.nodes[c.id]).toBeUndefined();
+    expect(session.state.edges[edgeId]?.to.id).toBe(b.id);
+  });
+
   it("floats a reconnected end when the new handle is null", () => {
     const session = newSession();
     const a = createNoteNode("notes/a.md", { x: 0, y: 0 });

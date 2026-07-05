@@ -659,6 +659,30 @@
   pointer-events: none;
 }
 
+/* Invisible grab zone over a floating edge end (see FloatingEdge). */
+.rm-canvas .rm-edge-grip {
+  fill: transparent;
+  stroke: none;
+  pointer-events: all;
+  cursor: move;
+}
+
+/* Its visible dot, styled like a node handle; shows up when the edge is engaged. */
+.rm-canvas .rm-edge-grip-dot {
+  r: calc(var(--rm-handle-size) / 2);
+  fill: var(--rm-accent);
+  stroke: var(--rm-surface);
+  stroke-width: var(--rm-border-width);
+  opacity: 0;
+  transition: opacity var(--rm-transition-fast);
+  pointer-events: none;
+}
+
+.rm-canvas .react-flow__edge:hover .rm-edge-grip-dot,
+.rm-canvas .react-flow__edge.selected .rm-edge-grip-dot {
+  opacity: 1;
+}
+
 .rm-handle.react-flow__handle:hover {
   box-shadow: 0 0 0 var(--rm-ring-width-handle) var(--rm-ring);
 }

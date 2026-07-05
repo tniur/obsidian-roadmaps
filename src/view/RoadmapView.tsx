@@ -13,11 +13,12 @@ import type { RoadmapFlowInstance } from "./flow";
 import { StateVersionError } from "../state/codec";
 import { loadDocument, rebuildDocument, type DocumentWarning, type LoadedDocument } from "../state/reconcile";
 import { RoadmapSession, type RoadmapConnection } from "../state/session";
+import type { NodeSink } from "./addNode";
 import { runAddNodeAction, type AddNodeActionId } from "./addNodeActions";
 import type { BoardContext } from "./boardContext";
 import { promptEditText, promptGroupIntoCluster } from "./dialogs";
 import { exportBoardPdf } from "./exportPdf";
-import { showAddNodeMenu, showConnectToEmptyMenu } from "./menus/addNodeMenu";
+import { showAddNodeMenu } from "./menus/addNodeMenu";
 import { showClusterContextMenu } from "./menus/clusterMenu";
 import { showEdgeContextMenu } from "./menus/edgeMenu";
 import { showNodeContextMenu } from "./menus/nodeMenu";
@@ -88,6 +89,7 @@ export class RoadmapView extends TextFileView {
       onConnect: this.handleConnectNodes,
       onReconnect: this.handleReconnectEdge,
       onConnectToEmpty: this.handleConnectToEmpty,
+      onReconnectToEmpty: this.handleReconnectToEmpty,
       onContextMenu: this.handleEdgeContextMenu,
     };
     this.clusterActions = {
@@ -711,6 +713,15 @@ export class RoadmapView extends TextFileView {
     showAddNodeMenu(this.runAddActionAt, centeredPlacement(placement), event);
   };
 
+  /** The full add-node menu at the drop point; the created node is delivered to `sink`. */
+  private showAddMenuWithSink(ctx: BoardContext, sink: NodeSink, placement: NodePlacement, event: MouseEvent): void {
+    showAddNodeMenu(
+      (id, at) => runAddNodeAction(id, ctx, this.noteFolder(), at, sink),
+      centeredPlacement(placement),
+      event,
+    );
+  }
+
   private readonly handleConnectToEmpty = (
     source: string,
     sourceHandle: string | null,
@@ -723,9 +734,37 @@ export class RoadmapView extends TextFileView {
       return;
     }
 
-    showConnectToEmptyMenu(
+    this.showAddMenuWithSink(
       ctx,
-      { folder: this.noteFolder(), fromId: source, fromHandle: sourceHandle, placement: centeredPlacement(placement) },
+      (node) => {
+        ctx.session.addNodeWithEdge(node, source, sourceHandle, null);
+        ctx.commit();
+      },
+      placement,
+      event,
+    );
+  };
+
+  /** Dropping an existing edge end on empty canvas re-targets it at a freshly created node. */
+  private readonly handleReconnectToEmpty = (
+    edgeId: string,
+    end: "source" | "target",
+    placement: NodePlacement,
+    event: MouseEvent,
+  ): void => {
+    const ctx = this.editableContext();
+
+    if (ctx === null) {
+      return;
+    }
+
+    this.showAddMenuWithSink(
+      ctx,
+      (node) => {
+        ctx.session.addNodeAndReconnectEdge(node, edgeId, end === "source" ? "from" : "to");
+        ctx.commit();
+      },
+      placement,
       event,
     );
   };
