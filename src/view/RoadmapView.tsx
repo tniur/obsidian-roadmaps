@@ -141,15 +141,15 @@ export class RoadmapView extends TextFileView {
     return this.data;
   }
 
+  /** Canonicalizes wikilink targets (Obsidian may write them in shortest form). */
+  private readonly resolveLinkTarget = (target: string): string | null =>
+    this.app.metadataCache.getFirstLinkpathDest(target, this.file?.path ?? "")?.path ?? null;
+
   /**
    * Runs the document open pipeline (`loadDocument`) into a session. A corrupted or
    * newer-version state block opens the view read-only instead of throwing, and never
    * rewrites the file.
    */
-  /** Canonicalizes wikilink targets (Obsidian may write them in shortest form). */
-  private readonly resolveLinkTarget = (target: string): string | null =>
-    this.app.metadataCache.getFirstLinkpathDest(target, this.file?.path ?? "")?.path ?? null;
-
   setViewData(data: string): void {
     this.loadError = null;
     this.diskData = data;
