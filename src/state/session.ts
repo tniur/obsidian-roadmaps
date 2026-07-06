@@ -457,7 +457,10 @@ export class RoadmapSession {
     setOptional(style, "color", color === null || color.length === 0 ? undefined : color);
     const next = { ...cluster, style: Object.keys(style).length > 0 ? style : undefined };
 
-    this.commit({ ...this.stateValue, clusters: { ...this.stateValue.clusters, [id]: next } });
+    this.commit(
+      { ...this.stateValue, clusters: { ...this.stateValue.clusters, [id]: next } },
+      { body: (content) => replaceClusterHeading(content, next) },
+    );
   }
 
   private memberNodeIds(clusterId: string): string[] {
@@ -600,7 +603,12 @@ export class RoadmapSession {
       return;
     }
 
-    this.commit({ ...this.stateValue, nodes: { ...this.stateValue.nodes, [id]: { ...node, align } } });
+    const next = { ...node, align };
+
+    this.commit(
+      { ...this.stateValue, nodes: { ...this.stateValue.nodes, [id]: next } },
+      { body: (content) => updateNodeBlock(content, next) },
+    );
   }
 
   updateNodeMeta(id: string, patch: NodeMetaPatch): void {
@@ -649,7 +657,8 @@ export class RoadmapSession {
       return;
     }
 
-    const touchesBody = "status" in patch || "priority" in patch || "title" in patch || "description" in patch;
+    const touchesBody =
+      "status" in patch || "priority" in patch || "title" in patch || "description" in patch || "color" in patch;
 
     this.commit(
       { ...this.stateValue, nodes: { ...this.stateValue.nodes, [id]: next } },

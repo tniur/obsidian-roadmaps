@@ -12,6 +12,8 @@ import { sourceFile } from "../domain/source";
 import { nodeTitle } from "../domain/title";
 import {
   isNodeKind,
+  TEXT_ALIGNS_H,
+  TEXT_ALIGNS_V,
   type RoadmapCluster,
   type RoadmapEdge,
   type RoadmapEndpoint,
@@ -20,8 +22,10 @@ import {
   type RoadmapState,
 } from "../domain/types";
 import { isReservedHeading, parseClusterHeading } from "../markdown/cluster";
+import { attrColor, attrIn } from "../markdown/markerAttrs";
 import {
   parseNodeBlock,
+  renderNodeBlock,
   renderNodeRepresentation,
   type LinkTargetResolver,
   type ParsedNodeBlock,
@@ -37,15 +41,18 @@ import {
   emptyState,
   NODE_MARKER_LINE_RE,
   nodeBlockBody,
+  nodeBlockText,
   readState,
   relationsRegion,
   updateNodeBlock,
   writeRelations,
   writeState,
+  type BodyNodeMarker,
 } from "./document";
 
 interface ClusterInfo {
   title: string;
+  color?: string;
 }
 
 interface ParsedBody {
@@ -69,8 +76,14 @@ function parseBody(content: string): ParsedBody {
 
     if (heading !== null) {
       if (heading.id !== null && !isReservedHeading(heading.title)) {
+        const info: ClusterInfo = { title: heading.title };
+
+        if (heading.color !== undefined) {
+          info.color = heading.color;
+        }
+
         current = heading.id;
-        clusters.set(heading.id, { title: heading.title });
+        clusters.set(heading.id, info);
       } else {
         current = null;
       }
@@ -89,11 +102,17 @@ function parseBody(content: string): ParsedBody {
 }
 
 function defaultCluster(id: string, info: ClusterInfo): RoadmapCluster {
-  return {
+  const cluster: RoadmapCluster = {
     id,
     title: info.title,
     layout: { x: 0, y: 0, width: DEFAULT_CLUSTER_WIDTH, height: DEFAULT_CLUSTER_HEIGHT },
   };
+
+  if (info.color !== undefined) {
+    cluster.style = { color: info.color };
+  }
+
+  return cluster;
 }
 
 /** Compares sources through their canonical compact encoding from the codec. */
@@ -235,7 +254,9 @@ export function reconcileState(state: RoadmapState, content: string, resolveTarg
     if (existing !== undefined && existing.title === info.title) {
       clusters[id] = existing;
     } else {
-      clusters[id] = existing === undefined ? defaultCluster(id, info) : { ...existing, ...info };
+      /* Style stays state-canonical for known clusters: only the color of a cluster new
+         to the state (a hand-written heading) is adopted from the marker attrs. */
+      clusters[id] = existing === undefined ? defaultCluster(id, info) : { ...existing, title: info.title };
       changed = true;
     }
   }
@@ -367,6 +388,9 @@ function relationEdgesFromBody(
     const edge: RoadmapEdge = { id: parsed.id ?? nanoid(), from, to, direction: parsed.direction };
 
     if (parsed.label !== undefined) edge.label = parsed.label;
+    if (parsed.fromSide !== undefined) edge.fromSide = parsed.fromSide;
+    if (parsed.toSide !== undefined) edge.toSide = parsed.toSide;
+    if (parsed.line !== undefined) edge.style = { line: parsed.line };
 
     edges[edge.id] = edge;
   }
@@ -375,10 +399,11 @@ function relationEdgesFromBody(
 }
 
 /** Node reconstructed from its body marker and readable block, or null when the marker
- * kind is unknown or the block does not parse. */
+ * kind is unknown or the block does not parse. Presentation carried by the marker attrs
+ * (color, alignment) is restored too; layout is not recoverable. */
 function nodeFromMarker(
   content: string,
-  marker: { id: string; kind: string },
+  marker: BodyNodeMarker,
   index: number,
   resolveTarget?: LinkTargetResolver,
 ): RoadmapNode | null {
@@ -404,6 +429,13 @@ function nodeFromMarker(
   if (parsed.description !== undefined) node.description = parsed.description;
   if (parsed.status !== undefined) node.status = parsed.status;
   if (parsed.priority !== undefined) node.priority = parsed.priority;
+
+  const color = attrColor(marker.attrs.color);
+  const alignH = attrIn(TEXT_ALIGNS_H, marker.attrs.ah);
+  const alignV = attrIn(TEXT_ALIGNS_V, marker.attrs.av);
+
+  if (color !== undefined) node.style = { color };
+  if (alignH !== undefined || alignV !== undefined) node.align = { h: alignH ?? "left", v: alignV ?? "middle" };
 
   return node;
 }
@@ -661,13 +693,13 @@ export function loadDocument(data: string, resolveTarget?: LinkTargetResolver): 
   let normalized = false;
 
   /* Blocks missing from the body are restored; hand-edited ones whose content was just
-     merged into state are rewritten to canonical form (full vault paths, ordered lines),
-     mirroring how the Relations section is canonicalized. */
+     merged into state are rewritten to canonical form (full vault paths, ordered lines,
+     marker attrs from state), mirroring how the Relations section is canonicalized. */
   for (const node of Object.values(state.nodes)) {
     if (!present.has(node.id)) {
       content = updateNodeBlock(content, node);
       restored = true;
-    } else if (nodeBlockBody(content, node.id) !== renderNodeRepresentation(node).trim()) {
+    } else if (nodeBlockText(content, node.id) !== renderNodeBlock(node)) {
       content = updateNodeBlock(content, node);
       normalized = true;
     }

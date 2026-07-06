@@ -21,11 +21,16 @@ function populatedContent(): { content: string; ids: Record<string, string> } {
 
   session.addNodes([note, url, image, text, clustered]);
   session.updateNodeMeta(note.id, { title: "Custom", description: "Details", status: "done", priority: "high" });
+  session.updateNodeMeta(url.id, { color: "var(--color-red)" });
+  session.setNodeAlign(url.id, { h: "center", v: "bottom" });
   session.createClusterFromNodes([clustered.id], "Group");
-  session.addEdge(note.id, url.id);
+  const clusterId = Object.keys(session.state.clusters)[0];
+
+  session.setClusterColor(clusterId, "var(--color-blue)");
+  session.addEdge(note.id, url.id, "right", "left");
   const edgeId = Object.keys(session.state.edges)[0];
 
-  session.updateEdge(edgeId, { label: "depends" });
+  session.updateEdge(edgeId, { label: "depends", line: "dashed" });
 
   return {
     content: session.content,
@@ -81,6 +86,32 @@ describe("state recovery from the body", () => {
     expect(edge.label).toBe("depends");
   });
 
+  it("rebuilds presentation from marker attrs: colors, alignment, edge style and sides", () => {
+    const { content, ids } = populatedContent();
+    const rebuilt = rebuildState(stripStateBlock(content));
+    const edge = rebuilt.edges[ids.edge];
+
+    expect(rebuilt.nodes[ids.url].style?.color).toBe("var(--color-red)");
+    expect(rebuilt.nodes[ids.url].align).toEqual({ h: "center", v: "bottom" });
+    expect(Object.values(rebuilt.clusters)[0].style?.color).toBe("var(--color-blue)");
+    expect(edge.style?.line).toBe("dashed");
+    expect(edge.fromSide).toBe("right");
+    expect(edge.toSide).toBe("left");
+  });
+
+  it("ignores malformed marker attrs instead of poisoning the state", () => {
+    const { content, ids } = populatedContent();
+    const tainted = stripStateBlock(content).replace(
+      `<!-- roadmap-node:id=${ids.note} type=note -->`,
+      `<!-- roadmap-node:id=${ids.note} type=note color=url(javascript:x) ah=diagonal -->`,
+    );
+    const rebuilt = rebuildState(tainted);
+
+    expect(rebuilt.nodes[ids.note]).toBeDefined();
+    expect(rebuilt.nodes[ids.note].style).toBeUndefined();
+    expect(rebuilt.nodes[ids.note].align).toBeUndefined();
+  });
+
   it("returns an empty state for a body without markers", () => {
     const rebuilt = rebuildState(createRoadmapDocument("Board").replace(/%%[\s\S]*%%/, ""));
 
@@ -121,12 +152,22 @@ describe("document open pipeline", () => {
 
   it("restores body blocks for nodes a truncated body lost", () => {
     const { content, ids } = populatedContent();
-    const truncated = content.replace(/<!-- roadmap-node:id=\S+ type=\w+ -->/g, "");
+    const truncated = content.replace(/<!-- roadmap-node:id=\S+ type=\w+(?: \S+=\S+)* -->/g, "");
     const loaded = loadDocument(truncated);
 
     expect(loaded.warnings).toContain("restored-nodes");
     expect(loaded.state.nodes[ids.note]).toBeDefined();
     expect(loaded.content).toContain(`<!-- roadmap-node:id=${ids.note} type=note -->`);
+  });
+
+  it("normalizes a stale marker attr back to the state's value on load", () => {
+    const { content, ids } = populatedContent();
+    const tainted = content.replace("color=var(--color-red)", "color=var(--color-green)");
+    const loaded = loadDocument(tainted);
+
+    expect(loaded.state.nodes[ids.url].style?.color).toBe("var(--color-red)");
+    expect(loaded.content).toContain("color=var(--color-red)");
+    expect(loaded.warnings).toEqual([]);
   });
 
   it("throws on a corrupted state block without touching the file", () => {

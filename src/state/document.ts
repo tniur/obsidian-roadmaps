@@ -2,6 +2,7 @@ import { nanoid } from "nanoid";
 import { ROADMAP_FRONTMATTER_KEY, ROADMAP_FRONTMATTER_VALUE, ROADMAP_SCHEMA_VERSION } from "../constants";
 import type { RoadmapCluster, RoadmapNode, RoadmapState } from "../domain/types";
 import { renderClusterHeading } from "../markdown/cluster";
+import { MARKER_ATTRS_PATTERN, parseMarkerAttrs, type MarkerAttrs } from "../markdown/markerAttrs";
 import { renderNodeBlock } from "../markdown/nodeBlock";
 import { renderRelationsSection } from "../markdown/relations";
 import { parseState, serializeState } from "./codec";
@@ -12,13 +13,13 @@ const FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/;
 
 const STATE_BLOCK_RE = /%%[ \t]*roadmap:state[ \t]*\r?\n```(?:json)?[ \t]*\r?\n([\s\S]*?)\r?\n```[ \t]*\r?\n[ \t]*%%/;
 
-const NODE_BOUNDARY_RE = /^<!-- roadmap-node:id=\S+ type=\w+ -->|^## |^%%[ \t]*roadmap:state/m;
+const NODE_BOUNDARY_RE = /^<!-- roadmap-node:id=\S+ type=\w+(?: \S+=\S+)* -->|^## |^%%[ \t]*roadmap:state/m;
 
-export const NODE_MARKER_LINE_RE = /^<!-- roadmap-node:id=(\S+) type=(\w+) -->/;
+export const NODE_MARKER_LINE_RE = new RegExp(`^<!-- roadmap-node:id=(\\S+) type=(\\w+)${MARKER_ATTRS_PATTERN} -->`);
 
 const NODE_MARKER_RE = new RegExp(NODE_MARKER_LINE_RE.source, "gm");
 
-const EDGE_MARKER_RE = /<!-- roadmap-edge:id=(\S+) -->[ \t]*$/gm;
+const EDGE_MARKER_RE = /<!-- roadmap-edge:id=(\S+)(?: \S+=\S+)* -->[ \t]*$/gm;
 
 const RELATIONS_HEADING_RE = /^## Relations[ \t]*$/m;
 
@@ -27,13 +28,13 @@ function escapeRegExp(value: string): string {
 }
 
 function nodeMarkerRe(id: string): RegExp {
-  return new RegExp(`^<!-- roadmap-node:id=${escapeRegExp(id)} type=\\w+ -->`, "m");
+  return new RegExp(`^<!-- roadmap-node:id=${escapeRegExp(id)} type=\\w+(?: \\S+=\\S+)* -->`, "m");
 }
 
 function clusterHeadingRe(id: string, consumeNewline = false): RegExp {
   const tail = consumeNewline ? "[^\\n]*\\r?\\n?" : "[^\\n]*$";
 
-  return new RegExp(`^##[^\\n]*<!-- roadmap-cluster:id=${escapeRegExp(id)} -->${tail}`, "m");
+  return new RegExp(`^##[^\\n]*<!-- roadmap-cluster:id=${escapeRegExp(id)}(?: \\S+=\\S+)* -->${tail}`, "m");
 }
 
 interface Region {
@@ -213,6 +214,13 @@ export function nodeBlockBody(content: string, id: string): string | null {
   return location === null ? null : content.slice(location.contentStart, location.end).trim();
 }
 
+/** Full node block including its marker line, for comparison against the canonical form. */
+export function nodeBlockText(content: string, id: string): string | null {
+  const location = locateNodeBlock(content, id);
+
+  return location === null ? null : content.slice(location.start, location.end).trim();
+}
+
 /** Cuts the blocks of the given nodes out of the content, in the given order. */
 function extractNodeBlocks(content: string, ids: readonly string[]): { content: string; blocks: string[] } {
   const blocks: string[] = [];
@@ -306,11 +314,16 @@ export function moveNodeToCluster(content: string, nodeId: string, clusterId: st
 export interface BodyNodeMarker {
   id: string;
   kind: string;
+  attrs: MarkerAttrs;
 }
 
 /** Node markers of the readable body, in document order. */
 export function bodyNodeMarkers(content: string): BodyNodeMarker[] {
-  return [...bodyRegion(content).matchAll(NODE_MARKER_RE)].map((match) => ({ id: match[1], kind: match[2] }));
+  return [...bodyRegion(content).matchAll(NODE_MARKER_RE)].map((match) => ({
+    id: match[1],
+    kind: match[2],
+    attrs: parseMarkerAttrs(match[3]),
+  }));
 }
 
 export function bodyNodeIds(content: string): Set<string> {

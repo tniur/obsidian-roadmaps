@@ -1,6 +1,15 @@
 import { stripMarkdownExtension } from "../domain/paths";
 import { nodeTitle } from "../domain/title";
-import type { EdgeDirection, RoadmapEndpoint, RoadmapState } from "../domain/types";
+import {
+  EDGE_LINES,
+  EDGE_SIDES,
+  type EdgeDirection,
+  type EdgeLine,
+  type EdgeSide,
+  type RoadmapEndpoint,
+  type RoadmapState,
+} from "../domain/types";
+import { attrIn, MARKER_ATTRS_PATTERN, parseMarkerAttrs, renderMarkerAttrs } from "./markerAttrs";
 import { encodeMarkdownUrl, sanitizeAlias, sanitizeInline } from "./sanitize";
 
 const RELATIONS_HEADING = "## Relations";
@@ -51,8 +60,13 @@ export function renderRelationsSection(state: RoadmapState): string | null {
 
     const arrow = edge.direction === "both" ? "<->" : edge.direction === "forward" ? "->" : "--";
     const label = edge.label !== undefined && edge.label.length > 0 ? `: ${sanitizeInline(edge.label)}` : "";
+    const attrs = renderMarkerAttrs([
+      ["line", edge.style?.line],
+      ["from", edge.fromSide],
+      ["to", edge.toSide],
+    ]);
 
-    lines.push(`- ${from} ${arrow} ${to}${label} <!-- roadmap-edge:id=${edge.id} -->`);
+    lines.push(`- ${from} ${arrow} ${to}${label} <!-- roadmap-edge:id=${edge.id}${attrs} -->`);
   }
 
   if (lines.length === 0) {
@@ -77,9 +91,14 @@ export interface ParsedRelationLine {
   to: ParsedRelationEndpoint;
   direction: EdgeDirection;
   label?: string;
+  line?: EdgeLine;
+  fromSide?: EdgeSide;
+  toSide?: EdgeSide;
 }
 
-const RELATION_LINE_RE = /^-\s+(.*?)\s+(<->|->|--)\s+(.*?)\s*(?:<!-- roadmap-edge:id=(\S+) -->)?\s*$/;
+const RELATION_LINE_RE = new RegExp(
+  `^-\\s+(.*?)\\s+(<->|->|--)\\s+(.*?)\\s*(?:<!-- roadmap-edge:id=(\\S+)${MARKER_ATTRS_PATTERN} -->)?\\s*$`,
+);
 
 function parseEndpoint(raw: string): { endpoint: ParsedRelationEndpoint; rest: string } {
   const heading = /^\[\[#([^\]|]+)\]\]/.exec(raw);
@@ -128,6 +147,15 @@ export function parseRelationsLine(line: string): ParsedRelationLine | null {
   if (label.length > 0) {
     result.label = label;
   }
+
+  const attrs = parseMarkerAttrs(match[5]);
+  const lineStyle = attrIn(EDGE_LINES, attrs.line);
+  const fromSide = attrIn(EDGE_SIDES, attrs.from);
+  const toSide = attrIn(EDGE_SIDES, attrs.to);
+
+  if (lineStyle !== undefined) result.line = lineStyle;
+  if (fromSide !== undefined) result.fromSide = fromSide;
+  if (toSide !== undefined) result.toSide = toSide;
 
   return result;
 }

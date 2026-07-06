@@ -158,12 +158,11 @@ describe("roadmap session", () => {
     expect(readState(session.content)?.nodes[node.id]?.layout.x).toBe(40);
   });
 
-  it("sets text alignment per axis, merging with the default", () => {
+  it("sets text alignment per axis, merging with the default and mirroring marker attrs", () => {
     const session = newSession();
     const node = createNoteNode("notes/a.md", { x: 0, y: 0 });
 
     session.addNode(node);
-    const bodyBefore = session.content.split("%% roadmap:state")[0];
 
     session.setNodeAlign(node.id, { h: "center" });
 
@@ -172,7 +171,7 @@ describe("roadmap session", () => {
     session.setNodeAlign(node.id, { v: "bottom" });
 
     expect(session.state.nodes[node.id]?.align).toEqual({ h: "center", v: "bottom" });
-    expect(session.content.split("%% roadmap:state")[0]).toBe(bodyBefore);
+    expect(session.content).toContain(`id=${node.id} type=note ah=center av=bottom -->`);
     expect(readState(session.content)?.nodes[node.id]?.align).toEqual({ h: "center", v: "bottom" });
   });
 
@@ -211,21 +210,21 @@ describe("roadmap session", () => {
     expect(readState(session.content)?.nodes[a.id]?.priority).toBe("high");
   });
 
-  it("sets node color in state without touching the readable body", () => {
+  it("sets and clears node color in state and the marker attrs", () => {
     const session = newSession();
     const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
 
     session.addNode(a);
-    const bodyBefore = session.content.split("%% roadmap:state")[0];
 
     session.updateNodeMeta(a.id, { color: "var(--color-red)" });
 
     expect(session.state.nodes[a.id]?.style?.color).toBe("var(--color-red)");
-    expect(session.content.split("%% roadmap:state")[0]).toBe(bodyBefore);
+    expect(session.content).toContain(`id=${a.id} type=note color=var(--color-red) -->`);
 
     session.updateNodeMeta(a.id, { color: null });
 
     expect(session.state.nodes[a.id]?.style?.color).toBeUndefined();
+    expect(session.content).toContain(`id=${a.id} type=note -->`);
   });
 
   it("sets a node title and reflects it in the body link alias", () => {

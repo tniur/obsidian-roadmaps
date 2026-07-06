@@ -9,6 +9,7 @@ import {
   type RoadmapPriority,
   type RoadmapStatus,
 } from "../domain/types";
+import { renderMarkerAttrs } from "./markerAttrs";
 import { encodeMarkdownUrl, escapeTextContent, sanitizeAlias, sanitizeInline, unescapeTextContent } from "./sanitize";
 
 function wikilink(target: string, title: string): string {
@@ -75,7 +76,13 @@ export function renderNodeRepresentation(node: RoadmapNode): string {
 }
 
 export function renderNodeBlock(node: RoadmapNode): string {
-  return `<!-- roadmap-node:id=${node.id} type=${node.kind} -->\n${renderNodeRepresentation(node)}`;
+  const attrs = renderMarkerAttrs([
+    ["color", node.style?.color],
+    ["ah", node.align?.h],
+    ["av", node.align?.v],
+  ]);
+
+  return `<!-- roadmap-node:id=${node.id} type=${node.kind}${attrs} -->\n${renderNodeRepresentation(node)}`;
 }
 
 const STATUS_VALUES = new Set<string>(ROADMAP_STATUSES);

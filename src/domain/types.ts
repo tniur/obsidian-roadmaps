@@ -73,7 +73,9 @@ export const EDGE_SIDES = ["top", "right", "bottom", "left"] as const;
 
 export type EdgeSide = (typeof EDGE_SIDES)[number];
 
-export type EdgeLine = "dashed" | "dotted";
+export const EDGE_LINES = ["dashed", "dotted"] as const;
+
+export type EdgeLine = (typeof EDGE_LINES)[number];
 
 export interface RoadmapEdge {
   id: string;
