@@ -506,7 +506,9 @@ export function RoadmapCanvas({
 
   const clusterAtPoint = useCallback(
     (point: { x: number; y: number }): string | null => {
-      const cluster = getNodes().find((node) => node.type === ROADMAP_CLUSTER_TYPE && nodeContainsPoint(node, point));
+      const cluster = getNodes().find(
+        (node) => node.type === ROADMAP_CLUSTER_TYPE && !node.data.collapsed && nodeContainsPoint(node, point),
+      );
 
       return cluster?.id ?? null;
     },
