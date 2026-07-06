@@ -644,9 +644,12 @@ export function RoadmapCanvas({
 
   const onDeleteInternal = useCallback(
     ({ nodes: deletedNodes, edges: deletedEdges }: { nodes: RoadmapFlowNode[]; edges: RoadmapFlowEdge[] }) => {
+      /* React Flow also enumerates edges connected to the deleted nodes — including
+         edges of cluster members, which survive a keep-nodes cluster delete. Only
+         explicitly selected edges pass; the rest follow their endpoints in the session. */
       onDeleteElements(
         deletedNodes.map((node) => node.id),
-        deletedEdges.map((edge) => edge.id),
+        deletedEdges.filter((edge) => edge.selected === true).map((edge) => edge.id),
       );
     },
     [onDeleteElements],

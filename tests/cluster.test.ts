@@ -304,6 +304,29 @@ describe("clusters storage", () => {
     expect(reconciled.clusters[clusterId]).toBeUndefined();
   });
 
+  it("keeps member node edges when a cluster is deleted keeping nodes", () => {
+    const session = sessionWithTwoNodes();
+    const outside = createNoteNode("notes/c.md", { x: 900, y: 0 });
+
+    session.addNode(outside);
+    session.createClusterFromNodes(["n1", "n2"], "Group");
+    const clusterId = Object.keys(session.state.clusters)[0];
+
+    session.addEdge("n1", "n2");
+    session.addEdge("n1", outside.id);
+    session.addEdge(clusterId, outside.id);
+    expect(Object.keys(session.state.edges)).toHaveLength(3);
+
+    session.dissolveCluster(clusterId);
+
+    const edges = Object.values(session.state.edges);
+
+    expect(edges).toHaveLength(2);
+    expect(edges.some((edge) => edge.from.id === "n1" && edge.to.id === "n2")).toBe(true);
+    expect(edges.some((edge) => edge.from.id === "n1" && edge.to.id === outside.id)).toBe(true);
+    expect(session.content).not.toContain(`[[#Group]]`);
+  });
+
   it("deletes a cluster and its member nodes, keeping outside nodes", () => {
     const session = sessionWithTwoNodes();
 
