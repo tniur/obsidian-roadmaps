@@ -210,8 +210,10 @@ export function RoadmapCanvas({
     finalized: boolean;
   } | null>(null);
   const reconnectRef = useRef<{ id: string; end: HandleType } | null>(null);
+  const stateRef = useRef(state);
 
   useEffect(() => {
+    stateRef.current = state;
     setNodes((current) => reconcileFlowNodes(current, stateToFlowNodes(state, isNodeMissing, resolveImageSrc)));
     setEdges((current) => reconcileFlowEdges(current, stateToFlowEdges(state)));
   }, [state, isNodeMissing, resolveImageSrc]);
@@ -343,10 +345,15 @@ export function RoadmapCanvas({
   );
 
   /* Applying the new endpoints locally right away avoids a one-frame flash of the old
-     edge between the drop and the state round-trip; a rejected reconnect is restored by
-     the next reconcile because the state stays unchanged. */
+     edge between the drop and the state round-trip. A reconnect the session rejects
+     (self-loop, duplicate, own-container link) commits no state, so nothing would undo
+     the optimistic edge — the deferred re-sync below restores it from the latest state. */
   const onReconnect = useCallback(
     (oldEdge: RoadmapFlowEdge, connection: Connection) => {
+      if (connection.source === connection.target) {
+        return;
+      }
+
       setEdges((current) =>
         current.map((edge) =>
           edge.id === oldEdge.id
@@ -369,6 +376,9 @@ export function RoadmapCanvas({
         ),
       );
       onReconnectEdge(oldEdge.id, connection);
+      window.setTimeout(() => {
+        setEdges((current) => reconcileFlowEdges(current, stateToFlowEdges(stateRef.current)));
+      }, 0);
     },
     [onReconnectEdge],
   );
