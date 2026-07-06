@@ -2,6 +2,7 @@ import { CLUSTER_PADDING } from "../constants";
 import { arrangeClusterGrid, membersBoundingBox } from "../domain/clusterLayout";
 import { asSide, createCluster, createEdge } from "../domain/create";
 import { sourceFile } from "../domain/source";
+import { uniqueClusterTitle } from "../domain/title";
 import type {
   EdgeDirection,
   EdgeLine,
@@ -187,13 +188,14 @@ export class RoadmapSession {
   /**
    * Wraps the given top-level nodes into a new cluster sized to their bounding box. Member
    * layouts are rebased to be relative to the cluster origin; the body moves their blocks
-   * under the cluster heading so membership stays canonical there.
+   * under the cluster heading so membership stays canonical there. Returns the final
+   * cluster title — a taken one gets a numeric suffix — or null when nothing was created.
    */
-  createClusterFromNodes(nodeIds: readonly string[], title: string): void {
+  createClusterFromNodes(nodeIds: readonly string[], title: string): string | null {
     const safeTitle = sanitizeAlias(title);
 
     if (safeTitle.length === 0 || isReservedHeading(safeTitle)) {
-      return;
+      return null;
     }
 
     const members: RoadmapNode[] = [];
@@ -209,7 +211,7 @@ export class RoadmapSession {
     const box = membersBoundingBox(members);
 
     if (box === null) {
-      return;
+      return null;
     }
 
     const layout = {
@@ -218,7 +220,7 @@ export class RoadmapSession {
       width: box.width + CLUSTER_PADDING * 2,
       height: box.height + CLUSTER_PADDING * 2,
     };
-    const cluster = createCluster(safeTitle, layout);
+    const cluster = createCluster(uniqueClusterTitle(safeTitle, this.stateValue.clusters), layout);
     const nodes = { ...this.stateValue.nodes };
 
     for (const node of members) {
@@ -244,6 +246,8 @@ export class RoadmapSession {
         relations: edges !== this.stateValue.edges,
       },
     );
+
+    return cluster.title;
   }
 
   addNodeWithEdge(node: RoadmapNode, fromNodeId: string, fromHandle?: string | null, toHandle?: string | null): void {
@@ -424,7 +428,8 @@ export class RoadmapSession {
     });
   }
 
-  renameCluster(id: string, title: string): void {
+  /** Returns the final title — a taken one gets a numeric suffix — or null on a no-op. */
+  renameCluster(id: string, title: string): string | null {
     const cluster = this.stateValue.clusters[id];
     const safeTitle = sanitizeAlias(title);
 
@@ -434,15 +439,17 @@ export class RoadmapSession {
       safeTitle === cluster.title ||
       isReservedHeading(safeTitle)
     ) {
-      return;
+      return null;
     }
 
-    const next = { ...cluster, title: safeTitle };
+    const next = { ...cluster, title: uniqueClusterTitle(safeTitle, this.stateValue.clusters, id) };
 
     this.commit(
       { ...this.stateValue, clusters: { ...this.stateValue.clusters, [id]: next } },
       { body: (content) => replaceClusterHeading(content, next), relations: true },
     );
+
+    return next.title;
   }
 
   setClusterColor(id: string, color: string | null): void {

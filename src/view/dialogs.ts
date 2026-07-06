@@ -2,6 +2,7 @@ import { Notice } from "obsidian";
 import { normalizeHttpUrl } from "../domain/paths";
 import type { RoadmapCluster } from "../domain/types";
 import { isReservedHeading } from "../markdown/cluster";
+import { sanitizeAlias } from "../markdown/sanitize";
 import type { BoardContext } from "./boardContext";
 import { PromptModal } from "./PromptModal";
 
@@ -15,6 +16,13 @@ function acceptClusterName(value: string): boolean {
   return true;
 }
 
+/** Tells the user when a taken title came back with a numeric suffix. */
+function reportSuffixedTitle(requested: string, actual: string | null): void {
+  if (actual !== null && actual !== sanitizeAlias(requested)) {
+    new Notice(`Title already in use — cluster named "${actual}".`);
+  }
+}
+
 export function promptRenameCluster(ctx: BoardContext, cluster: RoadmapCluster): void {
   new PromptModal(ctx.app, {
     title: "Cluster name",
@@ -26,7 +34,7 @@ export function promptRenameCluster(ctx: BoardContext, cluster: RoadmapCluster):
         return;
       }
 
-      ctx.session.renameCluster(cluster.id, value);
+      reportSuffixedTitle(value, ctx.session.renameCluster(cluster.id, value));
       ctx.commit();
     },
   }).open();
@@ -49,7 +57,9 @@ export function promptGroupIntoCluster(ctx: BoardContext, nodeIds: readonly stri
         return;
       }
 
-      ctx.session.createClusterFromNodes(targets, value.length > 0 ? value : "Cluster");
+      const requested = value.length > 0 ? value : "Cluster";
+
+      reportSuffixedTitle(requested, ctx.session.createClusterFromNodes(targets, requested));
       ctx.commit();
     },
   }).open();

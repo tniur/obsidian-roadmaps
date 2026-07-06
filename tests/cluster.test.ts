@@ -10,7 +10,7 @@ import {
   writeClusterSection,
   writeState,
 } from "../src/state/document";
-import { reconcileState } from "../src/state/reconcile";
+import { loadDocument, reconcileState } from "../src/state/reconcile";
 import { RoadmapSession } from "../src/state/session";
 import { stateToFlowEdges } from "../src/view/flow";
 
@@ -518,6 +518,36 @@ describe("clusters storage", () => {
 
     expect(reconciled.nodes.n1?.clusterId ?? null).toBeNull();
     expect(reconciled.nodes.n2?.clusterId).toBe(clusterId);
+  });
+
+  it("suffixes a taken cluster title on create and rename", () => {
+    const session = sessionWithTwoNodes();
+
+    expect(session.createClusterFromNodes(["n1"], "Group")).toBe("Group");
+    expect(session.createClusterFromNodes(["n2"], "group")).toBe("group 2");
+    expect(session.content).toContain("## group 2 <!--");
+
+    const second = Object.values(session.state.clusters).find((cluster) => cluster.title === "group 2");
+
+    expect(second).toBeDefined();
+    expect(session.renameCluster(second?.id ?? "", "GROUP")).toBe("GROUP 2");
+    expect(session.renameCluster(second?.id ?? "", "Solo")).toBe("Solo");
+  });
+
+  it("suffixes hand-written duplicate cluster headings on load", () => {
+    const session = sessionWithTwoNodes();
+
+    session.createClusterFromNodes(["n1"], "Alpha");
+    session.createClusterFromNodes(["n2"], "Beta");
+    const tainted = session.content.replace(/^## Beta /m, "## Alpha ");
+    const loaded = loadDocument(tainted);
+    const titles = Object.values(loaded.state.clusters)
+      .map((cluster) => cluster.title)
+      .sort();
+
+    expect(titles).toEqual(["Alpha", "Alpha 2"]);
+    expect(loaded.content).toContain("## Alpha 2 <!--");
+    expect(loaded.warnings).toEqual([]);
   });
 
   it("renames a cluster in the heading, relations and state", () => {

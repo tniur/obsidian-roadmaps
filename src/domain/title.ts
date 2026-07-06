@@ -1,5 +1,5 @@
 import { fileBasename, urlHostname } from "./paths";
-import type { RoadmapNode } from "./types";
+import type { RoadmapCluster, RoadmapNode } from "./types";
 
 export function nodeTitle(node: RoadmapNode): string {
   if (node.title !== undefined && node.title.length > 0) {
@@ -24,4 +24,42 @@ export function nodeTitle(node: RoadmapNode): string {
     case "url":
       return urlHostname(source.url);
   }
+}
+
+/** Obsidian resolves heading links case-insensitively, so titles must differ that way too. */
+export function clusterTitleKey(title: string): string {
+  return title.trim().toLowerCase();
+}
+
+/** First free variant of `title` against the taken keys: "Q3" → "Q3 2" → "Q3 3". */
+export function firstFreeTitle(title: string, takenKeys: ReadonlySet<string>): string {
+  if (!takenKeys.has(clusterTitleKey(title))) {
+    return title;
+  }
+
+  for (let counter = 2; ; counter += 1) {
+    const candidate = `${title} ${counter}`;
+
+    if (!takenKeys.has(clusterTitleKey(candidate))) {
+      return candidate;
+    }
+  }
+}
+
+/**
+ * Heading links (`[[#Title]]`) address clusters by title, so titles must be unique within
+ * one roadmap. A taken title gets the first free numeric suffix.
+ */
+export function uniqueClusterTitle(
+  title: string,
+  clusters: Record<string, RoadmapCluster>,
+  excludeId?: string,
+): string {
+  const taken = new Set(
+    Object.values(clusters)
+      .filter((cluster) => cluster.id !== excludeId)
+      .map((cluster) => clusterTitleKey(cluster.title)),
+  );
+
+  return firstFreeTitle(title, taken);
 }

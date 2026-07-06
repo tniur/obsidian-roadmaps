@@ -9,7 +9,7 @@ import {
 import { arrangeClusterGrid, membersBoundingBox } from "../domain/clusterLayout";
 import { fileKindForPath } from "../domain/paths";
 import { sourceFile } from "../domain/source";
-import { nodeTitle } from "../domain/title";
+import { clusterTitleKey, firstFreeTitle, nodeTitle } from "../domain/title";
 import {
   isNodeKind,
   TEXT_ALIGNS_H,
@@ -633,6 +633,46 @@ export function ensureClusterMarkers(content: string): string {
 }
 
 /**
+ * Suffixes hand-written duplicate cluster titles ("Q3" → "Q3 2") so `[[#Title]]` links in
+ * Relations stay unambiguous; session mutations keep UI-made titles unique on their own.
+ * The hidden marker and its attrs are preserved verbatim; state picks the new title up
+ * through the regular body-canonical reconcile.
+ */
+export function ensureUniqueClusterTitles(content: string): string {
+  const bounds = bodyBounds(content);
+  const seen = new Set<string>();
+  let changed = false;
+  const lines = content
+    .slice(bounds.start, bounds.end)
+    .split("\n")
+    .map((line) => {
+      const heading = parseClusterHeading(line);
+
+      if (heading === null || heading.id === null || isReservedHeading(heading.title)) {
+        return line;
+      }
+
+      const unique = firstFreeTitle(heading.title, seen);
+
+      seen.add(clusterTitleKey(unique));
+
+      if (unique === heading.title) {
+        return line;
+      }
+
+      changed = true;
+
+      return `## ${unique} ${line.slice(line.indexOf("<!--"))}`;
+    });
+
+  if (!changed) {
+    return content;
+  }
+
+  return `${content.slice(0, bounds.start)}${lines.join("\n")}${content.slice(bounds.end)}`;
+}
+
+/**
  * Creates edges for hand-written `## Relations` lines that carry no hidden edge marker
  * yet. The caller rewrites the section, which replaces adopted lines with their
  * canonical, marker-carrying form.
@@ -666,7 +706,7 @@ export interface LoadedDocument {
 export function loadDocument(data: string, resolveTarget?: LinkTargetResolver): LoadedDocument {
   const warnings: DocumentWarning[] = [];
   const parsed = readState(data);
-  let marked = ensureClusterMarkers(data);
+  let marked = ensureUniqueClusterTitles(ensureClusterMarkers(data));
   const truncatedBody = parsed !== null && Object.keys(parsed.nodes).length > 0 && bodyNodeIds(data).size === 0;
 
   if (!truncatedBody) {
@@ -723,7 +763,7 @@ export function loadDocument(data: string, resolveTarget?: LinkTargetResolver): 
  * done silently.
  */
 export function rebuildDocument(data: string, resolveTarget?: LinkTargetResolver): LoadedDocument {
-  const marked = adoptBareWikilinks(ensureClusterMarkers(data));
+  const marked = adoptBareWikilinks(ensureUniqueClusterTitles(ensureClusterMarkers(data)));
   const state = rebuildState(marked, resolveTarget);
   const content = writeRelations(writeState(marked, state), state);
 
