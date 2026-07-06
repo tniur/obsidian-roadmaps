@@ -119,6 +119,25 @@ export function copyEdge(edge: RoadmapEdge, from: RoadmapEndpoint, to: RoadmapEn
   return copy;
 }
 
+/**
+ * Copies of the edges whose both endpoints were copied (looked up in `cloneIds`), rewired
+ * onto the fresh clones. Edges reaching outside the copied set are left to the originals.
+ */
+export function copiedEdges(edges: readonly RoadmapEdge[], cloneIds: ReadonlyMap<string, string>): RoadmapEdge[] {
+  const copies: RoadmapEdge[] = [];
+
+  for (const edge of edges) {
+    const from = cloneIds.get(edge.from.id);
+    const to = cloneIds.get(edge.to.id);
+
+    if (from !== undefined && to !== undefined) {
+      copies.push(copyEdge(edge, { type: "node", id: from }, { type: "node", id: to }));
+    }
+  }
+
+  return copies;
+}
+
 export function asSide(value: string | null | undefined): EdgeSide | undefined {
   return value != null && (EDGE_SIDES as readonly string[]).includes(value) ? (value as EdgeSide) : undefined;
 }

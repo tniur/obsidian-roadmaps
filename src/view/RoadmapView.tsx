@@ -3,7 +3,7 @@ import { ReactFlowProvider } from "@xyflow/react";
 import { StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { VIEW_TYPE_ROADMAP } from "../constants";
-import { centeredPlacement, copyEdge, copyNode, type NodePlacement } from "../domain/create";
+import { centeredPlacement, copiedEdges, copyNode, type NodePlacement } from "../domain/create";
 import { nodeOpenTarget } from "../domain/openTarget";
 import { isSafeUrl } from "../domain/paths";
 import { sourceFile } from "../domain/source";
@@ -43,22 +43,6 @@ export interface RoadmapViewHost {
 const CASCADE_OFFSET = 24;
 
 const VIEWPORT_SAVE_DELAY = 600;
-
-/** Copies of the edges whose both endpoints were copied, rewired onto the fresh clones. */
-function copiedEdges(edges: readonly RoadmapEdge[], cloneIds: ReadonlyMap<string, string>): RoadmapEdge[] {
-  const copies: RoadmapEdge[] = [];
-
-  for (const edge of edges) {
-    const from = cloneIds.get(edge.from.id);
-    const to = cloneIds.get(edge.to.id);
-
-    if (from !== undefined && to !== undefined) {
-      copies.push(copyEdge(edge, { type: "node", id: from }, { type: "node", id: to }));
-    }
-  }
-
-  return copies;
-}
 
 const WARNING_MESSAGES: Record<DocumentWarning, string> = {
   "rebuilt-state": "state block was missing; rebuilt from the note body.",
