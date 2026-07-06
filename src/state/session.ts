@@ -156,20 +156,31 @@ export class RoadmapSession {
     );
   }
 
-  addNodes(nodes: readonly RoadmapNode[]): void {
+  /** Edges (paste/duplicate flows pass copies wired between the new nodes) land in the
+   * same commit, so one undo removes the whole batch. */
+  addNodes(nodes: readonly RoadmapNode[], edges: readonly RoadmapEdge[] = []): void {
     if (nodes.length === 0) {
       return;
     }
 
-    const next = { ...this.stateValue.nodes };
+    const nextNodes = { ...this.stateValue.nodes };
 
     for (const node of nodes) {
-      next[node.id] = node;
+      nextNodes[node.id] = node;
+    }
+
+    const nextEdges = { ...this.stateValue.edges };
+
+    for (const edge of edges) {
+      nextEdges[edge.id] = edge;
     }
 
     this.commit(
-      { ...this.stateValue, nodes: next },
-      { body: (content) => nodes.reduce((acc, node) => insertNodeBlock(acc, node), content) },
+      { ...this.stateValue, nodes: nextNodes, edges: nextEdges },
+      {
+        body: (content) => nodes.reduce((acc, node) => insertNodeBlock(acc, node), content),
+        relations: edges.length > 0,
+      },
     );
   }
 

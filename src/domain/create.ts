@@ -108,6 +108,17 @@ export function copyNode(node: RoadmapNode, x: number, y: number): RoadmapNode {
   return copy;
 }
 
+/** Clone for paste/duplicate: same appearance, new identity, endpoints rewired to the copies. */
+export function copyEdge(edge: RoadmapEdge, from: RoadmapEndpoint, to: RoadmapEndpoint): RoadmapEdge {
+  const copy: RoadmapEdge = { ...edge, id: nanoid(), from, to };
+
+  if (edge.style !== undefined) {
+    copy.style = { ...edge.style };
+  }
+
+  return copy;
+}
+
 export function asSide(value: string | null | undefined): EdgeSide | undefined {
   return value != null && (EDGE_SIDES as readonly string[]).includes(value) ? (value as EdgeSide) : undefined;
 }

@@ -228,8 +228,14 @@ export function RoadmapCanvas({
     }
 
     /* Through the store action rather than a raw `selected` flip, so React Flow's own
-       selection bookkeeping (delete key, onSelectionChange) sees the new nodes. */
-    storeApi.getState().addSelectedNodes(focusIds);
+       selection bookkeeping (delete key, onSelectionChange) sees the new nodes. Deferred
+       a tick: right after an alt-drag drop the committed duplicates have not reached the
+       store yet, and the gesture's trailing events hand selection back to the source. */
+    const timer = window.setTimeout(() => {
+      storeApi.getState().addSelectedNodes(focusIds);
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, [focusNonce, focusIds, storeApi]);
 
   const onNodesChange = useCallback(
@@ -436,6 +442,20 @@ export function RoadmapCanvas({
 
     altDragRef.current = { map, frozen, finalized: false };
     setNodes((current) => [...current, ...copies]);
+    /* Edges between the duplicated nodes travel with the drag; on drop the committed
+       state swaps these placeholders for the persisted copies, like the nodes above. */
+    setEdges((current) => [
+      ...current,
+      ...current
+        .filter((edge) => map.has(edge.source) && map.has(edge.target))
+        .map((edge) => ({
+          ...edge,
+          id: `${ALT_COPY_ID_PREFIX}${nanoid()}`,
+          source: map.get(edge.source) as string,
+          target: map.get(edge.target) as string,
+          selected: false,
+        })),
+    ]);
   }, []);
 
   const finalizeAltDuplicate = useCallback((): boolean => {

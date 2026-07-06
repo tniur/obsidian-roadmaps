@@ -3,11 +3,11 @@ import { ReactFlowProvider } from "@xyflow/react";
 import { StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { VIEW_TYPE_ROADMAP } from "../constants";
-import { centeredPlacement, copyNode, type NodePlacement } from "../domain/create";
+import { centeredPlacement, copyEdge, copyNode, type NodePlacement } from "../domain/create";
 import { nodeOpenTarget } from "../domain/openTarget";
 import { isSafeUrl } from "../domain/paths";
 import { sourceFile } from "../domain/source";
-import type { RoadmapNode, RoadmapViewport } from "../domain/types";
+import type { RoadmapEdge, RoadmapNode, RoadmapViewport } from "../domain/types";
 import { availableVaultPath, draggedFiles, nodeForFile } from "../services/vaultFiles";
 import type { RoadmapFlowInstance } from "./flow";
 import { StateVersionError } from "../state/codec";
@@ -44,6 +44,22 @@ const CASCADE_OFFSET = 24;
 
 const VIEWPORT_SAVE_DELAY = 600;
 
+/** Copies of the edges whose both endpoints were copied, rewired onto the fresh clones. */
+function copiedEdges(edges: readonly RoadmapEdge[], cloneIds: ReadonlyMap<string, string>): RoadmapEdge[] {
+  const copies: RoadmapEdge[] = [];
+
+  for (const edge of edges) {
+    const from = cloneIds.get(edge.from.id);
+    const to = cloneIds.get(edge.to.id);
+
+    if (from !== undefined && to !== undefined) {
+      copies.push(copyEdge(edge, { type: "node", id: from }, { type: "node", id: to }));
+    }
+  }
+
+  return copies;
+}
+
 const WARNING_MESSAGES: Record<DocumentWarning, string> = {
   "rebuilt-state": "state block was missing; rebuilt from the note body.",
   "restored-nodes": "restored node entries missing from the note body.",
@@ -54,6 +70,7 @@ export class RoadmapView extends TextFileView {
   private session: RoadmapSession | null = null;
   private selectedNodeIds: string[] = [];
   private clipboard: RoadmapNode[] = [];
+  private clipboardEdges: RoadmapEdge[] = [];
   private pasteOffset = 0;
   private focusIds: string[] = [];
   private focusNonce = 0;
@@ -499,7 +516,12 @@ export class RoadmapView extends TextFileView {
     }
 
     if (nodes.length > 0) {
+      const ids = new Set(nodes.map((node) => node.id));
+
       this.clipboard = nodes;
+      this.clipboardEdges = Object.values(this.session.state.edges).filter(
+        (edge) => ids.has(edge.from.id) && ids.has(edge.to.id),
+      );
       this.pasteOffset = 0;
     }
   }
@@ -510,11 +532,16 @@ export class RoadmapView extends TextFileView {
     }
 
     this.pasteOffset += CASCADE_OFFSET;
-    const clones = this.clipboard.map((node) =>
-      copyNode(node, node.layout.x + this.pasteOffset, node.layout.y + this.pasteOffset),
-    );
+    const cloneIds = new Map<string, string>();
+    const clones = this.clipboard.map((node) => {
+      const clone = copyNode(node, node.layout.x + this.pasteOffset, node.layout.y + this.pasteOffset);
 
-    this.session.addNodes(clones);
+      cloneIds.set(node.id, clone.id);
+
+      return clone;
+    });
+
+    this.session.addNodes(clones, copiedEdges(this.clipboardEdges, cloneIds));
     this.focusNodes(clones.map((node) => node.id));
     this.commit();
   }
@@ -549,17 +576,21 @@ export class RoadmapView extends TextFileView {
       return;
     }
 
+    const cloneIds = new Map<string, string>();
     const clones: RoadmapNode[] = [];
 
     for (const { id, x, y } of items) {
       const node = this.session.state.nodes[id];
 
       if (node !== undefined) {
-        clones.push(copyNode(node, x, y));
+        const clone = copyNode(node, x, y);
+
+        cloneIds.set(id, clone.id);
+        clones.push(clone);
       }
     }
 
-    this.session.addNodes(clones);
+    this.session.addNodes(clones, copiedEdges(Object.values(this.session.state.edges), cloneIds));
     this.focusNodes(clones.map((node) => node.id));
     this.commit();
   };

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  copyEdge,
   copyNode,
   createAttachmentNode,
   createImageNode,
@@ -258,6 +259,39 @@ describe("roadmap session", () => {
     expect(session.content).toContain("## Relations");
     expect(session.content).toContain(`roadmap-edge:id=${edgeId}`);
     expect(readState(session.content)?.edges[edgeId]?.from.id).toBe(a.id);
+  });
+
+  it("adds nodes together with copied edges in a single undo step", () => {
+    const session = newSession();
+    const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
+    const b = createNoteNode("notes/b.md", { x: 200, y: 0 });
+
+    session.addNodes([a, b]);
+    session.addEdge(a.id, b.id, "right", "left");
+    const original = Object.values(session.state.edges)[0];
+
+    session.updateEdge(original.id, { label: "depends", line: "dashed" });
+    const source = session.state.edges[original.id];
+    const aCopy = copyNode(a, 24, 24);
+    const bCopy = copyNode(b, 224, 24);
+    const edgeCopy = copyEdge(source, { type: "node", id: aCopy.id }, { type: "node", id: bCopy.id });
+
+    session.addNodes([aCopy, bCopy], [edgeCopy]);
+
+    const persisted = readState(session.content)?.edges[edgeCopy.id];
+
+    expect(persisted?.from.id).toBe(aCopy.id);
+    expect(persisted?.to.id).toBe(bCopy.id);
+    expect(persisted?.label).toBe("depends");
+    expect(persisted?.style?.line).toBe("dashed");
+    expect(persisted?.fromSide).toBe("right");
+    expect(session.content).toContain(`roadmap-edge:id=${edgeCopy.id}`);
+
+    session.undo();
+
+    expect(session.state.nodes[aCopy.id]).toBeUndefined();
+    expect(session.state.edges[edgeCopy.id]).toBeUndefined();
+    expect(session.state.edges[original.id]).toBeDefined();
   });
 
   it("stores the connected handle sides on the edge", () => {
