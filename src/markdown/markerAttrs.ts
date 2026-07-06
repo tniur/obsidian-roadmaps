@@ -7,8 +7,11 @@
 
 export type MarkerAttrs = Record<string, string>;
 
-/** Attrs capture group for marker regexes: zero or more ` key=value` tokens. */
-export const MARKER_ATTRS_PATTERN = "((?: \\S+=\\S+)*)";
+/** Zero or more ` key=value` tokens, non-capturing — for regexes that only skip the attrs. */
+export const MARKER_ATTRS_SKIP = "(?: \\S+=\\S+)*";
+
+/** The same grammar as a capture group, for regexes that read the attrs back out. */
+export const MARKER_ATTRS_PATTERN = `(${MARKER_ATTRS_SKIP})`;
 
 export function renderMarkerAttrs(attrs: ReadonlyArray<readonly [string, string | undefined]>): string {
   return attrs
