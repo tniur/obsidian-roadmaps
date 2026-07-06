@@ -662,7 +662,9 @@ export function ensureUniqueClusterTitles(content: string): string {
 
       changed = true;
 
-      return `## ${unique} ${line.slice(line.indexOf("<!--"))}`;
+      /* Slice from the cluster marker specifically: a hand-written heading may carry an
+         unrelated HTML comment before it, which must stay with the title text. */
+      return `## ${unique} ${line.slice(line.indexOf("<!-- roadmap-cluster:"))}`;
     });
 
   if (!changed) {

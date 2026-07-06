@@ -10,7 +10,7 @@ import {
   writeClusterSection,
   writeState,
 } from "../src/state/document";
-import { loadDocument, reconcileState } from "../src/state/reconcile";
+import { ensureUniqueClusterTitles, loadDocument, reconcileState } from "../src/state/reconcile";
 import { RoadmapSession } from "../src/state/session";
 import { stateToFlowEdges } from "../src/view/flow";
 
@@ -532,6 +532,21 @@ describe("clusters storage", () => {
     expect(second).toBeDefined();
     expect(session.renameCluster(second?.id ?? "", "GROUP")).toBe("GROUP 2");
     expect(session.renameCluster(second?.id ?? "", "Solo")).toBe("Solo");
+  });
+
+  it("suffixes a duplicate heading without duplicating a stray comment before the marker", () => {
+    const body = [
+      "## Dup <!-- note --> <!-- roadmap-cluster:id=c1 -->",
+      "",
+      "## Dup <!-- note --> <!-- roadmap-cluster:id=c2 -->",
+    ].join("\n");
+
+    const headings = ensureUniqueClusterTitles(body)
+      .split("\n")
+      .filter((line) => line.startsWith("## "));
+
+    expect(headings[1]).toContain("Dup <!-- note --> 2 <!-- roadmap-cluster:id=c2 -->");
+    expect(headings[1].match(/<!-- note -->/g)).toHaveLength(1);
   });
 
   it("suffixes hand-written duplicate cluster headings on load", () => {
