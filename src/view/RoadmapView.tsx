@@ -4,6 +4,7 @@ import { StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { VIEW_TYPE_ROADMAP } from "../constants";
 import { centeredPlacement, copiedEdges, copyNode, type NodePlacement } from "../domain/create";
+import { roadmapToCanvas, serializeCanvas } from "../domain/jsonCanvas";
 import { nodeOpenTarget } from "../domain/openTarget";
 import { isSafeUrl } from "../domain/paths";
 import { sourceFile } from "../domain/source";
@@ -224,6 +225,18 @@ export class RoadmapView extends TextFileView {
           .setIcon("file-text")
           .onClick(() => {
             this.host.openAsMarkdown(this.leaf, file);
+          }),
+      );
+    }
+
+    if (this.session !== null) {
+      menu.addItem((item) =>
+        item
+          .setSection("action")
+          .setTitle("Export as JSON Canvas")
+          .setIcon("file-json")
+          .onClick(() => {
+            void this.exportCanvas();
           }),
       );
     }
@@ -455,6 +468,25 @@ export class RoadmapView extends TextFileView {
       new Notice(`Exported PDF: ${path}`);
     } catch (error) {
       new Notice(`Failed to export PDF: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  /** Writes the board to a `.canvas` (JSON Canvas) file next to the roadmap. Lossy by design. */
+  async exportCanvas(): Promise<void> {
+    const file = this.file;
+
+    if (this.session === null || file === null) {
+      return;
+    }
+
+    try {
+      const canvas = serializeCanvas(roadmapToCanvas(this.session.state));
+      const path = availableVaultPath(this.app.vault, file.parent?.path, file.basename, "canvas");
+
+      await this.app.vault.create(path, canvas);
+      new Notice(`Exported Canvas: ${path}`);
+    } catch (error) {
+      new Notice(`Failed to export Canvas: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 

@@ -364,3 +364,26 @@ export function createRoadmapDocument(title: string): string {
 
   return `${frontmatter}\n\n# ${title}\n\n${buildStateBlock(emptyState())}\n`;
 }
+
+/**
+ * Renders a full roadmap document from a state built elsewhere (e.g. an import): node blocks,
+ * cluster sections with their members, the `## Relations` section and the hidden state block.
+ * Mirrors how the session grows a document, so the result reconciles cleanly on open.
+ */
+export function renderStateDocument(state: RoadmapState, title: string): string {
+  let content = createRoadmapDocument(title);
+
+  for (const node of Object.values(state.nodes)) {
+    content = insertNodeBlock(content, node);
+  }
+
+  for (const cluster of Object.values(state.clusters)) {
+    const memberIds = Object.values(state.nodes)
+      .filter((node) => node.clusterId === cluster.id)
+      .map((node) => node.id);
+
+    content = writeClusterSection(content, cluster, memberIds);
+  }
+
+  return writeState(writeRelations(content, state), state);
+}

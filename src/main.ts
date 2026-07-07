@@ -16,9 +16,11 @@ import {
   ROADMAP_FRONTMATTER_VALUE,
   VIEW_TYPE_ROADMAP,
 } from "./constants";
+import { canvasToState, parseCanvas } from "./domain/jsonCanvas";
 import { availableVaultPath } from "./services/vaultFiles";
-import { createRoadmapDocument } from "./state/document";
+import { createRoadmapDocument, renderStateDocument } from "./state/document";
 import { ADD_NODE_ACTIONS } from "./view/addNodeActions";
+import { FileSuggestModal } from "./view/FileSuggestModal";
 import { RoadmapView, type RoadmapViewHost } from "./view/RoadmapView";
 
 const MARKDOWN_VIEW_TYPE = "markdown";
@@ -27,6 +29,11 @@ const BACKGROUND_DOTS_ICON =
   '<circle cx="22" cy="22" r="9" fill="currentColor"/><circle cx="50" cy="22" r="9" fill="currentColor"/><circle cx="78" cy="22" r="9" fill="currentColor"/><circle cx="22" cy="50" r="9" fill="currentColor"/><circle cx="50" cy="50" r="9" fill="currentColor"/><circle cx="78" cy="50" r="9" fill="currentColor"/><circle cx="22" cy="78" r="9" fill="currentColor"/><circle cx="50" cy="78" r="9" fill="currentColor"/><circle cx="78" cy="78" r="9" fill="currentColor"/>';
 
 type LeafWithId = WorkspaceLeaf & { id?: string };
+
+/** Roadmap title from its vault path: the file name without its folder or extension. */
+function titleFromPath(path: string): string {
+  return path.replace(/\.md$/, "").replace(/^.*\//, "");
+}
 
 type ViewMode = typeof MARKDOWN_VIEW_TYPE | typeof VIEW_TYPE_ROADMAP;
 
@@ -80,6 +87,24 @@ export default class RoadmapPlugin extends Plugin {
         );
       }),
     );
+
+    this.registerEvent(
+      this.app.workspace.on("file-menu", (menu, file) => {
+        if (!(file instanceof TFile) || file.extension !== "canvas") {
+          return;
+        }
+
+        menu.addItem((item) =>
+          item
+            .setSection("action")
+            .setTitle("Create roadmap from Canvas")
+            .setIcon("file-json")
+            .onClick(() => {
+              void this.createRoadmapFromCanvas(file);
+            }),
+        );
+      }),
+    );
   }
 
   private registerCommands(): void {
@@ -89,6 +114,15 @@ export default class RoadmapPlugin extends Plugin {
       icon: "map",
       callback: () => {
         void this.createRoadmap();
+      },
+    });
+
+    this.addCommand({
+      id: "import-canvas",
+      name: "Create roadmap from Canvas",
+      icon: "file-json",
+      callback: () => {
+        this.importCanvas();
       },
     });
 
@@ -184,6 +218,15 @@ export default class RoadmapPlugin extends Plugin {
       (view) => view.isBoardLoaded(),
       (view) => {
         void view.exportPdf();
+      },
+    );
+    this.addBoardCommand(
+      "export-canvas",
+      "Export as JSON Canvas",
+      "file-json",
+      (view) => view.isBoardLoaded(),
+      (view) => {
+        void view.exportCanvas();
       },
     );
   }
@@ -363,14 +406,46 @@ export default class RoadmapPlugin extends Plugin {
     try {
       const folder = await this.resolveNewRoadmapFolder();
       const path = availableVaultPath(this.app.vault, folder, "Untitled Roadmap", "md");
-      const title = path.replace(/\.md$/, "").replace(/^.*\//, "");
-      const file = await this.app.vault.create(path, createRoadmapDocument(title));
-      const leaf = this.app.workspace.getLeaf(true);
 
-      this.openAsRoadmap(leaf, file);
-      await this.app.workspace.revealLeaf(leaf);
+      await this.createAndOpenRoadmap(path, createRoadmapDocument(titleFromPath(path)));
     } catch (error) {
       new Notice(`Failed to create roadmap: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  /** Creates a roadmap file, opens it as a board in a new leaf and reveals it. */
+  private async createAndOpenRoadmap(path: string, content: string): Promise<void> {
+    const file = await this.app.vault.create(path, content);
+    const leaf = this.app.workspace.getLeaf(true);
+
+    this.openAsRoadmap(leaf, file);
+    await this.app.workspace.revealLeaf(leaf);
+  }
+
+  /** Picks a `.canvas` file and imports it into a new roadmap created next to it. */
+  private importCanvas(): void {
+    const files = this.app.vault.getFiles().filter((file) => file.extension === "canvas");
+
+    if (files.length === 0) {
+      new Notice("No .canvas files found in the vault.");
+
+      return;
+    }
+
+    new FileSuggestModal(this.app, files, "Select a canvas to import", (file) => {
+      void this.createRoadmapFromCanvas(file);
+    }).open();
+  }
+
+  private async createRoadmapFromCanvas(canvasFile: TFile): Promise<void> {
+    try {
+      const state = canvasToState(parseCanvas(await this.app.vault.read(canvasFile)));
+      const path = availableVaultPath(this.app.vault, canvasFile.parent?.path, canvasFile.basename, "md");
+
+      await this.createAndOpenRoadmap(path, renderStateDocument(state, titleFromPath(path)));
+      new Notice(`Imported roadmap: ${path}`);
+    } catch (error) {
+      new Notice(`Failed to import canvas: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
