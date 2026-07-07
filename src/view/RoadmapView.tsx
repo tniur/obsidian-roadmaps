@@ -261,7 +261,22 @@ export class RoadmapView extends TextFileView {
       return null;
     }
 
-    return { app: this.app, session, commit: () => this.commit() };
+    /* The context captures this session; an async dialog may resolve after the file
+       reloaded into a fresh one. Committing then would drop the dialog's change silently,
+       so a stale commit no-ops with a Notice instead. */
+    return {
+      app: this.app,
+      session,
+      commit: () => {
+        if (session !== this.session) {
+          new Notice("Board was reloaded; that change was not applied.");
+
+          return;
+        }
+
+        this.commit();
+      },
+    };
   }
 
   private editableContext(): BoardContext | null {
