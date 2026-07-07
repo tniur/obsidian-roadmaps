@@ -25,6 +25,7 @@ import { showEdgeContextMenu } from "./menus/edgeMenu";
 import { showNodeContextMenu } from "./menus/nodeMenu";
 import { NodePreviewPanel } from "./NodePreviewPanel";
 import { mountPreviewContent } from "./preview";
+import { RF_VIEWPORT_CLASS } from "./reactFlowInternals";
 import {
   RoadmapCanvas,
   type CanvasBoardActions,
@@ -404,7 +405,7 @@ export class RoadmapView extends TextFileView {
   /** Snapshots visible nodes and edges into a PDF written next to the roadmap file. */
   async exportPdf(): Promise<void> {
     const file = this.file;
-    const viewport = this.contentEl.querySelector<HTMLElement>(".react-flow__viewport");
+    const viewport = this.contentEl.querySelector<HTMLElement>(`.${RF_VIEWPORT_CLASS}`);
     const boardEl = this.contentEl.querySelector<HTMLElement>(".rm-view");
 
     if (this.session === null || this.flow === null || file === null || viewport === null) {

@@ -3,6 +3,7 @@ import type { CSSProperties, MouseEvent as ReactMouseEvent } from "react";
 import { EDGE_INTERACTION_WIDTH } from "../constants";
 import { getEdgeEndpoints } from "./edgeParams";
 import type { RoadmapFlowEdge } from "./flow";
+import { RF_EDGE_CLASS, rfEdgeUpdaterClass } from "./reactFlowInternals";
 
 /**
  * React Flow places its invisible reconnect anchors from handle-based coordinates, so
@@ -10,9 +11,7 @@ import type { RoadmapFlowEdge } from "./flow";
  * The grip rendered at the real endpoint forwards the grab to the actual anchor.
  */
 function forwardToReconnectAnchor(event: ReactMouseEvent<SVGCircleElement>, end: "source" | "target"): void {
-  const anchor = (event.target as Element)
-    .closest(".react-flow__edge")
-    ?.querySelector(`.react-flow__edgeupdater-${end}`);
+  const anchor = (event.target as Element).closest(`.${RF_EDGE_CLASS}`)?.querySelector(`.${rfEdgeUpdaterClass(end)}`);
 
   if (anchor == null) {
     return;

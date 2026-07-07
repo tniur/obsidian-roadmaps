@@ -54,6 +54,7 @@ import {
 } from "./flow";
 import { Icon } from "./Icon";
 import { NodeToolbar } from "./NodeToolbar";
+import { RF_EDGE_CLASS, RF_NODE_CLASS, RF_PANE_CLASS, RF_PANEL_CLASS } from "./reactFlowInternals";
 import { RoadmapNodeView } from "./RoadmapNodeView";
 import { RoadmapToolbar } from "./RoadmapToolbar";
 
@@ -211,6 +212,30 @@ export function RoadmapCanvas({
   } | null>(null);
   const reconnectRef = useRef<{ id: string; end: HandleType } | null>(null);
   const stateRef = useRef(state);
+  const pendingTimersRef = useRef<Set<number>>(new Set());
+
+  /* Gesture callbacks defer a tick to run after React Flow's own event handling; the
+     pending ids are tracked so unmounting mid-gesture cancels them instead of updating a
+     torn-down tree. */
+  const deferOnce = useCallback((fn: () => void): void => {
+    const id = window.setTimeout(() => {
+      pendingTimersRef.current.delete(id);
+      fn();
+    }, 0);
+
+    pendingTimersRef.current.add(id);
+  }, []);
+
+  useEffect(
+    () => () => {
+      for (const id of pendingTimersRef.current) {
+        window.clearTimeout(id);
+      }
+
+      pendingTimersRef.current.clear();
+    },
+    [],
+  );
 
   useEffect(() => {
     stateRef.current = state;
@@ -376,11 +401,11 @@ export function RoadmapCanvas({
         ),
       );
       onReconnectEdge(oldEdge.id, connection);
-      window.setTimeout(() => {
+      deferOnce(() => {
         setEdges((current) => reconcileFlowEdges(current, stateToFlowEdges(stateRef.current)));
-      }, 0);
+      });
     },
-    [onReconnectEdge],
+    [onReconnectEdge, deferOnce],
   );
 
   const onReconnectStart = useCallback((_event: ReactMouseEvent, edge: RoadmapFlowEdge, handleType: HandleType) => {
@@ -391,10 +416,10 @@ export function RoadmapCanvas({
 
   const onReconnectEnd = useCallback(() => {
     /* onConnectEnd needs the ref and may fire after this handler; clear on the next tick. */
-    window.setTimeout(() => {
+    deferOnce(() => {
       reconnectRef.current = null;
-    }, 0);
-  }, []);
+    });
+  }, [deferOnce]);
 
   const nodeAtPoint = useCallback(
     (point: { x: number; y: number }): boolean => getNodes().some((node) => nodeContainsPoint(node, point)),
@@ -483,11 +508,11 @@ export function RoadmapCanvas({
 
     /* Selection drags can emit one more position change after the stop handler; keep
        the freeze interceptor armed until that has passed, then release. */
-    window.setTimeout(() => {
+    deferOnce(() => {
       if (altDragRef.current === alt) {
         altDragRef.current = null;
       }
-    }, 0);
+    });
 
     const all = getNodes();
     const items: { id: string; x: number; y: number }[] = [];
@@ -514,7 +539,7 @@ export function RoadmapCanvas({
     onNodesDuplicate(items);
 
     return true;
-  }, [getNodes, onNodesDuplicate]);
+  }, [getNodes, onNodesDuplicate, deferOnce]);
 
   const onNodeDragStart = useCallback(
     (event: MouseEvent | TouchEvent, _node: RoadmapFlowNode, dragged: RoadmapFlowNode[]) => {
@@ -675,8 +700,8 @@ export function RoadmapCanvas({
       const target = event.target as Element;
 
       if (
-        target.closest(".react-flow__node, .react-flow__edge, .react-flow__panel") !== null ||
-        target.closest(".react-flow__pane") === null
+        target.closest(`.${RF_NODE_CLASS}, .${RF_EDGE_CLASS}, .${RF_PANEL_CLASS}`) !== null ||
+        target.closest(`.${RF_PANE_CLASS}`) === null
       ) {
         return;
       }
