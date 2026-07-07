@@ -1,4 +1,5 @@
 import { CLUSTER_PADDING } from "../constants";
+import { computeAutoLayout } from "../domain/autoLayout";
 import { arrangeClusterGrid, membersBoundingBox } from "../domain/clusterLayout";
 import { asSide, createCluster, createEdge } from "../domain/create";
 import { sourceFile } from "../domain/source";
@@ -365,6 +366,41 @@ export class RoadmapSession {
 
     if (changed) {
       this.commit({ ...this.stateValue, clusters });
+    }
+  }
+
+  /** Tidies the whole board with a left-to-right layered layout; layout only, one history step. */
+  autoLayout(): void {
+    const layout = computeAutoLayout(this.stateValue);
+    const nodes = { ...this.stateValue.nodes };
+    const clusters = { ...this.stateValue.clusters };
+    let changed = false;
+
+    for (const [id, position] of Object.entries(layout.nodePositions)) {
+      const node = nodes[id];
+
+      if (node !== undefined && (node.layout.x !== position.x || node.layout.y !== position.y)) {
+        nodes[id] = { ...node, layout: { ...node.layout, x: position.x, y: position.y } };
+        changed = true;
+      }
+    }
+
+    for (const [id, box] of Object.entries(layout.clusters)) {
+      const cluster = clusters[id];
+      const current = cluster?.layout;
+
+      if (
+        cluster !== undefined &&
+        current !== undefined &&
+        (current.x !== box.x || current.y !== box.y || current.width !== box.width || current.height !== box.height)
+      ) {
+        clusters[id] = { ...cluster, layout: { x: box.x, y: box.y, width: box.width, height: box.height } };
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      this.commit({ ...this.stateValue, nodes, clusters });
     }
   }
 

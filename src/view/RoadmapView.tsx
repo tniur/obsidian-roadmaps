@@ -103,6 +103,7 @@ export class RoadmapView extends TextFileView {
       onUndo: this.undoEdit,
       onRedo: this.redoEdit,
       onToggleLock: this.toggleLock,
+      onAutoLayout: this.autoLayout,
       onExportPdf: this.handleExportPdf,
       onDotsVisibleChange: host.setShowBackgroundDots,
       onViewportChange: this.handleViewportChange,
@@ -411,6 +412,17 @@ export class RoadmapView extends TextFileView {
   fitToNodes(): void {
     void this.flow?.fitView();
   }
+
+  /** Tidies the whole board with a left-to-right layered layout, then frames the result. */
+  readonly autoLayout = (): void => {
+    if (this.session === null || this.locked) {
+      return;
+    }
+
+    this.session.autoLayout();
+    this.commit();
+    void this.flow?.fitView();
+  };
 
   readonly toggleLock = (): void => {
     this.locked = !this.locked;

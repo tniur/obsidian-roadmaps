@@ -164,6 +164,13 @@ export default class RoadmapPlugin extends Plugin {
       (view) => view.fitToNodes(),
     );
     this.addBoardCommand(
+      "auto-layout",
+      "Auto-layout board",
+      "network",
+      (view) => view.isBoardEditable(),
+      (view) => view.autoLayout(),
+    );
+    this.addBoardCommand(
       "toggle-lock",
       "Toggle board lock",
       "lock",
