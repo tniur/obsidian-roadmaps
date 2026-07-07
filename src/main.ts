@@ -32,10 +32,13 @@ type ViewMode = typeof MARKDOWN_VIEW_TYPE | typeof VIEW_TYPE_ROADMAP;
 
 interface RoadmapSettings {
   showBackgroundDots: boolean;
+  /** Folder new roadmaps are created in; empty means the vault root. */
+  newRoadmapFolder: string;
 }
 
 const DEFAULT_SETTINGS: RoadmapSettings = {
   showBackgroundDots: true,
+  newRoadmapFolder: "",
 };
 
 export default class RoadmapPlugin extends Plugin {
@@ -215,6 +218,15 @@ export default class RoadmapPlugin extends Plugin {
     void this.saveSettings();
   }
 
+  getNewRoadmapFolder(): string {
+    return this.displaySettings.newRoadmapFolder;
+  }
+
+  setNewRoadmapFolder(value: string): void {
+    this.displaySettings.newRoadmapFolder = value.replace(/^\/+|\/+$/g, "").trim();
+    void this.saveSettings();
+  }
+
   private createViewHost(): RoadmapViewHost {
     return {
       openAsMarkdown: this.openAsMarkdown,
@@ -342,8 +354,9 @@ export default class RoadmapPlugin extends Plugin {
 
   private async createRoadmap(): Promise<void> {
     try {
-      const path = availableVaultPath(this.app.vault, undefined, "Untitled Roadmap", "md");
-      const title = path.replace(/\.md$/, "");
+      const folder = await this.resolveNewRoadmapFolder();
+      const path = availableVaultPath(this.app.vault, folder, "Untitled Roadmap", "md");
+      const title = path.replace(/\.md$/, "").replace(/^.*\//, "");
       const file = await this.app.vault.create(path, createRoadmapDocument(title));
       const leaf = this.app.workspace.getLeaf(true);
 
@@ -352,6 +365,21 @@ export default class RoadmapPlugin extends Plugin {
     } catch (error) {
       new Notice(`Failed to create roadmap: ${error instanceof Error ? error.message : String(error)}`);
     }
+  }
+
+  /** The configured target folder, created on demand; empty setting keeps roadmaps at the root. */
+  private async resolveNewRoadmapFolder(): Promise<string | undefined> {
+    const folder = this.displaySettings.newRoadmapFolder;
+
+    if (folder === "") {
+      return undefined;
+    }
+
+    if (this.app.vault.getAbstractFileByPath(folder) === null) {
+      await this.app.vault.createFolder(folder);
+    }
+
+    return folder;
   }
 }
 
@@ -372,6 +400,18 @@ class RoadmapSettingTab extends PluginSettingTab {
         toggle.setValue(this.plugin.getShowBackgroundDots()).onChange((value) => {
           this.plugin.setShowBackgroundDots(value);
         }),
+      );
+
+    new Setting(this.containerEl)
+      .setName("Folder for new roadmaps")
+      .setDesc("Where the ribbon and command create new roadmaps. Leave empty for the vault root.")
+      .addText((text) =>
+        text
+          .setPlaceholder("Vault root")
+          .setValue(this.plugin.getNewRoadmapFolder())
+          .onChange((value) => {
+            this.plugin.setNewRoadmapFolder(value);
+          }),
       );
   }
 }
