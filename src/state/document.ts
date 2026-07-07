@@ -13,6 +13,9 @@ const FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/;
 
 const STATE_BLOCK_RE = /%%[ \t]*roadmap:state[ \t]*\r?\n```(?:json)?[ \t]*\r?\n([\s\S]*?)\r?\n```[ \t]*\r?\n[ \t]*%%/;
 
+/** Just the opening marker — matches even when the block's fence/closer is corrupt. */
+const STATE_BLOCK_OPEN_RE = /%%[ \t]*roadmap:state\b/g;
+
 const NODE_BOUNDARY_RE = new RegExp(
   `^<!-- roadmap-node:id=\\S+ type=\\w+${MARKER_ATTRS_SKIP} -->|^## |^%%[ \\t]*roadmap:state`,
   "m",
@@ -122,7 +125,15 @@ export function writeState(content: string, state: RoadmapState): string {
     return content.replace(STATE_BLOCK_RE, () => block);
   }
 
-  return `${content.replace(/\s*$/, "")}\n\n${block}\n`;
+  /* No well-formed block matched. If a bare opening marker lingers (a corrupt or partially
+     written block), appending would leave two `%% roadmap:state` markers, so drop everything
+     from that marker to EOF first — the state block is always the file's final section.
+     The last occurrence is used so an earlier hand-written mention in the body is left alone. */
+  const openers = [...content.matchAll(STATE_BLOCK_OPEN_RE)];
+  const lastOpener = openers.at(-1);
+  const base = lastOpener === undefined ? content : content.slice(0, lastOpener.index);
+
+  return `${base.replace(/\s*$/, "")}\n\n${block}\n`;
 }
 
 function removeRelationsSection(body: string): string {

@@ -50,6 +50,26 @@ describe("roadmap document", () => {
     expect(readState(next)?.nodes[node.id]?.layout.x).toBe(5);
   });
 
+  it("replaces a corrupt state block instead of appending a second one", () => {
+    const corrupt = '---\nroadmap-plugin: board\n---\n\n# Board\n\n%% roadmap:state\n```json\n{"broken": tru\n%%\n';
+    const next = writeState(corrupt, emptyState());
+    const markers = next.match(/%%[ \t]*roadmap:state/g) ?? [];
+
+    expect(markers).toHaveLength(1);
+    expect(readState(next)).not.toBeNull();
+    expect(next).toContain("# Board");
+  });
+
+  it("keeps an earlier hand-written mention, cutting only the corrupt trailing block", () => {
+    const corrupt =
+      "---\nroadmap-plugin: board\n---\n\n# Board\n\nnote about the %% roadmap:state marker\n\n%% roadmap:state\n```json\n{broken\n%%\n";
+    const next = writeState(corrupt, emptyState());
+
+    expect(next).toContain("note about the %% roadmap:state marker");
+    expect(next.match(/```json/g) ?? []).toHaveLength(1);
+    expect(readState(next)).not.toBeNull();
+  });
+
   it("removes a node block, keeping the heading and state block", () => {
     const doc = insertNodeBlock(createRoadmapDocument("My Roadmap"), node);
     const removed = removeNodeBlock(doc, node.id);
