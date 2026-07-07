@@ -1,22 +1,14 @@
-import {
-  Handle,
-  NodeResizeControl,
-  Position,
-  ResizeControlVariant,
-  type NodeProps,
-  type ResizeParams,
-} from "@xyflow/react";
+import { NodeResizeControl, ResizeControlVariant, type NodeProps, type ResizeParams } from "@xyflow/react";
 import type { CSSProperties, MouseEvent } from "react";
 import { MIN_CLUSTER_HEIGHT, MIN_CLUSTER_WIDTH } from "../constants";
 import type { RoadmapClusterNode } from "./flow";
 import { Icon } from "./Icon";
 import { useNodeCallbacks } from "./nodeCallbacks";
+import { NodeHandles } from "./NodeHandles";
 
 /** Resize handles confined to the right/bottom edges keep the cluster origin fixed, so member
  * nodes (positioned relative to it) stay put while the container grows. */
 const RESIZE_EDGES = ["right", "bottom", "bottom-right"] as const;
-
-const HANDLE_SIDES = [Position.Top, Position.Right, Position.Bottom, Position.Left];
 
 export function ClusterNodeView({ id, data, selected, isConnectable }: NodeProps<RoadmapClusterNode>) {
   const cluster = data;
@@ -75,16 +67,7 @@ export function ClusterNodeView({ id, data, selected, isConnectable }: NodeProps
             />
           ))
         : null}
-      {HANDLE_SIDES.map((side) => (
-        <Handle
-          key={side}
-          id={side}
-          type="source"
-          position={side}
-          className="rm-handle"
-          isConnectable={isConnectable}
-        />
-      ))}
+      <NodeHandles isConnectable={isConnectable} />
     </>
   );
 }

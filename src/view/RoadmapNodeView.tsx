@@ -1,12 +1,11 @@
-import { Handle, NodeResizer, Position, type NodeProps } from "@xyflow/react";
+import { NodeResizer, type NodeProps } from "@xyflow/react";
 import type { CSSProperties } from "react";
 import { MIN_NODE_HEIGHT, MIN_NODE_WIDTH } from "../constants";
 import type { RoadmapCardNode } from "./flow";
 import { Icon } from "./Icon";
 import { useNodeCallbacks } from "./nodeCallbacks";
+import { NodeHandles } from "./NodeHandles";
 import { getNodeRenderer } from "./nodeRegistry";
-
-const HANDLE_SIDES = [Position.Top, Position.Right, Position.Bottom, Position.Left];
 
 export function RoadmapNodeView({ id, data, selected, isConnectable }: NodeProps<RoadmapCardNode>) {
   const node = data;
@@ -41,16 +40,7 @@ export function RoadmapNodeView({ id, data, selected, isConnectable }: NodeProps
           callbacks?.onResizeEnd(id, params.width, params.height, params.x, params.y);
         }}
       />
-      {HANDLE_SIDES.map((side) => (
-        <Handle
-          key={side}
-          id={side}
-          type="source"
-          position={side}
-          className="rm-handle"
-          isConnectable={isConnectable}
-        />
-      ))}
+      <NodeHandles isConnectable={isConnectable} />
     </>
   );
 }
