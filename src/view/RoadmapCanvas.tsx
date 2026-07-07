@@ -39,6 +39,7 @@ import {
   nodeContainsPoint,
   nodeSize,
   normalizeClusterSelection,
+  pointOverVisibleNode,
   reconcileFlowEdges,
   reconcileFlowNodes,
   ROADMAP_CLUSTER_TYPE,
@@ -114,6 +115,7 @@ export interface CanvasBoardActions {
   onUndo: () => void;
   onRedo: () => void;
   onToggleLock: () => void;
+  onAutoLayout: () => void;
   onExportPdf: () => void;
   onDotsVisibleChange: (value: boolean) => void;
   onViewportChange: (viewport: RoadmapViewport) => void;
@@ -183,6 +185,7 @@ export function RoadmapCanvas({
     onUndo,
     onRedo,
     onToggleLock,
+    onAutoLayout,
     onExportPdf,
     onDotsVisibleChange,
     onViewportChange,
@@ -422,7 +425,7 @@ export function RoadmapCanvas({
   }, [deferOnce]);
 
   const nodeAtPoint = useCallback(
-    (point: { x: number; y: number }): boolean => getNodes().some((node) => nodeContainsPoint(node, point)),
+    (point: { x: number; y: number }): boolean => pointOverVisibleNode(getNodes(), point),
     [getNodes],
   );
 
@@ -821,6 +824,7 @@ export function RoadmapCanvas({
             canRedo={canRedo}
             onUndo={onUndo}
             onRedo={onRedo}
+            onAutoLayout={onAutoLayout}
             onExportPdf={onExportPdf}
           />
         </ReactFlow>

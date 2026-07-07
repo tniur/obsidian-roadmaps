@@ -3,8 +3,10 @@ import { createNoteNode } from "../src/domain/create";
 import { createRoadmapDocument, readState } from "../src/state/document";
 import { RoadmapSession } from "../src/state/session";
 import {
+  absoluteNodePosition,
   isCardNode,
   normalizeClusterSelection,
+  pointOverVisibleNode,
   reconcileFlowEdges,
   reconcileFlowNodes,
   stateToFlowEdges,
@@ -49,6 +51,36 @@ describe("cluster selection normalization", () => {
     const flow = stateToFlowNodes(session.state).map((node) => ({ ...node, selected: true }));
 
     expect(normalizeClusterSelection(flow)).toBe(flow);
+  });
+});
+
+describe("visible-node hit test", () => {
+  it("ignores hidden collapsed members, still detecting visible nodes", () => {
+    const { session, ids } = sessionWithNodes();
+    const flow = stateToFlowNodes(session.state).map((node) => (node.id === ids[0] ? { ...node, hidden: true } : node));
+
+    expect(pointOverVisibleNode(flow, { x: 10, y: 10 })).toBe(false);
+    expect(pointOverVisibleNode(flow, { x: 310, y: 10 })).toBe(true);
+  });
+
+  it("tests cluster members at their absolute position, not the cluster-relative one", () => {
+    const { session, ids } = sessionWithNodes();
+
+    session.createClusterFromNodes([ids[0]], "Group");
+    const clusterId = Object.keys(session.state.clusters)[0];
+
+    session.moveClusters([{ id: clusterId, x: 500, y: 500 }]);
+    const flow = stateToFlowNodes(session.state);
+    const member = flow.find((node) => node.id === ids[0]);
+
+    if (member === undefined) {
+      throw new Error("expected the clustered member in the flow list");
+    }
+
+    const absolute = absoluteNodePosition(member, flow);
+
+    expect(pointOverVisibleNode(flow, { x: absolute.x + 5, y: absolute.y + 5 })).toBe(true);
+    expect(pointOverVisibleNode(flow, { x: member.position.x + 5, y: member.position.y + 5 })).toBe(false);
   });
 });
 

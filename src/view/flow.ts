@@ -125,6 +125,18 @@ export function absoluteNodePosition(node: RoadmapFlowNode, all: readonly Roadma
   return { x: (parent?.position.x ?? 0) + node.position.x, y: (parent?.position.y ?? 0) + node.position.y };
 }
 
+/**
+ * Whether a visible node covers the point (absolute flow coords). Hidden collapsed members
+ * are ignored, so "connect to empty" still opens over their invisible area; members are
+ * tested at their absolute position, not their cluster-relative one.
+ */
+export function pointOverVisibleNode(nodes: readonly RoadmapFlowNode[], point: { x: number; y: number }): boolean {
+  return nodes.some(
+    (node) =>
+      node.hidden !== true && nodeContainsPoint({ ...node, position: absoluteNodePosition(node, nodes) }, point),
+  );
+}
+
 export type NodeMissingPredicate = (node: RoadmapNode) => boolean;
 
 export type NodeImageResolver = (node: RoadmapNode) => string | null;
