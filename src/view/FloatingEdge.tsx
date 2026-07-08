@@ -92,6 +92,11 @@ export function FloatingEdge(props: EdgeProps<RoadmapFlowEdge>) {
   const direction = data?.direction ?? "forward";
   const line = data?.line;
   const label = data?.label;
+  const color = data?.color;
+  /* Retargets the edge tokens so the line and arrows inherit the custom color; the
+     selected/updating rules set stroke directly and still win, keeping those affordances. */
+  const colorVars: CSSProperties | undefined =
+    color === undefined ? undefined : ({ "--rm-edge-color": color, "--rm-edge-hover": color } as CSSProperties);
   const edgeStyle: CSSProperties =
     line === "dotted"
       ? {
@@ -105,7 +110,7 @@ export function FloatingEdge(props: EdgeProps<RoadmapFlowEdge>) {
         : (style ?? {});
 
   return (
-    <>
+    <g style={colorVars}>
       <BaseEdge id={id} path={path} style={edgeStyle} interactionWidth={EDGE_INTERACTION_WIDTH} />
       {direction === "forward" || direction === "both" ? (
         <path className="rm-edge-arrow" d={arrowPath(tx, ty, inwardDirection(targetPos))} />
@@ -147,6 +152,6 @@ export function FloatingEdge(props: EdgeProps<RoadmapFlowEdge>) {
           </div>
         </EdgeLabelRenderer>
       ) : null}
-    </>
+    </g>
   );
 }

@@ -43,6 +43,7 @@ export type RoadmapClusterData = {
 export type RoadmapEdgeData = {
   direction: EdgeDirection;
   line?: EdgeLine;
+  color?: string;
   fromSide?: EdgeSide;
   toSide?: EdgeSide;
   label?: string;
@@ -226,6 +227,7 @@ const CLUSTER_DATA_KEYS = Object.keys({
 const EDGE_DATA_KEYS = Object.keys({
   direction: true,
   line: true,
+  color: true,
   fromSide: true,
   toSide: true,
   label: true,
@@ -320,6 +322,7 @@ export function stateToFlowEdges(state: RoadmapState): RoadmapFlowEdge[] {
     data: {
       direction: edge.direction,
       line: edge.style?.line,
+      color: edge.style?.color,
       fromSide: edge.fromSide,
       toSide: edge.toSide,
       label: edge.label,

@@ -3,7 +3,7 @@ import { facingSide } from "../../domain/edges";
 import type { EdgeDirection, EdgeLine, EdgeSide, RoadmapEdge } from "../../domain/types";
 import type { BoardContext } from "../boardContext";
 import { promptEdgeLabel } from "../dialogs";
-import { addCheckedGroup, type MenuOption } from "./helpers";
+import { addCheckedGroup, COLOR_OPTIONS, withNone, type MenuOption } from "./helpers";
 
 const LINE_OPTIONS: MenuOption<EdgeLine | "solid">[] = [
   { title: "Solid line", value: "solid" },
@@ -47,6 +47,11 @@ export function showEdgeContextMenu(ctx: BoardContext, edge: RoadmapEdge, event:
 
   addCheckedGroup(menu, LINE_OPTIONS, edge.style?.line ?? "solid", (line) => {
     ctx.session.updateEdge(id, { line });
+    ctx.commit();
+  });
+  menu.addSeparator();
+  addCheckedGroup(menu, withNone("No color", COLOR_OPTIONS), edge.style?.color ?? null, (color) => {
+    ctx.session.updateEdge(id, { color });
     ctx.commit();
   });
   menu.addSeparator();

@@ -386,6 +386,28 @@ describe("roadmap session", () => {
     expect(session.content).not.toContain("depends on");
   });
 
+  it("sets and clears an edge color in state and the relations marker", () => {
+    const session = newSession();
+    const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
+    const b = createNoteNode("notes/b.md", { x: 0, y: 0 });
+
+    session.addNode(a);
+    session.addNode(b);
+    session.addEdge(a.id, b.id);
+    const edgeId = Object.keys(session.state.edges)[0];
+
+    session.updateEdge(edgeId, { color: "var(--color-green)" });
+
+    expect(session.state.edges[edgeId]?.style?.color).toBe("var(--color-green)");
+    expect(readState(session.content)?.edges[edgeId]?.style?.color).toBe("var(--color-green)");
+    expect(session.content).toContain("color=var(--color-green)");
+
+    session.updateEdge(edgeId, { color: null });
+
+    expect(session.state.edges[edgeId]?.style?.color).toBeUndefined();
+    expect(session.content).not.toContain("color=var(--color-green)");
+  });
+
   it("adds a node and a connecting edge atomically, with a floating target by default", () => {
     const session = newSession();
     const a = createNoteNode("notes/a.md", { x: 0, y: 0 });

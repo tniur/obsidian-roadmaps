@@ -9,7 +9,7 @@ import {
   type RoadmapEndpoint,
   type RoadmapState,
 } from "../domain/types";
-import { attrIn, MARKER_ATTRS_PATTERN, parseMarkerAttrs, renderMarkerAttrs } from "./markerAttrs";
+import { attrColor, attrIn, MARKER_ATTRS_PATTERN, parseMarkerAttrs, renderMarkerAttrs } from "./markerAttrs";
 import { encodeMarkdownUrl, sanitizeAlias, sanitizeInline } from "./sanitize";
 
 const RELATIONS_HEADING = "## Relations";
@@ -64,6 +64,7 @@ export function renderRelationsSection(state: RoadmapState): string | null {
       ["line", edge.style?.line],
       ["from", edge.fromSide],
       ["to", edge.toSide],
+      ["color", edge.style?.color],
     ]);
 
     lines.push(`- ${from} ${arrow} ${to}${label} <!-- roadmap-edge:id=${edge.id}${attrs} -->`);
@@ -92,6 +93,7 @@ export interface ParsedRelationLine {
   direction: EdgeDirection;
   label?: string;
   line?: EdgeLine;
+  color?: string;
   fromSide?: EdgeSide;
   toSide?: EdgeSide;
 }
@@ -150,10 +152,12 @@ export function parseRelationsLine(line: string): ParsedRelationLine | null {
 
   const attrs = parseMarkerAttrs(match[5]);
   const lineStyle = attrIn(EDGE_LINES, attrs.line);
+  const color = attrColor(attrs.color);
   const fromSide = attrIn(EDGE_SIDES, attrs.from);
   const toSide = attrIn(EDGE_SIDES, attrs.to);
 
   if (lineStyle !== undefined) result.line = lineStyle;
+  if (color !== undefined) result.color = color;
   if (fromSide !== undefined) result.fromSide = fromSide;
   if (toSide !== undefined) result.toSide = toSide;
 

@@ -806,7 +806,10 @@ export class RoadmapSession {
     this.deleteSelection(nodeIds, edgeIds, [], "keep-nodes");
   }
 
-  updateEdge(id: string, patch: { direction?: EdgeDirection; line?: EdgeLine | "solid"; label?: string }): void {
+  updateEdge(
+    id: string,
+    patch: { direction?: EdgeDirection; line?: EdgeLine | "solid"; label?: string; color?: string | null },
+  ): void {
     const edge = this.stateValue.edges[id];
 
     if (edge === undefined) {
@@ -825,14 +828,26 @@ export class RoadmapSession {
       setOptional(next, "label", label.length === 0 ? undefined : label);
     }
 
-    if (patch.line !== undefined) {
+    if (patch.line !== undefined || patch.color !== undefined) {
       const style = { ...edge.style };
 
-      setOptional(style, "line", patch.line === "solid" ? undefined : patch.line);
+      if (patch.line !== undefined) {
+        setOptional(style, "line", patch.line === "solid" ? undefined : patch.line);
+      }
+
+      if (patch.color !== undefined) {
+        setOptional(style, "color", patch.color === null || patch.color.length === 0 ? undefined : patch.color);
+      }
+
       next.style = Object.keys(style).length > 0 ? style : undefined;
     }
 
-    if (next.direction === edge.direction && next.label === edge.label && next.style?.line === edge.style?.line) {
+    if (
+      next.direction === edge.direction &&
+      next.label === edge.label &&
+      next.style?.line === edge.style?.line &&
+      next.style?.color === edge.style?.color
+    ) {
       return;
     }
 
