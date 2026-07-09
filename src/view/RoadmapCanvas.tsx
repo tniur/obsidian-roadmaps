@@ -4,6 +4,7 @@ import {
   Background,
   BackgroundVariant,
   ConnectionMode,
+  MiniMap,
   ReactFlow,
   SelectionMode,
   useReactFlow,
@@ -75,6 +76,9 @@ const DOUBLE_CLICK_ZOOM_FACTOR = 2;
 
 const DOUBLE_CLICK_ZOOM_DURATION = 200;
 
+/** Board-unit corner radius for mini-map node rects; scales down with the map. */
+const MINIMAP_NODE_RADIUS = 8;
+
 function clientPoint(event: MouseEvent | TouchEvent): { x: number; y: number } | null {
   if ("clientX" in event) {
     return { x: event.clientX, y: event.clientY };
@@ -117,6 +121,7 @@ export interface CanvasBoardActions {
   onAutoLayout: () => void;
   onExportPdf: () => void;
   onDotsVisibleChange: (value: boolean) => void;
+  onMiniMapVisibleChange: (value: boolean) => void;
   onViewportChange: (viewport: RoadmapViewport) => void;
   onFlowInit: (instance: RoadmapFlowInstance | null) => void;
   onAddAction: (id: AddNodeActionId, placement: NodePlacement) => void;
@@ -135,6 +140,7 @@ interface RoadmapCanvasProps {
   canUndo: boolean;
   canRedo: boolean;
   initialDotsVisible: boolean;
+  initialMiniMapVisible: boolean;
   /** Bumping `focusNonce` re-selects exactly `focusIds` (paste and duplicate flows). */
   focusIds: string[];
   focusNonce: number;
@@ -152,6 +158,7 @@ export function RoadmapCanvas({
   canUndo,
   canRedo,
   initialDotsVisible,
+  initialMiniMapVisible,
   focusIds,
   focusNonce,
   isNodeMissing,
@@ -187,6 +194,7 @@ export function RoadmapCanvas({
     onAutoLayout,
     onExportPdf,
     onDotsVisibleChange,
+    onMiniMapVisibleChange,
     onViewportChange,
     onFlowInit,
     onAddAction,
@@ -201,6 +209,7 @@ export function RoadmapCanvas({
   const maxZoom = useStore((store) => store.maxZoom);
   const flowId = useId();
   const [dotsVisible, setDotsVisible] = useState(initialDotsVisible);
+  const [miniMapVisible, setMiniMapVisible] = useState(initialMiniMapVisible);
   const initialViewportRef = useRef(state.viewport);
   const [nodes, setNodes] = useState<RoadmapFlowNode[]>(() => stateToFlowNodes(state, isNodeMissing, resolveImageSrc));
   const [edges, setEdges] = useState<RoadmapFlowEdge[]>(() => stateToFlowEdges(state));
@@ -746,6 +755,18 @@ export function RoadmapCanvas({
     onDotsVisibleChange(next);
   }, [dotsVisible, onDotsVisibleChange]);
 
+  const toggleMiniMap = useCallback(() => {
+    const next = !miniMapVisible;
+
+    setMiniMapVisible(next);
+    onMiniMapVisibleChange(next);
+  }, [miniMapVisible, onMiniMapVisibleChange]);
+
+  const miniMapNodeColor = useCallback(
+    (node: RoadmapFlowNode): string => node.data.color ?? "var(--rm-minimap-node)",
+    [],
+  );
+
   const onMoveEnd = useCallback(
     (_event: MouseEvent | TouchEvent | null, viewport: RoadmapViewport) => {
       onViewportChange(viewport);
@@ -810,11 +831,25 @@ export function RoadmapCanvas({
           fitView={initialViewportRef.current === undefined}
         >
           {dotsVisible ? <Background variant={BackgroundVariant.Dots} /> : null}
+          {miniMapVisible ? (
+            <MiniMap
+              className="rm-minimap"
+              position="bottom-right"
+              ariaLabel="Mini-map"
+              pannable
+              zoomable
+              nodeColor={miniMapNodeColor}
+              nodeBorderRadius={MINIMAP_NODE_RADIUS}
+              maskColor="var(--rm-minimap-mask)"
+            />
+          ) : null}
           <HelperLines horizontal={helperLines.horizontal} vertical={helperLines.vertical} />
           {!locked ? <NodeToolbar onAction={onAddAction} /> : null}
           <RoadmapToolbar
             dotsVisible={dotsVisible}
             onToggleDots={toggleDots}
+            miniMapVisible={miniMapVisible}
+            onToggleMiniMap={toggleMiniMap}
             locked={locked}
             onToggleLock={onToggleLock}
             canUndo={canUndo}

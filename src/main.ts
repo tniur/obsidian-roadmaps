@@ -39,12 +39,14 @@ type ViewMode = typeof MARKDOWN_VIEW_TYPE | typeof VIEW_TYPE_ROADMAP;
 
 interface RoadmapSettings {
   showBackgroundDots: boolean;
+  showMiniMap: boolean;
   /** Folder new roadmaps are created in; empty means the vault root. */
   newRoadmapFolder: string;
 }
 
 const DEFAULT_SETTINGS: RoadmapSettings = {
   showBackgroundDots: true,
+  showMiniMap: true,
   newRoadmapFolder: "",
 };
 
@@ -268,6 +270,15 @@ export default class RoadmapPlugin extends Plugin {
     void this.saveSettings();
   }
 
+  getShowMiniMap(): boolean {
+    return this.displaySettings.showMiniMap;
+  }
+
+  setShowMiniMap(value: boolean): void {
+    this.displaySettings.showMiniMap = value;
+    void this.saveSettings();
+  }
+
   getNewRoadmapFolder(): string {
     return this.displaySettings.newRoadmapFolder;
   }
@@ -283,6 +294,10 @@ export default class RoadmapPlugin extends Plugin {
       getShowBackgroundDots: () => this.getShowBackgroundDots(),
       setShowBackgroundDots: (value) => {
         this.setShowBackgroundDots(value);
+      },
+      getShowMiniMap: () => this.getShowMiniMap(),
+      setShowMiniMap: (value) => {
+        this.setShowMiniMap(value);
       },
     };
   }
@@ -481,6 +496,15 @@ class RoadmapSettingTab extends PluginSettingTab {
       .addToggle((toggle) =>
         toggle.setValue(this.plugin.getShowBackgroundDots()).onChange((value) => {
           this.plugin.setShowBackgroundDots(value);
+        }),
+      );
+
+    new Setting(this.containerEl)
+      .setName("Show mini-map")
+      .setDesc("Draw the mini-map overview on roadmap boards. Newly opened boards pick up the change.")
+      .addToggle((toggle) =>
+        toggle.setValue(this.plugin.getShowMiniMap()).onChange((value) => {
+          this.plugin.setShowMiniMap(value);
         }),
       );
 

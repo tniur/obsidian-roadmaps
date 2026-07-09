@@ -5,6 +5,8 @@ import { ToolbarButton } from "./ToolbarButton";
 interface RoadmapToolbarProps {
   dotsVisible: boolean;
   onToggleDots: () => void;
+  miniMapVisible: boolean;
+  onToggleMiniMap: () => void;
   locked: boolean;
   onToggleLock: () => void;
   canUndo: boolean;
@@ -18,6 +20,8 @@ interface RoadmapToolbarProps {
 export function RoadmapToolbar({
   dotsVisible,
   onToggleDots,
+  miniMapVisible,
+  onToggleMiniMap,
   locked,
   onToggleLock,
   canUndo,
@@ -50,6 +54,7 @@ export function RoadmapToolbar({
         pressed={dotsVisible}
         onClick={onToggleDots}
       />
+      <ToolbarButton icon="map" label="Toggle mini-map" pressed={miniMapVisible} onClick={onToggleMiniMap} />
     </Panel>
   );
 }

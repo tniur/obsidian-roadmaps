@@ -39,6 +39,8 @@ export interface RoadmapViewHost {
   openAsMarkdown: (leaf: WorkspaceLeaf, file: TFile) => void;
   getShowBackgroundDots: () => boolean;
   setShowBackgroundDots: (value: boolean) => void;
+  getShowMiniMap: () => boolean;
+  setShowMiniMap: (value: boolean) => void;
 }
 
 /** Offset applied per element when pasting or dropping several at once, so copies fan out. */
@@ -107,6 +109,7 @@ export class RoadmapView extends TextFileView {
       onAutoLayout: this.autoLayout,
       onExportPdf: this.handleExportPdf,
       onDotsVisibleChange: host.setShowBackgroundDots,
+      onMiniMapVisibleChange: host.setShowMiniMap,
       onViewportChange: this.handleViewportChange,
       onFlowInit: this.handleFlowInit,
       onAddAction: this.runAddActionAt,
@@ -1029,6 +1032,7 @@ export class RoadmapView extends TextFileView {
               canUndo={this.canUndoEdit()}
               canRedo={this.canRedoEdit()}
               initialDotsVisible={this.host.getShowBackgroundDots()}
+              initialMiniMapVisible={this.host.getShowMiniMap()}
               focusIds={this.focusIds}
               focusNonce={this.focusNonce}
               isNodeMissing={this.isNodeMissing}

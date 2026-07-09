@@ -94,6 +94,12 @@
   --rm-panel-pad: var(--rm-space-1);
   --rm-preview-width: 360px;
 
+  /* mini-map */
+  --rm-minimap-width: 200px;
+  --rm-minimap-height: 140px;
+  --rm-minimap-node: color-mix(in srgb, var(--rm-text-faint) 50%, transparent);
+  --rm-minimap-mask: color-mix(in srgb, var(--rm-surface) 68%, transparent);
+
   /* status / priority */
   --rm-status-draft: var(--text-muted);
   --rm-status-in-progress: var(--color-yellow);
@@ -303,6 +309,24 @@
 .rm-toolbar__button[aria-pressed="true"] {
   color: var(--rm-accent);
   background: var(--rm-accent-tint);
+}
+
+/* Sits in the bottom-right corner, shifted left to clear the vertical toolbar column. */
+.rm-canvas .react-flow__panel.react-flow__minimap.rm-minimap {
+  width: var(--rm-minimap-width);
+  height: var(--rm-minimap-height);
+  margin: 0;
+  right: calc(var(--rm-control-size) + var(--rm-space-4) + var(--rm-space-2));
+  bottom: var(--rm-space-3);
+  background: var(--rm-panel-bg);
+  border: var(--rm-border-width) solid var(--rm-border);
+  border-radius: var(--rm-panel-radius);
+  box-shadow: var(--rm-panel-shadow);
+  overflow: hidden;
+}
+
+.rm-canvas .react-flow__minimap-node {
+  stroke: none;
 }
 
 .rm-icon {
