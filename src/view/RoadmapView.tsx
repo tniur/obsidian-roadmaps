@@ -825,28 +825,16 @@ export class RoadmapView extends TextFileView {
     );
   };
 
-  /** Dropping an existing edge end on empty canvas re-targets it at a freshly created node. */
-  private readonly handleReconnectToEmpty = (
-    edgeId: string,
-    end: "source" | "target",
-    placement: NodePlacement,
-    event: MouseEvent,
-  ): void => {
+  /** Dropping an existing edge end on empty canvas breaks the edge. */
+  private readonly handleReconnectToEmpty = (edgeId: string): void => {
     const ctx = this.editableContext();
 
     if (ctx === null) {
       return;
     }
 
-    this.showAddMenuWithSink(
-      ctx,
-      (node) => {
-        ctx.session.addNodeAndReconnectEdge(node, edgeId, end === "source" ? "from" : "to");
-        ctx.commit();
-      },
-      placement,
-      event,
-    );
+    ctx.session.deleteElements([], [edgeId]);
+    ctx.commit();
   };
 
   /** A selection containing clusters asks how to treat their nodes before deleting. */

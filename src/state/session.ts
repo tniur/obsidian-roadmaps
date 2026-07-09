@@ -952,38 +952,6 @@ export class RoadmapSession {
   }
 
   /**
-   * Inserts a freshly created node and re-points one end of an existing edge to it in a
-   * single history step: dropping an edge end on empty canvas creates the target instead
-   * of leaving the old edge behind. The dragged end starts floating; the other end,
-   * direction, label and style are preserved.
-   */
-  addNodeAndReconnectEdge(node: RoadmapNode, edgeId: string, end: "from" | "to"): void {
-    const edge = this.stateValue.edges[edgeId];
-
-    if (edge === undefined) {
-      return;
-    }
-
-    const next: RoadmapEdge = { ...edge };
-
-    if (end === "from") {
-      next.from = { type: "node", id: node.id };
-    } else {
-      next.to = { type: "node", id: node.id };
-    }
-
-    setOptional(next, end === "from" ? "fromSide" : "toSide", undefined);
-    this.commit(
-      {
-        ...this.stateValue,
-        nodes: { ...this.stateValue.nodes, [node.id]: node },
-        edges: { ...this.stateValue.edges, [edgeId]: next },
-      },
-      { body: (content) => insertNodeBlock(content, node), relations: true },
-    );
-  }
-
-  /**
    * Re-points one or both ends of an edge to the given connection, keeping direction, label and
    * style. Both endpoints are rebuilt from the connection, so the untouched end stays as it was;
    * a null handle means that end floats. No-ops on a self-loop, a forbidden intra-cluster link,

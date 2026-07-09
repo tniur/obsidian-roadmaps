@@ -12,7 +12,6 @@ import {
   type Connection,
   type EdgeChange,
   type FinalConnectionState,
-  type HandleType,
   type NodeChange,
 } from "@xyflow/react";
 import {
@@ -102,7 +101,7 @@ export interface CanvasEdgeActions {
   onConnect: (source: string, target: string, sourceHandle: string | null, targetHandle: string | null) => void;
   onReconnect: (id: string, connection: Connection) => void;
   onConnectToEmpty: (source: string, sourceHandle: string | null, placement: NodePlacement, event: MouseEvent) => void;
-  onReconnectToEmpty: (edgeId: string, end: HandleType, placement: NodePlacement, event: MouseEvent) => void;
+  onReconnectToEmpty: (edgeId: string) => void;
   onContextMenu: (id: string, event: MouseEvent) => void;
 }
 
@@ -213,7 +212,7 @@ export function RoadmapCanvas({
     frozen: Map<string, { x: number; y: number }>;
     finalized: boolean;
   } | null>(null);
-  const reconnectRef = useRef<{ id: string; end: HandleType } | null>(null);
+  const reconnectRef = useRef<string | null>(null);
   const stateRef = useRef(state);
   const pendingTimersRef = useRef<Set<number>>(new Set());
 
@@ -411,10 +410,8 @@ export function RoadmapCanvas({
     [onReconnectEdge, deferOnce],
   );
 
-  const onReconnectStart = useCallback((_event: ReactMouseEvent, edge: RoadmapFlowEdge, handleType: HandleType) => {
-    /* React Flow reports the FIXED end here (the temporary connection is drawn from it);
-       the user is dragging the opposite one. */
-    reconnectRef.current = { id: edge.id, end: handleType === "source" ? "target" : "source" };
+  const onReconnectStart = useCallback((_event: ReactMouseEvent, edge: RoadmapFlowEdge) => {
+    reconnectRef.current = edge.id;
   }, []);
 
   const onReconnectEnd = useCallback(() => {
@@ -444,10 +441,10 @@ export function RoadmapCanvas({
         return;
       }
 
-      const reconnecting = reconnectRef.current;
+      const reconnectingEdgeId = reconnectRef.current;
 
-      if (reconnecting !== null) {
-        onReconnectToEmpty(reconnecting.id, reconnecting.end, point, event as MouseEvent);
+      if (reconnectingEdgeId !== null) {
+        onReconnectToEmpty(reconnectingEdgeId);
 
         return;
       }
