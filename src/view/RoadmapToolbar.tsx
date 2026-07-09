@@ -7,6 +7,8 @@ interface RoadmapToolbarProps {
   onToggleDots: () => void;
   miniMapVisible: boolean;
   onToggleMiniMap: () => void;
+  searchOpen: boolean;
+  onToggleSearch: () => void;
   locked: boolean;
   onToggleLock: () => void;
   canUndo: boolean;
@@ -22,6 +24,8 @@ export function RoadmapToolbar({
   onToggleDots,
   miniMapVisible,
   onToggleMiniMap,
+  searchOpen,
+  onToggleSearch,
   locked,
   onToggleLock,
   canUndo,
@@ -35,6 +39,7 @@ export function RoadmapToolbar({
 
   return (
     <Panel position="bottom-right" className="rm-panel rm-toolbar">
+      <ToolbarButton icon="search" label="Search nodes" pressed={searchOpen} onClick={onToggleSearch} />
       <ToolbarButton icon="undo-2" label="Undo" disabled={!canUndo} onClick={onUndo} />
       <ToolbarButton icon="redo-2" label="Redo" disabled={!canRedo} onClick={onRedo} />
       <ToolbarButton icon="frame" label="Fit to nodes" onClick={() => void fitView()} />

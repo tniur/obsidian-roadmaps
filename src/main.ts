@@ -193,6 +193,13 @@ export default class RoadmapPlugin extends Plugin {
       (view) => view.redoEdit(),
     );
     this.addBoardCommand(
+      "search-nodes",
+      "Search nodes",
+      "search",
+      (view) => view.isBoardLoaded(),
+      (view) => view.openSearch(),
+    );
+    this.addBoardCommand(
       "fit-view",
       "Fit to nodes",
       "frame",

@@ -54,6 +54,7 @@ import {
   type RoadmapFlowNode,
 } from "./flow";
 import { Icon } from "./Icon";
+import { NodeSearchPanel } from "./NodeSearchPanel";
 import { NodeToolbar } from "./NodeToolbar";
 import { RF_EDGE_CLASS, RF_NODE_CLASS, RF_PANE_CLASS, RF_PANEL_CLASS } from "./reactFlowInternals";
 import { RoadmapNodeView } from "./RoadmapNodeView";
@@ -78,6 +79,12 @@ const DOUBLE_CLICK_ZOOM_DURATION = 200;
 
 /** Board-unit corner radius for mini-map node rects; scales down with the map. */
 const MINIMAP_NODE_RADIUS = 8;
+
+const SEARCH_CENTER_DURATION = 300;
+
+/** Gentle focus zoom when jumping to a match: pulls a zoomed-out board in this far, but
+ * never zooms out, so stepping through results does not creep the zoom level. */
+const SEARCH_FOCUS_ZOOM = 1.2;
 
 function clientPoint(event: MouseEvent | TouchEvent): { x: number; y: number } | null {
   if ("clientX" in event) {
@@ -141,6 +148,8 @@ interface RoadmapCanvasProps {
   canRedo: boolean;
   initialDotsVisible: boolean;
   initialMiniMapVisible: boolean;
+  /** Bumping `openSearchNonce` opens the find bar (palette command entry point). */
+  openSearchNonce: number;
   /** Bumping `focusNonce` re-selects exactly `focusIds` (paste and duplicate flows). */
   focusIds: string[];
   focusNonce: number;
@@ -159,6 +168,7 @@ export function RoadmapCanvas({
   canRedo,
   initialDotsVisible,
   initialMiniMapVisible,
+  openSearchNonce,
   focusIds,
   focusNonce,
   isNodeMissing,
@@ -203,13 +213,14 @@ export function RoadmapCanvas({
     onDeleteElements,
   } = boardActions;
   const reactFlow = useReactFlow<RoadmapFlowNode, RoadmapFlowEdge>();
-  const { screenToFlowPosition, getNodes, getViewport, setViewport } = reactFlow;
+  const { screenToFlowPosition, getNodes, getViewport, setViewport, setCenter } = reactFlow;
   const storeApi = useStoreApi<RoadmapFlowNode, RoadmapFlowEdge>();
   const minZoom = useStore((store) => store.minZoom);
   const maxZoom = useStore((store) => store.maxZoom);
   const flowId = useId();
   const [dotsVisible, setDotsVisible] = useState(initialDotsVisible);
   const [miniMapVisible, setMiniMapVisible] = useState(initialMiniMapVisible);
+  const [searchOpen, setSearchOpen] = useState(false);
   const initialViewportRef = useRef(state.viewport);
   const [nodes, setNodes] = useState<RoadmapFlowNode[]>(() => stateToFlowNodes(state, isNodeMissing, resolveImageSrc));
   const [edges, setEdges] = useState<RoadmapFlowEdge[]>(() => stateToFlowEdges(state));
@@ -762,6 +773,37 @@ export function RoadmapCanvas({
     onMiniMapVisibleChange(next);
   }, [miniMapVisible, onMiniMapVisibleChange]);
 
+  const toggleSearch = useCallback(() => setSearchOpen((open) => !open), []);
+
+  useEffect(() => {
+    if (openSearchNonce > 0) {
+      setSearchOpen(true);
+    }
+  }, [openSearchNonce]);
+
+  /** Selects exactly the matched node and pans the camera to it, keeping the current zoom. */
+  const focusMatch = useCallback(
+    (id: string) => {
+      const all = getNodes();
+      const node = all.find((candidate) => candidate.id === id);
+
+      if (node === undefined) {
+        return;
+      }
+
+      const { x, y } = absoluteNodePosition(node, all);
+      const { width, height } = nodeSize(node);
+      const store = storeApi.getState();
+
+      store.unselectNodesAndEdges();
+      store.addSelectedNodes([id]);
+      const zoom = Math.min(maxZoom, Math.max(getViewport().zoom, SEARCH_FOCUS_ZOOM));
+
+      void setCenter(x + width / 2, y + height / 2, { zoom, duration: SEARCH_CENTER_DURATION });
+    },
+    [getNodes, storeApi, setCenter, getViewport, maxZoom],
+  );
+
   const miniMapNodeColor = useCallback(
     (node: RoadmapFlowNode): string => node.data.color ?? "var(--rm-minimap-node)",
     [],
@@ -845,11 +887,16 @@ export function RoadmapCanvas({
           ) : null}
           <HelperLines horizontal={helperLines.horizontal} vertical={helperLines.vertical} />
           {!locked ? <NodeToolbar onAction={onAddAction} /> : null}
+          {searchOpen ? (
+            <NodeSearchPanel state={state} onActivate={focusMatch} onClose={() => setSearchOpen(false)} />
+          ) : null}
           <RoadmapToolbar
             dotsVisible={dotsVisible}
             onToggleDots={toggleDots}
             miniMapVisible={miniMapVisible}
             onToggleMiniMap={toggleMiniMap}
+            searchOpen={searchOpen}
+            onToggleSearch={toggleSearch}
             locked={locked}
             onToggleLock={onToggleLock}
             canUndo={canUndo}

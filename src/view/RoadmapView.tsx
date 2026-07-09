@@ -64,6 +64,7 @@ export class RoadmapView extends TextFileView {
   private focusNonce = 0;
   private previewNodeId: string | null = null;
   private previewRefreshNonce = 0;
+  private searchOpenNonce = 0;
   private loadError: string | null = null;
   private loadErrorRecoverable = false;
   private locked = false;
@@ -427,6 +428,11 @@ export class RoadmapView extends TextFileView {
 
   fitToNodes(): void {
     void this.flow?.fitView();
+  }
+
+  openSearch(): void {
+    this.searchOpenNonce += 1;
+    this.renderApp();
   }
 
   /** Tidies the whole board with a left-to-right layered layout, then frames the result. */
@@ -1033,6 +1039,7 @@ export class RoadmapView extends TextFileView {
               canRedo={this.canRedoEdit()}
               initialDotsVisible={this.host.getShowBackgroundDots()}
               initialMiniMapVisible={this.host.getShowMiniMap()}
+              openSearchNonce={this.searchOpenNonce}
               focusIds={this.focusIds}
               focusNonce={this.focusNonce}
               isNodeMissing={this.isNodeMissing}

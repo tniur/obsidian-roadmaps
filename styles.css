@@ -93,6 +93,7 @@
   --rm-panel-shadow: var(--shadow-s);
   --rm-panel-pad: var(--rm-space-1);
   --rm-preview-width: 360px;
+  --rm-search-width: 200px;
 
   /* mini-map */
   --rm-minimap-width: 200px;
@@ -271,6 +272,41 @@
 
 .rm-node-toolbar {
   flex-direction: row;
+}
+
+.rm-search {
+  align-items: center;
+  gap: var(--rm-space-1);
+}
+
+.rm-search__icon {
+  --icon-size: var(--rm-icon-size);
+
+  display: inline-flex;
+  padding-left: var(--rm-space-1);
+  color: var(--rm-text-muted);
+}
+
+.rm-search__input {
+  width: var(--rm-search-width);
+  padding: var(--rm-space-1) var(--rm-space-1);
+  color: var(--rm-text);
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: var(--font-ui-small);
+}
+
+.rm-search__input::placeholder {
+  color: var(--rm-text-faint);
+}
+
+.rm-search__count {
+  padding: 0 var(--rm-space-1);
+  color: var(--rm-text-muted);
+  font-size: var(--font-ui-smaller);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .rm-toolbar__button {
