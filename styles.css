@@ -889,3 +889,15 @@
   white-space: nowrap;
   pointer-events: none;
 }
+
+/* Settings tab lives outside .rm-view, so the swatch hosts its own tokens over theme vars. */
+.rm-palette-swatch {
+  --rm-swatch-size: 22px;
+  --rm-swatch-border-width: 1px;
+  display: inline-block;
+  width: var(--rm-swatch-size);
+  height: var(--rm-swatch-size);
+  border-radius: var(--radius-s);
+  border: var(--rm-swatch-border-width) solid var(--background-modifier-border);
+  background: var(--rm-swatch-color, transparent);
+}

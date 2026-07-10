@@ -1,5 +1,8 @@
 import type { Menu } from "obsidian";
+import { colorLabel } from "../../domain/palette";
 import { ROADMAP_PRIORITIES, ROADMAP_STATUSES, TEXT_ALIGNS_H, TEXT_ALIGNS_V } from "../../domain/types";
+import type { BoardContext } from "../boardContext";
+import { promptCustomColor } from "../dialogs";
 
 export interface MenuOption<T> {
   title: string;
@@ -24,14 +27,6 @@ export const ALIGN_H_OPTIONS = optionsFrom(TEXT_ALIGNS_H, (value) => `Align ${va
 
 export const ALIGN_V_OPTIONS = optionsFrom(TEXT_ALIGNS_V, (value) => `Align ${value}`);
 
-const COLOR_NAMES = ["red", "orange", "yellow", "green", "cyan", "blue", "purple", "pink"] as const;
-
-/** Obsidian theme palette; nodes and clusters offer the same set. */
-export const COLOR_OPTIONS: MenuOption<string>[] = COLOR_NAMES.map((name) => ({
-  title: labelize(name),
-  value: `var(--color-${name})`,
-}));
-
 /** Prepends a clearing entry, so "no value" renders as a regular checked option. */
 export function withNone<T>(title: string, options: readonly MenuOption<T>[]): MenuOption<T | null>[] {
   return [{ title, value: null }, ...options];
@@ -52,4 +47,26 @@ export function addCheckedGroup<T>(
         .onClick(() => onPick(value)),
     );
   }
+}
+
+/**
+ * Color choices for a node, cluster or edge: the settings palette as a checked group
+ * plus a free picker; an assigned color that left the palette reads as custom.
+ */
+export function addColorGroup(
+  menu: Menu,
+  ctx: BoardContext,
+  current: string | undefined,
+  apply: (color: string | null) => void,
+): void {
+  const palette = [...new Set(ctx.palette)];
+  const options = palette.map((value) => ({ title: colorLabel(value), value }));
+
+  addCheckedGroup(menu, withNone("No color", options), current ?? null, apply);
+  menu.addItem((item) =>
+    item
+      .setTitle("Custom color…")
+      .setChecked(current !== undefined && !palette.includes(current))
+      .onClick(() => promptCustomColor(ctx, current, apply)),
+  );
 }

@@ -41,6 +41,7 @@ export interface RoadmapViewHost {
   setShowBackgroundDots: (value: boolean) => void;
   getShowMiniMap: () => boolean;
   setShowMiniMap: (value: boolean) => void;
+  getPalette: () => readonly string[];
 }
 
 /** Offset applied per element when pasting or dropping several at once, so copies fan out. */
@@ -295,6 +296,7 @@ export class RoadmapView extends TextFileView {
 
         this.commit();
       },
+      palette: this.host.getPalette(),
     };
   }
 

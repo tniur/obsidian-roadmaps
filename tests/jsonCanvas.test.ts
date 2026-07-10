@@ -120,6 +120,33 @@ describe("canvasToState", () => {
     expect(edge.to.id).toBe(idByTitle.get("A"));
   });
 
+  it("passes custom hex colors through export and import verbatim", () => {
+    const session = newSession();
+    const note = createNoteNode("notes/a.md", { x: 0, y: 0 });
+
+    session.addNodes([note]);
+    session.updateNodeMeta(note.id, { color: "#ab12cd" });
+
+    const canvas = roadmapToCanvas(session.state);
+
+    expect(canvas.nodes[0].color).toBe("#ab12cd");
+
+    const restored = canvasToState(parseCanvas(serializeCanvas(canvas)));
+
+    expect(Object.values(restored.nodes)[0].style?.color).toBe("#ab12cd");
+  });
+
+  it("normalizes imported hex colors to lowercase", () => {
+    const canvas = parseCanvas(
+      JSON.stringify({
+        nodes: [{ id: "a", type: "text", text: "A", x: 0, y: 0, width: 200, height: 80, color: "#AB12CD" }],
+        edges: [],
+      }),
+    );
+
+    expect(Object.values(canvasToState(canvas).nodes)[0].style?.color).toBe("#ab12cd");
+  });
+
   it("ignores file nodes without a file and links without a url", () => {
     const canvas = parseCanvas(
       JSON.stringify({

@@ -1,6 +1,7 @@
 import { nanoid } from "nanoid";
 import { z } from "zod";
 import { ROADMAP_SCHEMA_VERSION } from "../constants";
+import { isHexColor, normalizeHexColor } from "./palette";
 import { fileKindForPath } from "./paths";
 import type {
   EdgeDirection,
@@ -74,7 +75,11 @@ export function serializeCanvas(canvas: JsonCanvas): string {
   return `${JSON.stringify(canvas, null, 2)}\n`;
 }
 
-/** Roadmap theme color to the closest Canvas preset ("1".."6"); blue/pink fold onto neighbors. */
+/**
+ * Roadmap theme color to the closest Canvas preset ("1".."6"); blue/pink fold onto
+ * neighbors. Custom hex colors skip the preset tables entirely: the standard accepts
+ * hex in the same field, so they cross both ways verbatim.
+ */
 const CANVAS_COLOR_BY_VAR: Record<string, string> = {
   "var(--color-red)": "1",
   "var(--color-orange)": "2",
@@ -96,11 +101,19 @@ const VAR_BY_CANVAS_COLOR: Record<string, string> = {
 };
 
 function toCanvasColor(color: string | undefined): string | undefined {
-  return color === undefined ? undefined : CANVAS_COLOR_BY_VAR[color];
+  if (color === undefined) {
+    return undefined;
+  }
+
+  return isHexColor(color) ? color : CANVAS_COLOR_BY_VAR[color];
 }
 
 function toVarColor(color: string | undefined): string | undefined {
-  return color === undefined ? undefined : VAR_BY_CANVAS_COLOR[color];
+  if (color === undefined) {
+    return undefined;
+  }
+
+  return isHexColor(color) ? normalizeHexColor(color) : VAR_BY_CANVAS_COLOR[color];
 }
 
 // --- Export: roadmap -> canvas -------------------------------------------------------------

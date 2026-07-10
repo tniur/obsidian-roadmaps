@@ -2,7 +2,7 @@ import { Menu } from "obsidian";
 import type { RoadmapCluster } from "../../domain/types";
 import type { BoardContext } from "../boardContext";
 import { promptRenameCluster } from "../dialogs";
-import { addCheckedGroup, COLOR_OPTIONS, withNone } from "./helpers";
+import { addColorGroup } from "./helpers";
 
 export function showClusterContextMenu(ctx: BoardContext, cluster: RoadmapCluster, event: MouseEvent): void {
   const id = cluster.id;
@@ -38,7 +38,7 @@ export function showClusterContextMenu(ctx: BoardContext, cluster: RoadmapCluste
       .setIcon("pencil")
       .onClick(() => promptRenameCluster(ctx, cluster)),
   );
-  addCheckedGroup(menu, withNone("No color", COLOR_OPTIONS), cluster.style?.color ?? null, (color) => {
+  addColorGroup(menu, ctx, cluster.style?.color, (color) => {
     ctx.session.setClusterColor(id, color);
     ctx.commit();
   });

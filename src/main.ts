@@ -17,6 +17,14 @@ import {
   VIEW_TYPE_ROADMAP,
 } from "./constants";
 import { canvasToState, parseCanvas } from "./domain/jsonCanvas";
+import {
+  colorLabel,
+  DEFAULT_PALETTE,
+  FALLBACK_CUSTOM_COLOR,
+  isHexColor,
+  normalizeHexColor,
+  sanitizePalette,
+} from "./domain/palette";
 import { availableVaultPath } from "./services/vaultFiles";
 import { createRoadmapDocument, renderStateDocument } from "./state/document";
 import { ADD_NODE_ACTIONS } from "./view/addNodeActions";
@@ -42,12 +50,15 @@ interface RoadmapSettings {
   showMiniMap: boolean;
   /** Folder new roadmaps are created in; empty means the vault root. */
   newRoadmapFolder: string;
+  /** Colors offered in the node, cluster and edge color menus. */
+  palette: string[];
 }
 
 const DEFAULT_SETTINGS: RoadmapSettings = {
   showBackgroundDots: true,
   showMiniMap: true,
   newRoadmapFolder: "",
+  palette: [...DEFAULT_PALETTE],
 };
 
 export default class RoadmapPlugin extends Plugin {
@@ -302,6 +313,15 @@ export default class RoadmapPlugin extends Plugin {
     void this.saveSettings();
   }
 
+  getPalette(): readonly string[] {
+    return this.displaySettings.palette;
+  }
+
+  setPalette(value: readonly string[]): void {
+    this.displaySettings.palette = [...value];
+    void this.saveSettings();
+  }
+
   private createViewHost(): RoadmapViewHost {
     return {
       openAsMarkdown: this.openAsMarkdown,
@@ -313,13 +333,14 @@ export default class RoadmapPlugin extends Plugin {
       setShowMiniMap: (value) => {
         this.setShowMiniMap(value);
       },
+      getPalette: () => this.getPalette(),
     };
   }
 
   private async loadSettings(): Promise<void> {
     const data = (await this.loadData()) as Partial<RoadmapSettings> | null;
 
-    this.displaySettings = { ...DEFAULT_SETTINGS, ...data };
+    this.displaySettings = { ...DEFAULT_SETTINGS, ...data, palette: sanitizePalette(data?.palette ?? DEFAULT_PALETTE) };
   }
 
   private async saveSettings(): Promise<void> {
@@ -533,5 +554,67 @@ class RoadmapSettingTab extends PluginSettingTab {
             this.plugin.setNewRoadmapFolder(value);
           }),
       );
+
+    this.displayPalette();
+  }
+
+  private displayPalette(): void {
+    new Setting(this.containerEl)
+      .setName("Color palette")
+      .setDesc(
+        "Colors offered in the node, cluster and edge color menus. " +
+          "Theme colors follow the active Obsidian theme; custom colors are fixed.",
+      )
+      .setHeading();
+
+    for (const [index, color] of this.plugin.getPalette().entries()) {
+      const row = new Setting(this.containerEl).setName(colorLabel(color));
+
+      if (isHexColor(color)) {
+        row.addColorPicker((picker) =>
+          picker.setValue(color).onChange((value) => {
+            this.updatePaletteColor(index, normalizeHexColor(value), row);
+          }),
+        );
+      } else {
+        row.controlEl.createSpan({ cls: "rm-palette-swatch" }).style.setProperty("--rm-swatch-color", color);
+      }
+
+      row.addExtraButton((button) =>
+        button
+          .setIcon("trash-2")
+          .setTooltip("Remove color")
+          .onClick(() => {
+            this.plugin.setPalette(this.plugin.getPalette().filter((_, at) => at !== index));
+            this.display();
+          }),
+      );
+    }
+
+    new Setting(this.containerEl)
+      .addButton((button) =>
+        button.setButtonText("Add color").onClick(() => {
+          this.plugin.setPalette([...this.plugin.getPalette(), FALLBACK_CUSTOM_COLOR]);
+          this.display();
+        }),
+      )
+      .addExtraButton((button) =>
+        button
+          .setIcon("rotate-ccw")
+          .setTooltip("Restore default palette")
+          .onClick(() => {
+            this.plugin.setPalette(DEFAULT_PALETTE);
+            this.display();
+          }),
+      );
+  }
+
+  /** Color edits update in place: a full re-render would tear the picker out mid-drag. */
+  private updatePaletteColor(index: number, value: string, row: Setting): void {
+    const next = [...this.plugin.getPalette()];
+
+    next[index] = value;
+    this.plugin.setPalette(next);
+    row.setName(colorLabel(value));
   }
 }

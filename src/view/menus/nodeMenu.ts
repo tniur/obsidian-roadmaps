@@ -4,9 +4,9 @@ import type { BoardContext } from "../boardContext";
 import { promptEditText, promptGroupIntoCluster, promptNodeText, promptNodeUrl } from "../dialogs";
 import {
   addCheckedGroup,
+  addColorGroup,
   ALIGN_H_OPTIONS,
   ALIGN_V_OPTIONS,
-  COLOR_OPTIONS,
   PRIORITY_OPTIONS,
   STATUS_OPTIONS,
   withNone,
@@ -42,7 +42,7 @@ export function showNodeContextMenu(
     ctx.commit();
   });
   menu.addSeparator();
-  addCheckedGroup(menu, withNone("No color", COLOR_OPTIONS), node.style?.color ?? null, (color) => {
+  addColorGroup(menu, ctx, node.style?.color, (color) => {
     ctx.session.updateNodeMeta(id, { color });
     ctx.commit();
   });
