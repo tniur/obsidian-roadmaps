@@ -1,8 +1,17 @@
-import { BaseEdge, EdgeLabelRenderer, getBezierPath, Position, useInternalNode, type EdgeProps } from "@xyflow/react";
+import {
+  BaseEdge,
+  EdgeLabelRenderer,
+  getBezierPath,
+  Position,
+  useInternalNode,
+  type EdgeProps,
+  type InternalNode,
+} from "@xyflow/react";
 import type { CSSProperties, MouseEvent as ReactMouseEvent } from "react";
 import { EDGE_INTERACTION_WIDTH } from "../constants";
 import { getEdgeEndpoints } from "./edgeParams";
-import type { RoadmapFlowEdge } from "./flow";
+import { ROADMAP_NODE_TYPE, type RoadmapFlowEdge, type RoadmapFlowNode, type RoadmapNodeData } from "./flow";
+import { useNodeDimmed } from "./nodeFilterContext";
 import { RF_EDGE_CLASS, rfEdgeUpdaterClass } from "./reactFlowInternals";
 
 /**
@@ -68,12 +77,20 @@ function arrowPath(x: number, y: number, dir: Vec): string {
 
 export function FloatingEdge(props: EdgeProps<RoadmapFlowEdge>) {
   const { id, source, target, data, style } = props;
-  const sourceNode = useInternalNode(source);
-  const targetNode = useInternalNode(target);
+  const sourceNode = useInternalNode<RoadmapFlowNode>(source);
+  const targetNode = useInternalNode<RoadmapFlowNode>(target);
+  const dim = useNodeDimmed();
 
   if (sourceNode === undefined || targetNode === undefined) {
     return null;
   }
+
+  /* An edge is dimmed with the filter when a node endpoint is filtered out; cluster
+     endpoints carry no status/priority, so they never dim the edge. */
+  const endpointDimmed = (node: InternalNode<RoadmapFlowNode>): boolean =>
+    node.type === ROADMAP_NODE_TYPE &&
+    dim((node.data as RoadmapNodeData).status, (node.data as RoadmapNodeData).priority);
+  const dimmed = endpointDimmed(sourceNode) || endpointDimmed(targetNode);
 
   const { sx, sy, tx, ty, sourcePos, targetPos } = getEdgeEndpoints(
     sourceNode,
@@ -110,7 +127,7 @@ export function FloatingEdge(props: EdgeProps<RoadmapFlowEdge>) {
         : (style ?? {});
 
   return (
-    <g style={colorVars}>
+    <g style={colorVars} className={dimmed ? "rm-edge-dimmed" : undefined}>
       <BaseEdge id={id} path={path} style={edgeStyle} interactionWidth={EDGE_INTERACTION_WIDTH} />
       {direction === "forward" || direction === "both" ? (
         <path className="rm-edge-arrow" d={arrowPath(tx, ty, inwardDirection(targetPos))} />

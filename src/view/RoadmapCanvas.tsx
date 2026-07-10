@@ -27,6 +27,7 @@ import {
 } from "react";
 import { nanoid } from "nanoid";
 import { asSide, type NodePlacement } from "../domain/create";
+import { filterIsActive, nodeMatchesFilter, type NodeFilter } from "../domain/filter";
 import type { RoadmapState, RoadmapViewport } from "../domain/types";
 import type { AddNodeActionId } from "./addNodeActions";
 import { ClusterNodeView } from "./ClusterNodeView";
@@ -34,6 +35,7 @@ import { FloatingEdge } from "./FloatingEdge";
 import { getHelperLines } from "./alignment";
 import { HelperLines } from "./HelperLines";
 import { NodeCallbacksContext, type NodeCallbacks } from "./nodeCallbacks";
+import { NodeFilterContext, type NodeDimPredicate } from "./nodeFilterContext";
 import {
   absoluteNodePosition,
   nodeContainsPoint,
@@ -54,6 +56,7 @@ import {
   type RoadmapFlowNode,
 } from "./flow";
 import { Icon } from "./Icon";
+import { NodeFilterPanel } from "./NodeFilterPanel";
 import { NodeSearchPanel } from "./NodeSearchPanel";
 import { NodeToolbar } from "./NodeToolbar";
 import { RF_EDGE_CLASS, RF_NODE_CLASS, RF_PANE_CLASS, RF_PANEL_CLASS } from "./reactFlowInternals";
@@ -150,6 +153,8 @@ interface RoadmapCanvasProps {
   initialMiniMapVisible: boolean;
   /** Bumping `openSearchNonce` opens the find bar (palette command entry point). */
   openSearchNonce: number;
+  /** Bumping `openFilterNonce` opens the filter bar (palette command entry point). */
+  openFilterNonce: number;
   /** Bumping `focusNonce` re-selects exactly `focusIds` (paste and duplicate flows). */
   focusIds: string[];
   focusNonce: number;
@@ -169,6 +174,7 @@ export function RoadmapCanvas({
   initialDotsVisible,
   initialMiniMapVisible,
   openSearchNonce,
+  openFilterNonce,
   focusIds,
   focusNonce,
   isNodeMissing,
@@ -221,6 +227,9 @@ export function RoadmapCanvas({
   const [dotsVisible, setDotsVisible] = useState(initialDotsVisible);
   const [miniMapVisible, setMiniMapVisible] = useState(initialMiniMapVisible);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [filterStatuses, setFilterStatuses] = useState<ReadonlySet<string>>(() => new Set());
+  const [filterPriorities, setFilterPriorities] = useState<ReadonlySet<string>>(() => new Set());
   const initialViewportRef = useRef(state.viewport);
   const [nodes, setNodes] = useState<RoadmapFlowNode[]>(() => stateToFlowNodes(state, isNodeMissing, resolveImageSrc));
   const [edges, setEdges] = useState<RoadmapFlowEdge[]>(() => stateToFlowEdges(state));
@@ -773,13 +782,61 @@ export function RoadmapCanvas({
     onMiniMapVisibleChange(next);
   }, [miniMapVisible, onMiniMapVisibleChange]);
 
-  const toggleSearch = useCallback(() => setSearchOpen((open) => !open), []);
+  /* Search and filter share the top-centre slot, so opening one closes the other. */
+  const toggleSearch = useCallback(() => {
+    setFilterOpen(false);
+    setSearchOpen((open) => !open);
+  }, []);
+
+  const toggleFilter = useCallback(() => {
+    setSearchOpen(false);
+    setFilterOpen((open) => !open);
+  }, []);
 
   useEffect(() => {
     if (openSearchNonce > 0) {
+      setFilterOpen(false);
       setSearchOpen(true);
     }
   }, [openSearchNonce]);
+
+  useEffect(() => {
+    if (openFilterNonce > 0) {
+      setSearchOpen(false);
+      setFilterOpen(true);
+    }
+  }, [openFilterNonce]);
+
+  const toggleFilterValue = useCallback((kind: "status" | "priority", value: string) => {
+    const setSelected = kind === "status" ? setFilterStatuses : setFilterPriorities;
+
+    setSelected((prev) => {
+      const next = new Set(prev);
+
+      if (next.has(value)) {
+        next.delete(value);
+      } else {
+        next.add(value);
+      }
+
+      return next;
+    });
+  }, []);
+
+  const clearFilter = useCallback(() => {
+    setFilterStatuses(new Set());
+    setFilterPriorities(new Set());
+  }, []);
+
+  const filter = useMemo<NodeFilter>(
+    () => ({ statuses: filterStatuses, priorities: filterPriorities }),
+    [filterStatuses, filterPriorities],
+  );
+  const filterActive = filterIsActive(filter);
+  const dimPredicate = useCallback<NodeDimPredicate>(
+    (status, priority) => filterActive && !nodeMatchesFilter({ status, priority }, filter),
+    [filter, filterActive],
+  );
 
   /** Selects exactly the matched node and pans the camera to it, keeping the current zoom. */
   const focusMatch = useCallback(
@@ -823,100 +880,114 @@ export function RoadmapCanvas({
 
   return (
     <NodeCallbacksContext.Provider value={nodeCallbacks}>
-      <div
-        className="rm-canvas"
-        data-locked={locked}
-        onDoubleClick={onCanvasDoubleClick}
-        onDragOver={onDragOver}
-        onDrop={onDrop}
-      >
-        <ReactFlow
-          id={flowId}
-          nodes={nodes}
-          edges={edges}
-          nodeTypes={nodeTypes}
-          edgeTypes={edgeTypes}
-          connectionMode={ConnectionMode.Loose}
-          nodesDraggable={!locked}
-          nodesConnectable={!locked}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          onConnect={onConnect}
-          onReconnect={onReconnect}
-          onReconnectStart={onReconnectStart}
-          onReconnectEnd={onReconnectEnd}
-          edgesReconnectable={!locked}
-          edgesFocusable={!locked}
-          onConnectEnd={onConnectEnd}
-          onNodeDragStart={onNodeDragStart}
-          onNodeDragStop={onNodeDragStop}
-          onSelectionDragStart={onSelectionDragStart}
-          onSelectionDragStop={onSelectionDragStop}
-          onSelectionChange={onSelectionChangeInternal}
-          onNodeDoubleClick={onNodeDoubleClick}
-          onNodeContextMenu={onNodeContextMenuInternal}
-          onSelectionContextMenu={onSelectionContextMenuInternal}
-          onEdgeContextMenu={onEdgeContextMenuInternal}
-          onPaneContextMenu={onPaneContextMenuInternal}
-          onDelete={onDeleteInternal}
-          onMoveEnd={onMoveEnd}
-          deleteKeyCode={locked ? null : ["Backspace", "Delete"]}
-          multiSelectionKeyCode="Shift"
-          selectionKeyCode={null}
-          selectionOnDrag
-          selectionMode={SelectionMode.Partial}
-          panOnDrag={[1, 2]}
-          panOnScroll
-          zoomOnDoubleClick={false}
-          proOptions={{ hideAttribution: true }}
-          defaultViewport={initialViewportRef.current}
-          fitView={initialViewportRef.current === undefined}
+      <NodeFilterContext.Provider value={dimPredicate}>
+        <div
+          className="rm-canvas"
+          data-locked={locked}
+          onDoubleClick={onCanvasDoubleClick}
+          onDragOver={onDragOver}
+          onDrop={onDrop}
         >
-          {dotsVisible ? <Background variant={BackgroundVariant.Dots} /> : null}
-          {miniMapVisible ? (
-            <MiniMap
-              className="rm-minimap"
-              position="bottom-right"
-              ariaLabel="Mini-map"
-              pannable
-              zoomable
-              nodeColor={miniMapNodeColor}
-              nodeBorderRadius={MINIMAP_NODE_RADIUS}
-              maskColor="var(--rm-minimap-mask)"
+          <ReactFlow
+            id={flowId}
+            nodes={nodes}
+            edges={edges}
+            nodeTypes={nodeTypes}
+            edgeTypes={edgeTypes}
+            connectionMode={ConnectionMode.Loose}
+            nodesDraggable={!locked}
+            nodesConnectable={!locked}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onConnect={onConnect}
+            onReconnect={onReconnect}
+            onReconnectStart={onReconnectStart}
+            onReconnectEnd={onReconnectEnd}
+            edgesReconnectable={!locked}
+            edgesFocusable={!locked}
+            onConnectEnd={onConnectEnd}
+            onNodeDragStart={onNodeDragStart}
+            onNodeDragStop={onNodeDragStop}
+            onSelectionDragStart={onSelectionDragStart}
+            onSelectionDragStop={onSelectionDragStop}
+            onSelectionChange={onSelectionChangeInternal}
+            onNodeDoubleClick={onNodeDoubleClick}
+            onNodeContextMenu={onNodeContextMenuInternal}
+            onSelectionContextMenu={onSelectionContextMenuInternal}
+            onEdgeContextMenu={onEdgeContextMenuInternal}
+            onPaneContextMenu={onPaneContextMenuInternal}
+            onDelete={onDeleteInternal}
+            onMoveEnd={onMoveEnd}
+            deleteKeyCode={locked ? null : ["Backspace", "Delete"]}
+            multiSelectionKeyCode="Shift"
+            selectionKeyCode={null}
+            selectionOnDrag
+            selectionMode={SelectionMode.Partial}
+            panOnDrag={[1, 2]}
+            panOnScroll
+            zoomOnDoubleClick={false}
+            proOptions={{ hideAttribution: true }}
+            defaultViewport={initialViewportRef.current}
+            fitView={initialViewportRef.current === undefined}
+          >
+            {dotsVisible ? <Background variant={BackgroundVariant.Dots} /> : null}
+            {miniMapVisible ? (
+              <MiniMap
+                className="rm-minimap"
+                position="bottom-right"
+                ariaLabel="Mini-map"
+                pannable
+                zoomable
+                nodeColor={miniMapNodeColor}
+                nodeBorderRadius={MINIMAP_NODE_RADIUS}
+                maskColor="var(--rm-minimap-mask)"
+              />
+            ) : null}
+            <HelperLines horizontal={helperLines.horizontal} vertical={helperLines.vertical} />
+            {!locked ? <NodeToolbar onAction={onAddAction} /> : null}
+            {searchOpen ? (
+              <NodeSearchPanel state={state} onActivate={focusMatch} onClose={() => setSearchOpen(false)} />
+            ) : null}
+            {filterOpen ? (
+              <NodeFilterPanel
+                statuses={filterStatuses}
+                priorities={filterPriorities}
+                onToggle={toggleFilterValue}
+                onClear={clearFilter}
+                onClose={() => setFilterOpen(false)}
+              />
+            ) : null}
+            <RoadmapToolbar
+              dotsVisible={dotsVisible}
+              onToggleDots={toggleDots}
+              miniMapVisible={miniMapVisible}
+              onToggleMiniMap={toggleMiniMap}
+              searchOpen={searchOpen}
+              onToggleSearch={toggleSearch}
+              filterOpen={filterOpen}
+              filterActive={filterActive}
+              onToggleFilter={toggleFilter}
+              locked={locked}
+              onToggleLock={onToggleLock}
+              canUndo={canUndo}
+              canRedo={canRedo}
+              onUndo={onUndo}
+              onRedo={onRedo}
+              onAutoLayout={onAutoLayout}
+              onExportPdf={onExportPdf}
             />
+          </ReactFlow>
+          {nodes.length === 0 && !locked ? (
+            <div className="rm-empty">
+              <span className="rm-empty__icon">
+                <Icon name="map" />
+              </span>
+              <span className="rm-empty__title">This board is empty</span>
+              <span className="rm-empty__hint">Right-click the canvas or use the toolbar to add the first node</span>
+            </div>
           ) : null}
-          <HelperLines horizontal={helperLines.horizontal} vertical={helperLines.vertical} />
-          {!locked ? <NodeToolbar onAction={onAddAction} /> : null}
-          {searchOpen ? (
-            <NodeSearchPanel state={state} onActivate={focusMatch} onClose={() => setSearchOpen(false)} />
-          ) : null}
-          <RoadmapToolbar
-            dotsVisible={dotsVisible}
-            onToggleDots={toggleDots}
-            miniMapVisible={miniMapVisible}
-            onToggleMiniMap={toggleMiniMap}
-            searchOpen={searchOpen}
-            onToggleSearch={toggleSearch}
-            locked={locked}
-            onToggleLock={onToggleLock}
-            canUndo={canUndo}
-            canRedo={canRedo}
-            onUndo={onUndo}
-            onRedo={onRedo}
-            onAutoLayout={onAutoLayout}
-            onExportPdf={onExportPdf}
-          />
-        </ReactFlow>
-        {nodes.length === 0 && !locked ? (
-          <div className="rm-empty">
-            <span className="rm-empty__icon">
-              <Icon name="map" />
-            </span>
-            <span className="rm-empty__title">This board is empty</span>
-            <span className="rm-empty__hint">Right-click the canvas or use the toolbar to add the first node</span>
-          </div>
-        ) : null}
-      </div>
+        </div>
+      </NodeFilterContext.Provider>
     </NodeCallbacksContext.Provider>
   );
 }

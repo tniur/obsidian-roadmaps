@@ -200,6 +200,13 @@ export default class RoadmapPlugin extends Plugin {
       (view) => view.openSearch(),
     );
     this.addBoardCommand(
+      "filter-nodes",
+      "Filter nodes",
+      "filter",
+      (view) => view.isBoardLoaded(),
+      (view) => view.openFilter(),
+    );
+    this.addBoardCommand(
       "fit-view",
       "Fit to nodes",
       "frame",

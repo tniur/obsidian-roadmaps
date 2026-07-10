@@ -65,6 +65,7 @@ export class RoadmapView extends TextFileView {
   private previewNodeId: string | null = null;
   private previewRefreshNonce = 0;
   private searchOpenNonce = 0;
+  private filterOpenNonce = 0;
   private loadError: string | null = null;
   private loadErrorRecoverable = false;
   private locked = false;
@@ -432,6 +433,11 @@ export class RoadmapView extends TextFileView {
 
   openSearch(): void {
     this.searchOpenNonce += 1;
+    this.renderApp();
+  }
+
+  openFilter(): void {
+    this.filterOpenNonce += 1;
     this.renderApp();
   }
 
@@ -1040,6 +1046,7 @@ export class RoadmapView extends TextFileView {
               initialDotsVisible={this.host.getShowBackgroundDots()}
               initialMiniMapVisible={this.host.getShowMiniMap()}
               openSearchNonce={this.searchOpenNonce}
+              openFilterNonce={this.filterOpenNonce}
               focusIds={this.focusIds}
               focusNonce={this.focusNonce}
               isNodeMissing={this.isNodeMissing}

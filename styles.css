@@ -61,6 +61,8 @@
   --rm-node-border: var(--rm-border);
   --rm-node-radius: var(--rm-radius-l);
   --rm-node-tint: 9%;
+  --rm-dim-opacity: 0.15;
+  --rm-dim-grayscale: 0.6;
 
   /* clusters */
   --rm-cluster-border: var(--rm-border);
@@ -309,6 +311,87 @@
   white-space: nowrap;
 }
 
+.rm-filter {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--rm-space-2);
+  padding: var(--rm-space-2);
+}
+
+.rm-filter__row {
+  display: flex;
+  align-items: center;
+  gap: var(--rm-space-2);
+}
+
+.rm-filter__label {
+  flex: 0 0 auto;
+  width: 56px;
+  color: var(--rm-text-muted);
+  font-size: var(--font-ui-smaller);
+}
+
+.rm-filter__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rm-space-1);
+}
+
+.rm-filter__chip {
+  padding: var(--rm-space-0) var(--rm-space-2);
+  color: var(--rm-text-muted);
+  background: transparent;
+  border: var(--rm-border-width) solid var(--rm-border);
+  border-radius: var(--rm-radius-full);
+  font-size: var(--font-ui-smaller);
+  cursor: pointer;
+  transition:
+    color var(--rm-transition-fast),
+    background var(--rm-transition-fast),
+    border-color var(--rm-transition-fast);
+}
+
+.rm-filter__chip:hover {
+  color: var(--rm-text);
+}
+
+.rm-filter__chip:focus-visible {
+  outline: var(--rm-focus-outline);
+}
+
+.rm-filter__chip[data-active="true"] {
+  color: var(--rm-chip-color, var(--rm-accent));
+  background: color-mix(in srgb, var(--rm-chip-color, var(--rm-accent)) var(--rm-badge-tint), transparent);
+  border-color: color-mix(in srgb, var(--rm-chip-color, var(--rm-accent)) 45%, transparent);
+}
+
+.rm-filter__footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--rm-space-1);
+}
+
+.rm-filter__clear {
+  padding: var(--rm-space-0) var(--rm-space-2);
+  color: var(--rm-text-muted);
+  background: transparent;
+  border: none;
+  border-radius: var(--rm-radius-s);
+  font-size: var(--font-ui-smaller);
+  cursor: pointer;
+}
+
+.rm-filter__clear:hover:not(:disabled) {
+  color: var(--rm-text);
+  background: var(--rm-hover);
+}
+
+.rm-filter__clear:disabled {
+  color: var(--rm-text-faint);
+  cursor: default;
+}
+
 .rm-toolbar__button {
   --icon-size: var(--rm-icon-size);
 
@@ -390,7 +473,20 @@
   transition:
     border-color var(--rm-transition-fast),
     background var(--rm-transition-fast),
-    box-shadow var(--rm-transition-fast);
+    box-shadow var(--rm-transition-fast),
+    opacity var(--rm-transition-med);
+}
+
+/* Dimmed by the active status/priority filter; still interactive, just de-emphasised. */
+.rm-node[data-dimmed="true"] {
+  opacity: var(--rm-dim-opacity);
+  filter: grayscale(var(--rm-dim-grayscale));
+}
+
+/* An edge touching a filtered-out node is dimmed with it (see FloatingEdge). */
+.rm-canvas .rm-edge-dimmed {
+  opacity: var(--rm-dim-opacity);
+  transition: opacity var(--rm-transition-med);
 }
 
 .react-flow__node:hover .rm-node:not([data-selected="true"]) {
