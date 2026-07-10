@@ -5,7 +5,7 @@ import { ToolbarButton } from "./ToolbarButton";
 
 interface NodePreviewPanelProps {
   node: RoadmapNode;
-  mount: (node: RoadmapNode, el: HTMLElement) => () => void;
+  mount: (node: RoadmapNode, el: HTMLElement, onRendered: () => void) => () => void;
   refreshNonce: number;
   onEdit: () => void;
   onClose: () => void;
@@ -19,6 +19,7 @@ interface NodePreviewPanelProps {
 export function NodePreviewPanel({ node, mount, refreshNonce, onEdit, onClose }: NodePreviewPanelProps) {
   const bodyRef = useRef<HTMLDivElement>(null);
   const nodeRef = useRef(node);
+  const scrollRef = useRef(0);
   const [entering, setEntering] = useState(true);
 
   nodeRef.current = node;
@@ -29,6 +30,9 @@ export function NodePreviewPanel({ node, mount, refreshNonce, onEdit, onClose }:
     }
   };
 
+  // A refresh re-mounts the content from scratch; carrying the scroll offset across
+  // keeps the reading position when the source file changes under the preview
+  // (e.g. after toggling a task checkbox).
   useEffect(() => {
     const el = bodyRef.current;
 
@@ -37,9 +41,12 @@ export function NodePreviewPanel({ node, mount, refreshNonce, onEdit, onClose }:
     }
 
     el.replaceChildren();
-    const cleanup = mount(nodeRef.current, el);
+    const cleanup = mount(nodeRef.current, el, () => {
+      el.scrollTop = scrollRef.current;
+    });
 
     return () => {
+      scrollRef.current = el.scrollTop;
       cleanup();
       el.replaceChildren();
     };

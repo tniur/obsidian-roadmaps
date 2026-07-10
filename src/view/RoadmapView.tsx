@@ -799,8 +799,8 @@ export class RoadmapView extends TextFileView {
     }
   };
 
-  private readonly mountPreview = (node: RoadmapNode, el: HTMLElement): (() => void) =>
-    mountPreviewContent(this.app, node, el);
+  private readonly mountPreview = (node: RoadmapNode, el: HTMLElement, onRendered: () => void): (() => void) =>
+    mountPreviewContent(this.app, node, el, onRendered);
 
   private readonly handlePaneContextMenu = (placement: NodePlacement, event: MouseEvent): void => {
     if (this.locked) {
