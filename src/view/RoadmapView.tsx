@@ -3,12 +3,19 @@ import { ReactFlowProvider } from "@xyflow/react";
 import { StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { VIEW_TYPE_ROADMAP } from "../constants";
-import { centeredPlacement, copiedEdges, copyNode, type NodePlacement } from "../domain/create";
+import {
+  centeredPlacement,
+  centerNodesShift,
+  copiedEdges,
+  copyCluster,
+  copyNode,
+  type NodePlacement,
+} from "../domain/create";
 import { roadmapToCanvas, serializeCanvas } from "../domain/jsonCanvas";
 import { nodeOpenTarget } from "../domain/openTarget";
 import { isSafeUrl } from "../domain/paths";
 import { sourceFile } from "../domain/source";
-import type { RoadmapEdge, RoadmapNode, RoadmapViewport } from "../domain/types";
+import type { RoadmapCluster, RoadmapEdge, RoadmapNode, RoadmapViewport } from "../domain/types";
 import { availableVaultPath, draggedFiles, nodeForFile } from "../services/vaultFiles";
 import type { RoadmapFlowInstance } from "./flow";
 import { StateVersionError } from "../state/codec";
@@ -42,6 +49,23 @@ export interface RoadmapViewHost {
   getShowMiniMap: () => boolean;
   setShowMiniMap: (value: boolean) => void;
   getPalette: () => readonly string[];
+  getClipboard: () => BoardClipboard | null;
+  setClipboard: (value: BoardClipboard) => void;
+}
+
+/**
+ * Copy buffer held by the plugin and shared by every board, so nodes copied on one
+ * roadmap paste into another. Loose nodes and cluster frames carry absolute coordinates;
+ * members of a copied cluster keep their cluster-relative layout and `clusterId`.
+ * `boardId` tells a same-board paste (fans out next to the originals) from a cross-board
+ * one (recentered on the target viewport).
+ */
+export interface BoardClipboard {
+  boardId: string;
+  nodes: RoadmapNode[];
+  edges: RoadmapEdge[];
+  clusters: RoadmapCluster[];
+  pasteOffset: number;
 }
 
 /** Offset applied per element when pasting or dropping several at once, so copies fan out. */
@@ -58,9 +82,6 @@ export class RoadmapView extends TextFileView {
   private root: Root | null = null;
   private session: RoadmapSession | null = null;
   private selectedNodeIds: string[] = [];
-  private clipboard: RoadmapNode[] = [];
-  private clipboardEdges: RoadmapEdge[] = [];
-  private pasteOffset = 0;
   private focusIds: string[] = [];
   private focusNonce = 0;
   private previewNodeId: string | null = null;
@@ -523,15 +544,20 @@ export class RoadmapView extends TextFileView {
     }
   };
 
-  private canvasCenterPlacement(): NodePlacement | null {
+  private canvasCenter(): NodePlacement | null {
     if (this.flow === null) {
       return null;
     }
 
     const rect = this.contentEl.getBoundingClientRect();
-    const center = this.flow.screenToFlowPosition({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
 
-    return centeredPlacement(center);
+    return this.flow.screenToFlowPosition({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
+  }
+
+  private canvasCenterPlacement(): NodePlacement | null {
+    const center = this.canvasCenter();
+
+    return center === null ? null : centeredPlacement(center);
   }
 
   private readonly handleFlowInit = (instance: RoadmapFlowInstance | null): void => {
@@ -566,45 +592,116 @@ export class RoadmapView extends TextFileView {
       return;
     }
 
+    const state = this.session.state;
     const nodes: RoadmapNode[] = [];
+    const clusters: RoadmapCluster[] = [];
+    const taken = new Set<string>();
 
     for (const id of this.selectedNodeIds) {
-      const node = this.session.state.nodes[id];
+      const cluster = state.clusters[id];
 
-      if (node !== undefined) {
+      if (cluster !== undefined) {
+        clusters.push(cluster);
+
+        /* A selected cluster stands in for its members (they are dropped from the
+           selection), so the whole group is copied: members keep relative layout. */
+        for (const node of Object.values(state.nodes)) {
+          if (node.clusterId === id && !taken.has(node.id)) {
+            taken.add(node.id);
+            nodes.push(node);
+          }
+        }
+
+        continue;
+      }
+
+      const node = state.nodes[id];
+
+      if (node !== undefined && !taken.has(node.id)) {
+        taken.add(node.id);
         nodes.push(this.withAbsoluteLayout(node));
       }
     }
 
-    if (nodes.length > 0) {
-      const ids = new Set(nodes.map((node) => node.id));
+    if (nodes.length > 0 || clusters.length > 0) {
+      const ids = new Set([...nodes.map((node) => node.id), ...clusters.map((cluster) => cluster.id)]);
 
-      this.clipboard = nodes;
-      this.clipboardEdges = Object.values(this.session.state.edges).filter(
-        (edge) => ids.has(edge.from.id) && ids.has(edge.to.id),
-      );
-      this.pasteOffset = 0;
+      this.host.setClipboard({
+        boardId: state.id,
+        nodes,
+        clusters,
+        edges: Object.values(state.edges).filter((edge) => ids.has(edge.from.id) && ids.has(edge.to.id)),
+        pasteOffset: 0,
+      });
     }
   }
 
   private pasteClipboard(): void {
-    if (this.session === null || this.locked || this.clipboard.length === 0) {
+    const clipboard = this.host.getClipboard();
+
+    if (
+      this.session === null ||
+      this.locked ||
+      clipboard === null ||
+      (clipboard.nodes.length === 0 && clipboard.clusters.length === 0)
+    ) {
       return;
     }
 
-    this.pasteOffset += CASCADE_OFFSET;
+    clipboard.pasteOffset += CASCADE_OFFSET;
+    const copiedClusterIds = new Set(clipboard.clusters.map((cluster) => cluster.id));
+    const loose = clipboard.nodes.filter((node) => node.clusterId == null || !copiedClusterIds.has(node.clusterId));
+    const shift = this.pasteShift(clipboard, [...loose, ...clipboard.clusters]);
     const cloneIds = new Map<string, string>();
-    const clones = this.clipboard.map((node) => {
-      const clone = copyNode(node, node.layout.x + this.pasteOffset, node.layout.y + this.pasteOffset);
+    const clusterClones = clipboard.clusters.map((cluster) => {
+      const clone = copyCluster(cluster, cluster.layout.x + shift.x, cluster.layout.y + shift.y);
+
+      cloneIds.set(cluster.id, clone.id);
+
+      return clone;
+    });
+    const clones = clipboard.nodes.map((node) => {
+      /* Members of a copied cluster keep their relative layout and follow the cluster
+         frame; loose nodes carry absolute coordinates and take the shift themselves. */
+      const memberOf = node.clusterId == null ? undefined : cloneIds.get(node.clusterId);
+      const clone =
+        memberOf === undefined
+          ? copyNode(node, node.layout.x + shift.x, node.layout.y + shift.y)
+          : copyNode(node, node.layout.x, node.layout.y);
+
+      if (memberOf !== undefined) {
+        clone.clusterId = memberOf;
+      }
 
       cloneIds.set(node.id, clone.id);
 
       return clone;
     });
 
-    this.session.addNodes(clones, copiedEdges(this.clipboardEdges, cloneIds));
-    this.focusNodes(clones.map((node) => node.id));
+    this.session.addNodes(clones, copiedEdges(clipboard.edges, cloneIds), clusterClones);
+    this.focusNodes([...clones.map((node) => node.id), ...clusterClones.map((cluster) => cluster.id)]);
     this.commit();
+  }
+
+  /** Same-board pastes fan out next to the originals; a paste into another board keeps
+   * the copied arrangement but recenters its top-level frames on the viewport — the
+   * source coordinates mean nothing there and could land far off-screen. */
+  private pasteShift(clipboard: BoardClipboard, frames: ReadonlyArray<Pick<RoadmapNode, "layout">>): NodePlacement {
+    const cascade = clipboard.pasteOffset;
+
+    if (this.session === null || clipboard.boardId === this.session.state.id) {
+      return { x: cascade, y: cascade };
+    }
+
+    const center = this.canvasCenter();
+
+    if (center === null) {
+      return { x: cascade, y: cascade };
+    }
+
+    const shift = centerNodesShift(frames, center);
+
+    return { x: shift.x + cascade, y: shift.y + cascade };
   }
 
   private focusNodes(ids: string[]): void {

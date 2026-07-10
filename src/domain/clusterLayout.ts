@@ -8,7 +8,7 @@ export interface ClusterArrangement {
 }
 
 /** Bounding box around the members' layouts, or null for an empty list. */
-export function membersBoundingBox(members: readonly RoadmapNode[]): RoadmapLayout | null {
+export function membersBoundingBox(members: ReadonlyArray<Pick<RoadmapNode, "layout">>): RoadmapLayout | null {
   if (members.length === 0) {
     return null;
   }

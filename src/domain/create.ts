@@ -1,5 +1,6 @@
 import { nanoid } from "nanoid";
 import { DEFAULT_NODE_HEIGHT, DEFAULT_NODE_WIDTH } from "../constants";
+import { membersBoundingBox } from "./clusterLayout";
 import {
   EDGE_SIDES,
   type EdgeSide,
@@ -18,6 +19,20 @@ export interface NodePlacement {
 /** Placement putting the center of a default-sized node at `point`. */
 export function centeredPlacement(point: NodePlacement): NodePlacement {
   return { x: point.x - DEFAULT_NODE_WIDTH / 2, y: point.y - DEFAULT_NODE_HEIGHT / 2 };
+}
+
+/**
+ * Shift that recenters the frames' bounding box on `at`, keeping their arrangement.
+ * Used when pasting into another board, where the copied coordinates are meaningless.
+ */
+export function centerNodesShift(frames: ReadonlyArray<Pick<RoadmapNode, "layout">>, at: NodePlacement): NodePlacement {
+  const box = membersBoundingBox(frames);
+
+  if (box === null) {
+    return { x: 0, y: 0 };
+  }
+
+  return { x: at.x - (box.x + box.width / 2), y: at.y - (box.y + box.height / 2) };
 }
 
 export function createCluster(title: string, layout: RoadmapLayout): RoadmapCluster {
@@ -108,6 +123,17 @@ export function copyNode(node: RoadmapNode, x: number, y: number): RoadmapNode {
   return copy;
 }
 
+/** Clone for paste: same title (uniquified on insert), color and collapsed state, new identity. */
+export function copyCluster(cluster: RoadmapCluster, x: number, y: number): RoadmapCluster {
+  const copy: RoadmapCluster = { ...cluster, id: nanoid(), layout: { ...cluster.layout, x, y } };
+
+  if (cluster.style !== undefined) {
+    copy.style = { ...cluster.style };
+  }
+
+  return copy;
+}
+
 /** Clone for paste/duplicate: same appearance, new identity, endpoints rewired to the copies. */
 export function copyEdge(edge: RoadmapEdge, from: RoadmapEndpoint, to: RoadmapEndpoint): RoadmapEdge {
   const copy: RoadmapEdge = { ...edge, id: nanoid(), from, to };
@@ -120,8 +146,9 @@ export function copyEdge(edge: RoadmapEdge, from: RoadmapEndpoint, to: RoadmapEn
 }
 
 /**
- * Copies of the edges whose both endpoints were copied (looked up in `cloneIds`), rewired
- * onto the fresh clones. Edges reaching outside the copied set are left to the originals.
+ * Copies of the edges whose both endpoints (nodes or clusters) were copied (looked up in
+ * `cloneIds`), rewired onto the fresh clones. Edges reaching outside the copied set are
+ * left to the originals.
  */
 export function copiedEdges(edges: readonly RoadmapEdge[], cloneIds: ReadonlyMap<string, string>): RoadmapEdge[] {
   const copies: RoadmapEdge[] = [];
@@ -131,7 +158,7 @@ export function copiedEdges(edges: readonly RoadmapEdge[], cloneIds: ReadonlyMap
     const to = cloneIds.get(edge.to.id);
 
     if (from !== undefined && to !== undefined) {
-      copies.push(copyEdge(edge, { type: "node", id: from }, { type: "node", id: to }));
+      copies.push(copyEdge(edge, { type: edge.from.type, id: from }, { type: edge.to.type, id: to }));
     }
   }
 

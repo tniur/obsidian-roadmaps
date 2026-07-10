@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  copyCluster,
   copyEdge,
   copyNode,
   createAttachmentNode,
@@ -291,6 +292,39 @@ describe("roadmap session", () => {
     expect(session.state.nodes[aCopy.id]).toBeUndefined();
     expect(session.state.edges[edgeCopy.id]).toBeUndefined();
     expect(session.state.edges[original.id]).toBeDefined();
+  });
+
+  it("adds a copied cluster with members, suffixing a taken title, in a single undo step", () => {
+    const session = newSession();
+    const original = createNoteNode("notes/a.md", { x: 100, y: 100 });
+
+    session.addNode(original);
+    session.createClusterFromNodes([original.id], "Group");
+
+    const cluster = Object.values(session.state.clusters)[0];
+    const member = session.state.nodes[original.id];
+    const clusterClone = copyCluster(cluster, cluster.layout.x + 24, cluster.layout.y + 24);
+    const memberClone = copyNode(member, member.layout.x, member.layout.y);
+
+    memberClone.clusterId = clusterClone.id;
+    session.addNodes([memberClone], [], [clusterClone]);
+
+    expect(session.state.clusters[clusterClone.id]?.title).toBe("Group 2");
+    expect(session.state.nodes[memberClone.id]?.clusterId).toBe(clusterClone.id);
+    expect(session.state.nodes[memberClone.id]?.layout).toEqual(member.layout);
+    expect(readState(session.content)?.clusters[clusterClone.id]?.title).toBe("Group 2");
+
+    const headingAt = session.content.indexOf(`roadmap-cluster:id=${clusterClone.id}`);
+    const memberAt = session.content.indexOf(`roadmap-node:id=${memberClone.id}`);
+
+    expect(headingAt).toBeGreaterThan(-1);
+    expect(memberAt).toBeGreaterThan(headingAt);
+
+    session.undo();
+
+    expect(session.state.clusters[clusterClone.id]).toBeUndefined();
+    expect(session.state.nodes[memberClone.id]).toBeUndefined();
+    expect(session.state.clusters[cluster.id]).toBeDefined();
   });
 
   it("stores the connected handle sides on the edge", () => {

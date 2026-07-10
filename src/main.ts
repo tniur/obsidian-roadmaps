@@ -29,7 +29,7 @@ import { availableVaultPath } from "./services/vaultFiles";
 import { createRoadmapDocument, renderStateDocument } from "./state/document";
 import { ADD_NODE_ACTIONS } from "./view/addNodeActions";
 import { FileSuggestModal } from "./view/FileSuggestModal";
-import { RoadmapView, type RoadmapViewHost } from "./view/RoadmapView";
+import { RoadmapView, type BoardClipboard, type RoadmapViewHost } from "./view/RoadmapView";
 
 const MARKDOWN_VIEW_TYPE = "markdown";
 
@@ -64,6 +64,7 @@ const DEFAULT_SETTINGS: RoadmapSettings = {
 export default class RoadmapPlugin extends Plugin {
   private readonly fileModes: Record<string, ViewMode> = {};
   private displaySettings: RoadmapSettings = { ...DEFAULT_SETTINGS };
+  private boardClipboard: BoardClipboard | null = null;
 
   async onload(): Promise<void> {
     await this.loadSettings();
@@ -334,6 +335,10 @@ export default class RoadmapPlugin extends Plugin {
         this.setShowMiniMap(value);
       },
       getPalette: () => this.getPalette(),
+      getClipboard: () => this.boardClipboard,
+      setClipboard: (value) => {
+        this.boardClipboard = value;
+      },
     };
   }
 

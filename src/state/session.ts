@@ -9,6 +9,7 @@ import type {
   EdgeLine,
   EdgeShape,
   EdgeSide,
+  RoadmapCluster,
   RoadmapEdge,
   RoadmapEndpoint,
   RoadmapNode,
@@ -159,11 +160,25 @@ export class RoadmapSession {
     );
   }
 
-  /** Edges (paste/duplicate flows pass copies wired between the new nodes) land in the
-   * same commit, so one undo removes the whole batch. */
-  addNodes(nodes: readonly RoadmapNode[], edges: readonly RoadmapEdge[] = []): void {
-    if (nodes.length === 0) {
+  /**
+   * Edges and clusters (paste/duplicate flows pass copies wired between the new nodes)
+   * land in the same commit, so one undo removes the whole batch. Cluster titles get a
+   * numeric suffix when taken; member nodes must reference the passed clusters and carry
+   * cluster-relative layouts — their body blocks move under the new heading.
+   */
+  addNodes(
+    nodes: readonly RoadmapNode[],
+    edges: readonly RoadmapEdge[] = [],
+    clusters: readonly RoadmapCluster[] = [],
+  ): void {
+    if (nodes.length === 0 && clusters.length === 0) {
       return;
+    }
+
+    const nextClusters = { ...this.stateValue.clusters };
+
+    for (const cluster of clusters) {
+      nextClusters[cluster.id] = { ...cluster, title: uniqueClusterTitle(cluster.title, nextClusters) };
     }
 
     const nextNodes = { ...this.stateValue.nodes };
@@ -179,9 +194,21 @@ export class RoadmapSession {
     }
 
     this.commit(
-      { ...this.stateValue, nodes: nextNodes, edges: nextEdges },
+      { ...this.stateValue, nodes: nextNodes, edges: nextEdges, clusters: nextClusters },
       {
-        body: (content) => nodes.reduce((acc, node) => insertNodeBlock(acc, node), content),
+        body: (content) => {
+          let next = nodes.reduce((acc, node) => insertNodeBlock(acc, node), content);
+
+          for (const cluster of clusters) {
+            next = writeClusterSection(
+              next,
+              nextClusters[cluster.id],
+              nodes.filter((node) => node.clusterId === cluster.id).map((node) => node.id),
+            );
+          }
+
+          return next;
+        },
         relations: edges.length > 0,
       },
     );
