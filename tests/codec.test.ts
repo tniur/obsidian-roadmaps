@@ -29,7 +29,7 @@ function sample(): RoadmapState {
         direction: "both",
         fromSide: "bottom",
         toSide: "left",
-        style: { line: "dotted" },
+        style: { line: "dotted", shape: "step" },
       },
       e2: {
         id: "e2",

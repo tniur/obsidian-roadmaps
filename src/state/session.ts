@@ -7,6 +7,7 @@ import { uniqueClusterTitle } from "../domain/title";
 import type {
   EdgeDirection,
   EdgeLine,
+  EdgeShape,
   EdgeSide,
   RoadmapEdge,
   RoadmapEndpoint,
@@ -808,7 +809,13 @@ export class RoadmapSession {
 
   updateEdge(
     id: string,
-    patch: { direction?: EdgeDirection; line?: EdgeLine | "solid"; label?: string; color?: string | null },
+    patch: {
+      direction?: EdgeDirection;
+      line?: EdgeLine | "solid";
+      shape?: EdgeShape | "curved";
+      label?: string;
+      color?: string | null;
+    },
   ): void {
     const edge = this.stateValue.edges[id];
 
@@ -828,11 +835,15 @@ export class RoadmapSession {
       setOptional(next, "label", label.length === 0 ? undefined : label);
     }
 
-    if (patch.line !== undefined || patch.color !== undefined) {
+    if (patch.line !== undefined || patch.shape !== undefined || patch.color !== undefined) {
       const style = { ...edge.style };
 
       if (patch.line !== undefined) {
         setOptional(style, "line", patch.line === "solid" ? undefined : patch.line);
+      }
+
+      if (patch.shape !== undefined) {
+        setOptional(style, "shape", patch.shape === "curved" ? undefined : patch.shape);
       }
 
       if (patch.color !== undefined) {
@@ -846,6 +857,7 @@ export class RoadmapSession {
       next.direction === edge.direction &&
       next.label === edge.label &&
       next.style?.line === edge.style?.line &&
+      next.style?.shape === edge.style?.shape &&
       next.style?.color === edge.style?.color
     ) {
       return;

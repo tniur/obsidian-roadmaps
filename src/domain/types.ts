@@ -77,6 +77,11 @@ export const EDGE_LINES = ["dashed", "dotted"] as const;
 
 export type EdgeLine = (typeof EDGE_LINES)[number];
 
+/** Path geometry; absence means the default bezier curve. */
+export const EDGE_SHAPES = ["straight", "step"] as const;
+
+export type EdgeShape = (typeof EDGE_SHAPES)[number];
+
 export interface RoadmapEdge {
   id: string;
   from: RoadmapEndpoint;
@@ -85,7 +90,7 @@ export interface RoadmapEdge {
   fromSide?: EdgeSide;
   toSide?: EdgeSide;
   label?: string;
-  style?: { color?: string; line?: EdgeLine };
+  style?: { color?: string; line?: EdgeLine; shape?: EdgeShape };
 }
 
 export interface RoadmapViewport {

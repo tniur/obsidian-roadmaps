@@ -2,6 +2,8 @@ import {
   BaseEdge,
   EdgeLabelRenderer,
   getBezierPath,
+  getSmoothStepPath,
+  getStraightPath,
   Position,
   useInternalNode,
   type EdgeProps,
@@ -75,6 +77,15 @@ function arrowPath(x: number, y: number, dir: Vec): string {
   ].join(" ");
 }
 
+/** Unit vector from one point to the other; falls back when the points coincide. */
+function towards(fromX: number, fromY: number, toX: number, toY: number, fallback: Vec): Vec {
+  const dx = toX - fromX;
+  const dy = toY - fromY;
+  const length = Math.hypot(dx, dy);
+
+  return length === 0 ? fallback : { x: dx / length, y: dy / length };
+}
+
 export function FloatingEdge(props: EdgeProps<RoadmapFlowEdge>) {
   const { id, source, target, data, style } = props;
   const sourceNode = useInternalNode<RoadmapFlowNode>(source);
@@ -98,14 +109,33 @@ export function FloatingEdge(props: EdgeProps<RoadmapFlowEdge>) {
     data?.fromSide,
     data?.toSide,
   );
-  const [path, labelX, labelY] = getBezierPath({
-    sourceX: sx,
-    sourceY: sy,
-    sourcePosition: sourcePos,
-    targetX: tx,
-    targetY: ty,
-    targetPosition: targetPos,
-  });
+  const shape = data?.shape;
+  const [path, labelX, labelY] =
+    shape === "straight"
+      ? getStraightPath({ sourceX: sx, sourceY: sy, targetX: tx, targetY: ty })
+      : shape === "step"
+        ? getSmoothStepPath({
+            sourceX: sx,
+            sourceY: sy,
+            sourcePosition: sourcePos,
+            targetX: tx,
+            targetY: ty,
+            targetPosition: targetPos,
+          })
+        : getBezierPath({
+            sourceX: sx,
+            sourceY: sy,
+            sourcePosition: sourcePos,
+            targetX: tx,
+            targetY: ty,
+            targetPosition: targetPos,
+          });
+  /* Bezier and step paths enter a node perpendicular to its side; a straight segment
+     arrives at an arbitrary angle, so its arrows follow the segment instead. */
+  const targetArrowDir =
+    shape === "straight" ? towards(sx, sy, tx, ty, inwardDirection(targetPos)) : inwardDirection(targetPos);
+  const sourceArrowDir =
+    shape === "straight" ? towards(tx, ty, sx, sy, inwardDirection(sourcePos)) : inwardDirection(sourcePos);
   const direction = data?.direction ?? "forward";
   const line = data?.line;
   const label = data?.label;
@@ -130,11 +160,9 @@ export function FloatingEdge(props: EdgeProps<RoadmapFlowEdge>) {
     <g style={colorVars} className={dimmed ? "rm-edge-dimmed" : undefined}>
       <BaseEdge id={id} path={path} style={edgeStyle} interactionWidth={EDGE_INTERACTION_WIDTH} />
       {direction === "forward" || direction === "both" ? (
-        <path className="rm-edge-arrow" d={arrowPath(tx, ty, inwardDirection(targetPos))} />
+        <path className="rm-edge-arrow" d={arrowPath(tx, ty, targetArrowDir)} />
       ) : null}
-      {direction === "both" ? (
-        <path className="rm-edge-arrow" d={arrowPath(sx, sy, inwardDirection(sourcePos))} />
-      ) : null}
+      {direction === "both" ? <path className="rm-edge-arrow" d={arrowPath(sx, sy, sourceArrowDir)} /> : null}
       {data?.fromSide === undefined ? (
         <>
           <circle className="rm-edge-grip-dot" cx={sx} cy={sy} />

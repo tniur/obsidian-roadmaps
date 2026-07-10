@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { ROADMAP_SCHEMA_VERSION } from "../constants";
 import {
+  EDGE_SHAPES,
   EDGE_SIDES,
   ROADMAP_NODE_KINDS,
   ROADMAP_PRIORITIES,
@@ -59,6 +60,8 @@ const sideSchema = z.enum(EDGE_SIDES);
 
 const lineSchema = z.enum(["dashed", "dotted"]);
 
+const shapeSchema = z.enum(EDGE_SHAPES);
+
 const edgeObjectSchema = z
   .object({
     from: endpointSchema,
@@ -69,6 +72,7 @@ const edgeObjectSchema = z
     lbl: z.string().optional(),
     col: z.string().optional(),
     ln: lineSchema.optional(),
+    shp: shapeSchema.optional(),
     dash: z.boolean().optional(),
   })
   .strict();

@@ -391,9 +391,10 @@ function relationEdgesFromBody(
     if (parsed.fromSide !== undefined) edge.fromSide = parsed.fromSide;
     if (parsed.toSide !== undefined) edge.toSide = parsed.toSide;
 
-    if (parsed.line !== undefined || parsed.color !== undefined) {
+    if (parsed.line !== undefined || parsed.shape !== undefined || parsed.color !== undefined) {
       edge.style = {};
       if (parsed.line !== undefined) edge.style.line = parsed.line;
+      if (parsed.shape !== undefined) edge.style.shape = parsed.shape;
       if (parsed.color !== undefined) edge.style.color = parsed.color;
     }
 

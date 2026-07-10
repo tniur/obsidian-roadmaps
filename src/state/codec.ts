@@ -155,10 +155,11 @@ function decodeEdge(id: string, c: CompactEdge): RoadmapEdge {
   if (c.lbl !== undefined) edge.label = c.lbl;
   const line = c.ln ?? (c.dash === true ? "dashed" : undefined);
 
-  if (c.col !== undefined || line !== undefined) {
+  if (c.col !== undefined || line !== undefined || c.shp !== undefined) {
     edge.style = {};
     if (c.col !== undefined) edge.style.color = c.col;
     if (line !== undefined) edge.style.line = line;
+    if (c.shp !== undefined) edge.style.shape = c.shp;
   }
 
   return edge;
@@ -184,6 +185,7 @@ function encodeEdge(edge: RoadmapEdge): CompactEdge {
   if (edge.label !== undefined) c.lbl = edge.label;
   if (edge.style?.color !== undefined) c.col = edge.style.color;
   if (edge.style?.line !== undefined) c.ln = edge.style.line;
+  if (edge.style?.shape !== undefined) c.shp = edge.style.shape;
 
   return c;
 }

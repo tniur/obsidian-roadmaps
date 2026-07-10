@@ -1,6 +1,6 @@
 import { Menu } from "obsidian";
 import { facingSide } from "../../domain/edges";
-import type { EdgeDirection, EdgeLine, EdgeSide, RoadmapEdge } from "../../domain/types";
+import type { EdgeDirection, EdgeLine, EdgeShape, EdgeSide, RoadmapEdge } from "../../domain/types";
 import type { BoardContext } from "../boardContext";
 import { promptEdgeLabel } from "../dialogs";
 import { addCheckedGroup, addColorGroup, type MenuOption } from "./helpers";
@@ -9,6 +9,12 @@ const LINE_OPTIONS: MenuOption<EdgeLine | "solid">[] = [
   { title: "Solid line", value: "solid" },
   { title: "Dashed line", value: "dashed" },
   { title: "Dotted line", value: "dotted" },
+];
+
+const SHAPE_OPTIONS: MenuOption<EdgeShape | "curved">[] = [
+  { title: "Curved", value: "curved" },
+  { title: "Straight", value: "straight" },
+  { title: "Angled", value: "step" },
 ];
 
 const DIRECTION_OPTIONS: MenuOption<EdgeDirection>[] = [
@@ -47,6 +53,11 @@ export function showEdgeContextMenu(ctx: BoardContext, edge: RoadmapEdge, event:
 
   addCheckedGroup(menu, LINE_OPTIONS, edge.style?.line ?? "solid", (line) => {
     ctx.session.updateEdge(id, { line });
+    ctx.commit();
+  });
+  menu.addSeparator();
+  addCheckedGroup(menu, SHAPE_OPTIONS, edge.style?.shape ?? "curved", (shape) => {
+    ctx.session.updateEdge(id, { shape });
     ctx.commit();
   });
   menu.addSeparator();

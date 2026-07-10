@@ -408,6 +408,28 @@ describe("roadmap session", () => {
     expect(session.content).not.toContain("color=var(--color-green)");
   });
 
+  it("sets and clears the edge shape in state and the relations marker", () => {
+    const session = newSession();
+    const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
+    const b = createNoteNode("notes/b.md", { x: 0, y: 0 });
+
+    session.addNode(a);
+    session.addNode(b);
+    session.addEdge(a.id, b.id);
+    const edgeId = Object.keys(session.state.edges)[0];
+
+    session.updateEdge(edgeId, { shape: "step" });
+
+    expect(session.state.edges[edgeId]?.style?.shape).toBe("step");
+    expect(readState(session.content)?.edges[edgeId]?.style?.shape).toBe("step");
+    expect(session.content).toContain("shape=step");
+
+    session.updateEdge(edgeId, { shape: "curved" });
+
+    expect(session.state.edges[edgeId]?.style?.shape).toBeUndefined();
+    expect(session.content).not.toContain("shape=");
+  });
+
   it("adds a node and a connecting edge atomically, with a floating target by default", () => {
     const session = newSession();
     const a = createNoteNode("notes/a.md", { x: 0, y: 0 });

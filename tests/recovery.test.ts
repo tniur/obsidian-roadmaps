@@ -30,7 +30,7 @@ function populatedContent(): { content: string; ids: Record<string, string> } {
   session.addEdge(note.id, url.id, "right", "left");
   const edgeId = Object.keys(session.state.edges)[0];
 
-  session.updateEdge(edgeId, { label: "depends", line: "dashed", color: "var(--color-green)" });
+  session.updateEdge(edgeId, { label: "depends", line: "dashed", shape: "straight", color: "var(--color-green)" });
 
   return {
     content: session.content,
@@ -95,6 +95,7 @@ describe("state recovery from the body", () => {
     expect(rebuilt.nodes[ids.url].align).toEqual({ h: "center", v: "bottom" });
     expect(Object.values(rebuilt.clusters)[0].style?.color).toBe("var(--color-blue)");
     expect(edge.style?.line).toBe("dashed");
+    expect(edge.style?.shape).toBe("straight");
     expect(edge.style?.color).toBe("var(--color-green)");
     expect(edge.fromSide).toBe("right");
     expect(edge.toSide).toBe("left");
