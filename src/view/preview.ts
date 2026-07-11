@@ -10,9 +10,10 @@ const TASK_CHECKBOX = "input.task-list-item-checkbox";
  * Renders a node's source content into `el` for the preview panel: markdown through the
  * Obsidian renderer, images directly, attachments as an embed (so PDF/audio/video get
  * the native viewer). Task checkboxes in rendered markdown persist back to the source
- * note; the rest stays read-only. Calls `onRendered` once markdown content is in place
- * (lets the panel restore its scroll position across refreshes). Returns the cleanup
- * releasing the render component.
+ * note; checkboxes inside embeds belong to other files and stay inert, and a toggle the
+ * file refused is reverted visually with a Notice. The rest stays read-only. Calls
+ * `onRendered` once markdown content is in place (lets the panel restore its scroll
+ * position across refreshes). Returns the cleanup releasing the render component.
  */
 export function mountPreviewContent(app: App, node: RoadmapNode, el: HTMLElement, onRendered?: () => void): () => void {
   const component = new Component();
@@ -56,8 +57,6 @@ export function mountPreviewContent(app: App, node: RoadmapNode, el: HTMLElement
       return;
     }
 
-    // Checkboxes inside embeds belong to other files; keep them inert rather than
-    // letting them toggle without persisting.
     if (target.closest(".internal-embed") !== null) {
       event.preventDefault();
 
@@ -84,8 +83,6 @@ export function mountPreviewContent(app: App, node: RoadmapNode, el: HTMLElement
         return next;
       })
       .then(() => {
-        // The native toggle already happened; revert it so the checkbox keeps
-        // reflecting the file when the write was refused.
         if (!applied) {
           target.checked = !checked;
           new Notice("Could not update the task — edit the note instead.");

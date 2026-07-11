@@ -201,12 +201,11 @@ export function stateToFlowNodes(
   return [...clusters, ...nodes];
 }
 
-/*
- * The comparators below list their keys through `satisfies Record<keyof T, true>`:
- * adding a field to a data type fails compilation until the comparator learns about
- * it, so a new field cannot silently skip re-rendering.
+/**
+ * Comparator key lists (this and the two below) are built through
+ * `satisfies Record<keyof T, true>`: adding a field to a data type fails compilation
+ * until its comparator learns about it, so a new field cannot silently skip re-rendering.
  */
-
 const NODE_DATA_KEYS = Object.keys({
   displayTitle: true,
   customTitle: true,
@@ -343,9 +342,9 @@ function edgeDataEqual(a: RoadmapEdgeData | undefined, b: RoadmapEdgeData | unde
 }
 
 /**
- * Same identity-preserving merge as `reconcileFlowNodes`, for edges. Also carries the
- * ephemeral `selected` flag over to changed edges, so an unrelated commit no longer
- * drops the current edge selection.
+ * Same identity-preserving merge as `reconcileFlowNodes`, for edges. The ephemeral
+ * `selected` flag carries over to changed edges, so an unrelated commit does not drop
+ * the current edge selection.
  */
 export function reconcileFlowEdges(current: RoadmapFlowEdge[], next: RoadmapFlowEdge[]): RoadmapFlowEdge[] {
   const currentById = new Map(current.map((edge) => [edge.id, edge]));

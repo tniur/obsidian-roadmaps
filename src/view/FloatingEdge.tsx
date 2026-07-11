@@ -96,8 +96,8 @@ export function FloatingEdge(props: EdgeProps<RoadmapFlowEdge>) {
     return null;
   }
 
-  /* An edge is dimmed with the filter when a node endpoint is filtered out; cluster
-     endpoints carry no status/priority, so they never dim the edge. */
+  /** The edge dims when a node endpoint is filtered out; cluster endpoints carry no
+   * status/priority, so they never dim the edge. */
   const endpointDimmed = (node: InternalNode<RoadmapFlowNode>): boolean =>
     node.type === ROADMAP_NODE_TYPE &&
     dim((node.data as RoadmapNodeData).status, (node.data as RoadmapNodeData).priority);
@@ -130,8 +130,8 @@ export function FloatingEdge(props: EdgeProps<RoadmapFlowEdge>) {
             targetY: ty,
             targetPosition: targetPos,
           });
-  /* Bezier and step paths enter a node perpendicular to its side; a straight segment
-     arrives at an arbitrary angle, so its arrows follow the segment instead. */
+  /** Bezier and step paths enter a node perpendicular to its side; a straight segment
+   * arrives at an arbitrary angle, so its arrows follow the segment instead. */
   const targetArrowDir =
     shape === "straight" ? towards(sx, sy, tx, ty, inwardDirection(targetPos)) : inwardDirection(targetPos);
   const sourceArrowDir =
@@ -140,8 +140,8 @@ export function FloatingEdge(props: EdgeProps<RoadmapFlowEdge>) {
   const line = data?.line;
   const label = data?.label;
   const color = data?.color;
-  /* Retargets the edge tokens so the line and arrows inherit the custom color; the
-     selected/updating rules set stroke directly and still win, keeping those affordances. */
+  /** Retargets the edge tokens so the line and arrows inherit the custom color; the
+   * selected/updating rules set stroke directly and still win, keeping those affordances. */
   const colorVars: CSSProperties | undefined =
     color === undefined ? undefined : ({ "--rm-edge-color": color, "--rm-edge-hover": color } as CSSProperties);
   const edgeStyle: CSSProperties =

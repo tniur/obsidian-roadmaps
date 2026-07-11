@@ -155,7 +155,10 @@ interface RoadmapCanvasProps {
   openSearchNonce: number;
   /** Bumping `openFilterNonce` opens the filter bar (palette command entry point). */
   openFilterNonce: number;
-  /** Bumping `focusNonce` re-selects exactly `focusIds` (paste and duplicate flows). */
+  /** Bumping `focusNonce` re-selects exactly `focusIds` (paste and duplicate flows).
+   * Applied through the store a tick later: right after an alt-drag drop the committed
+   * duplicates have not reached the store yet, and the gesture's trailing events hand
+   * selection back to the source. */
   focusIds: string[];
   focusNonce: number;
   isNodeMissing: NodeMissingPredicate;
@@ -234,8 +237,8 @@ export function RoadmapCanvas({
   const [nodes, setNodes] = useState<RoadmapFlowNode[]>(() => stateToFlowNodes(state, isNodeMissing, resolveImageSrc));
   const [edges, setEdges] = useState<RoadmapFlowEdge[]>(() => stateToFlowEdges(state));
   const [helperLines, setHelperLines] = useState<{ horizontal?: number; vertical?: number }>({});
-  /* A rubber-band selection drag fires BOTH onNodeDragStop and onSelectionDragStop for
-     the same gesture; `finalized` makes the duplicate finalize a no-op. */
+  /** Alt-drag duplicate state. A rubber-band drag fires both onNodeDragStop and
+   * onSelectionDragStop for one gesture; `finalized` makes the second finalize a no-op. */
   const altDragRef = useRef<{
     map: Map<string, string>;
     frozen: Map<string, { x: number; y: number }>;
@@ -245,9 +248,8 @@ export function RoadmapCanvas({
   const stateRef = useRef(state);
   const pendingTimersRef = useRef<Set<number>>(new Set());
 
-  /* Gesture callbacks defer a tick to run after React Flow's own event handling; the
-     pending ids are tracked so unmounting mid-gesture cancels them instead of updating a
-     torn-down tree. */
+  /** Runs `fn` on the next tick, after React Flow's own event handling for the gesture;
+   * unmounting mid-gesture cancels pending callbacks instead of updating a torn-down tree. */
   const deferOnce = useCallback((fn: () => void): void => {
     const id = window.setTimeout(() => {
       pendingTimersRef.current.delete(id);
@@ -285,10 +287,6 @@ export function RoadmapCanvas({
       return;
     }
 
-    /* Through the store action rather than a raw `selected` flip, so React Flow's own
-       selection bookkeeping (delete key, onSelectionChange) sees the new nodes. Deferred
-       a tick: right after an alt-drag drop the committed duplicates have not reached the
-       store yet, and the gesture's trailing events hand selection back to the source. */
     const timer = window.setTimeout(() => {
       storeApi.getState().addSelectedNodes(focusIds);
     }, 0);
@@ -296,11 +294,11 @@ export function RoadmapCanvas({
     return () => window.clearTimeout(timer);
   }, [focusNonce, focusIds, storeApi]);
 
+  /** Remove changes are suppressed here and in `onEdgesChange`: deletion goes through
+   * the session and may await a confirmation dialog, so React Flow's optimistic
+   * removals would leave the board visually missing elements when the user cancels. */
   const onNodesChange = useCallback(
     (rawChanges: NodeChange<RoadmapFlowNode>[]) => {
-      /* Deletion goes through the session (and may await a confirmation dialog), so
-         React Flow's optimistic removals are suppressed — otherwise cancelling would
-         leave the board visually missing elements until the next state commit. */
       const changes = rawChanges.filter((change) => change.type !== "remove");
 
       if (changes.length === 0) {
@@ -400,10 +398,10 @@ export function RoadmapCanvas({
     [onConnectNodes],
   );
 
-  /* Applying the new endpoints locally right away avoids a one-frame flash of the old
-     edge between the drop and the state round-trip. A reconnect the session rejects
-     (self-loop, duplicate, own-container link) commits no state, so nothing would undo
-     the optimistic edge — the deferred re-sync below restores it from the latest state. */
+  /** Applies the new endpoints optimistically to avoid a one-frame flash of the old
+   * edge. A reconnect the session rejects (self-loop, duplicate, own-container link)
+   * commits no state and nothing would undo the optimistic change, so a deferred
+   * re-sync restores the edges from the latest state. */
   const onReconnect = useCallback(
     (oldEdge: RoadmapFlowEdge, connection: Connection) => {
       if (connection.source === connection.target) {
@@ -443,8 +441,9 @@ export function RoadmapCanvas({
     reconnectRef.current = edge.id;
   }, []);
 
+  /** Clears the reconnect ref on the next tick: onConnectEnd needs it and may fire
+   * after this handler. */
   const onReconnectEnd = useCallback(() => {
-    /* onConnectEnd needs the ref and may fire after this handler; clear on the next tick. */
     deferOnce(() => {
       reconnectRef.current = null;
     });
@@ -483,6 +482,9 @@ export function RoadmapCanvas({
     [screenToFlowPosition, nodeAtPoint, onConnectToEmpty, onReconnectToEmpty],
   );
 
+  /** Spawns ephemeral copies of the dragged nodes, and of the edges between them, that
+   * travel with the drag; on drop the committed state swaps the placeholders for the
+   * persisted duplicates. */
   const startAltDuplicate = useCallback((dragged: RoadmapFlowNode[]) => {
     const map = new Map<string, string>();
     const frozen = new Map<string, { x: number; y: number }>();
@@ -506,8 +508,6 @@ export function RoadmapCanvas({
 
     altDragRef.current = { map, frozen, finalized: false };
     setNodes((current) => [...current, ...copies]);
-    /* Edges between the duplicated nodes travel with the drag; on drop the committed
-       state swaps these placeholders for the persisted copies, like the nodes above. */
     setEdges((current) => [
       ...current,
       ...current
@@ -522,6 +522,13 @@ export function RoadmapCanvas({
     ]);
   }, []);
 
+  /**
+   * Commits the alt-drag copies at their final positions and pins the originals back to
+   * their pre-drag spots; the temp copies stay until the committed state swaps them for
+   * the real duplicates. The freeze interceptor stays armed one more tick — selection
+   * drags can emit a trailing position change after the stop handler. Returns false
+   * when no alt-drag is active.
+   */
   const finalizeAltDuplicate = useCallback((): boolean => {
     const alt = altDragRef.current;
 
@@ -535,8 +542,6 @@ export function RoadmapCanvas({
 
     alt.finalized = true;
 
-    /* Selection drags can emit one more position change after the stop handler; keep
-       the freeze interceptor armed until that has passed, then release. */
     deferOnce(() => {
       if (altDragRef.current === alt) {
         altDragRef.current = null;
@@ -556,8 +561,6 @@ export function RoadmapCanvas({
       }
     }
 
-    /* Pin the originals back to their pre-drag spots; the temp copies stay until the
-       committed state swaps them for the real duplicates in the same frame. */
     setNodes((current) =>
       current.map((node) => {
         const frozen = alt.frozen.get(node.id);
@@ -706,11 +709,11 @@ export function RoadmapCanvas({
     [screenToFlowPosition, onPaneContextMenu],
   );
 
+  /** React Flow also enumerates edges connected to the deleted nodes — including edges
+   * of cluster members, which survive a keep-nodes cluster delete. Only explicitly
+   * selected edges pass; the rest follow their endpoints in the session. */
   const onDeleteInternal = useCallback(
     ({ nodes: deletedNodes, edges: deletedEdges }: { nodes: RoadmapFlowNode[]; edges: RoadmapFlowEdge[] }) => {
-      /* React Flow also enumerates edges connected to the deleted nodes — including
-         edges of cluster members, which survive a keep-nodes cluster delete. Only
-         explicitly selected edges pass; the rest follow their endpoints in the session. */
       onDeleteElements(
         deletedNodes.map((node) => node.id),
         deletedEdges.filter((edge) => edge.selected === true).map((edge) => edge.id),
@@ -782,7 +785,7 @@ export function RoadmapCanvas({
     onMiniMapVisibleChange(next);
   }, [miniMapVisible, onMiniMapVisibleChange]);
 
-  /* Search and filter share the top-centre slot, so opening one closes the other. */
+  /** Search and filter share the top-centre slot, so opening one closes the other. */
   const toggleSearch = useCallback(() => {
     setFilterOpen(false);
     setSearchOpen((open) => !open);

@@ -116,8 +116,6 @@ function toVarColor(color: string | undefined): string | undefined {
   return isHexColor(color) ? normalizeHexColor(color) : VAR_BY_CANVAS_COLOR[color];
 }
 
-// --- Export: roadmap -> canvas -------------------------------------------------------------
-
 function absolutePosition(state: RoadmapState, node: RoadmapNode): { x: number; y: number } {
   const cluster = node.clusterId == null ? undefined : state.clusters[node.clusterId];
 
@@ -209,8 +207,6 @@ export function roadmapToCanvas(state: RoadmapState): JsonCanvas {
     edges: Object.values(state.edges).map(edgeToCanvas),
   };
 }
-
-// --- Import: canvas -> roadmap -------------------------------------------------------------
 
 function sourceFromCanvas(node: CanvasNode): { source: RoadmapNodeSource; kind: RoadmapNode["kind"] } | null {
   if (node.type === "text") {

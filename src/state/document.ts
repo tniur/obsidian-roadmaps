@@ -118,6 +118,13 @@ function buildStateBlock(state: RoadmapState): string {
   return ["%% roadmap:state", "```json", serializeState(state), "```", "%%"].join("\n");
 }
 
+/**
+ * Replaces the hidden state block, or appends one at EOF when no well-formed block
+ * exists. A lingering bare `%% roadmap:state` opener (corrupt or partially written
+ * block) and everything after it is dropped first, so the rewrite never leaves two
+ * state markers; only the last opener counts, leaving an earlier hand-written mention
+ * in the body alone.
+ */
 export function writeState(content: string, state: RoadmapState): string {
   const block = buildStateBlock(state);
 
@@ -125,10 +132,6 @@ export function writeState(content: string, state: RoadmapState): string {
     return content.replace(STATE_BLOCK_RE, () => block);
   }
 
-  /* No well-formed block matched. If a bare opening marker lingers (a corrupt or partially
-     written block), appending would leave two `%% roadmap:state` markers, so drop everything
-     from that marker to EOF first — the state block is always the file's final section.
-     The last occurrence is used so an earlier hand-written mention in the body is left alone. */
   const openers = [...content.matchAll(STATE_BLOCK_OPEN_RE)];
   const lastOpener = openers.at(-1);
   const base = lastOpener === undefined ? content : content.slice(0, lastOpener.index);

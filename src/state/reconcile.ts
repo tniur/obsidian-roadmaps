@@ -202,6 +202,13 @@ function fitNewClusters(
   }
 }
 
+/**
+ * Aligns the state with the readable body: membership, the cluster set and readable
+ * content follow the body; layout and styles stay state-canonical. Marker attrs are
+ * adopted only for clusters new to the state (hand-written headings). Edges lose their
+ * entry when their marker line was removed or an endpoint is gone. Returns the original
+ * state when nothing changed.
+ */
 export function reconcileState(state: RoadmapState, content: string, resolveTarget?: LinkTargetResolver): RoadmapState {
   const { clusters: bodyClusters, membership } = parseBody(content);
   const presentNodes = bodyNodeIds(content);
@@ -254,8 +261,6 @@ export function reconcileState(state: RoadmapState, content: string, resolveTarg
     if (existing !== undefined && existing.title === info.title) {
       clusters[id] = existing;
     } else {
-      /* Style stays state-canonical for known clusters: only the color of a cluster new
-         to the state (a hand-written heading) is adopted from the marker attrs. */
       clusters[id] = existing === undefined ? defaultCluster(id, info) : { ...existing, title: info.title };
       changed = true;
     }
@@ -641,8 +646,8 @@ export function ensureClusterMarkers(content: string): string {
 /**
  * Suffixes hand-written duplicate cluster titles ("Q3" → "Q3 2") so `[[#Title]]` links in
  * Relations stay unambiguous; session mutations keep UI-made titles unique on their own.
- * The hidden marker and its attrs are preserved verbatim; state picks the new title up
- * through the regular body-canonical reconcile.
+ * The hidden marker and its attrs are preserved verbatim, with the new title spliced
+ * right before the marker; state picks the title up through the body-canonical reconcile.
  */
 export function ensureUniqueClusterTitles(content: string): string {
   const bounds = bodyBounds(content);
@@ -668,8 +673,6 @@ export function ensureUniqueClusterTitles(content: string): string {
 
       changed = true;
 
-      /* Slice from the cluster marker specifically: a hand-written heading may carry an
-         unrelated HTML comment before it, which must stay with the title text. */
       return `## ${unique} ${line.slice(line.indexOf("<!-- roadmap-cluster:"))}`;
     });
 
@@ -706,10 +709,11 @@ export interface LoadedDocument {
 /**
  * Full open pipeline: hand-written headings gain cluster markers, a missing state block
  * is rebuilt from the body, an existing one is reconciled against it (including adoption
- * of hand-written relation lines), and nodes whose body blocks are gone (a truncated or
- * half-synced file) get them restored instead of being dropped. Content differing from
- * `data` must be persisted by the caller. Throws on a corrupted or newer-version state
- * block (see `readState`), leaving the file untouched.
+ * of hand-written relation lines), nodes whose body blocks are gone (a truncated or
+ * half-synced file) get them restored instead of being dropped, and hand-edited blocks
+ * whose content was adopted are rewritten to their canonical form. Content differing
+ * from `data` must be persisted by the caller. Throws on a corrupted or newer-version
+ * state block (see `readState`), leaving the file untouched.
  */
 export function loadDocument(data: string, resolveTarget?: LinkTargetResolver): LoadedDocument {
   const warnings: DocumentWarning[] = [];
@@ -740,9 +744,6 @@ export function loadDocument(data: string, resolveTarget?: LinkTargetResolver): 
   let restored = false;
   let normalized = false;
 
-  /* Blocks missing from the body are restored; hand-edited ones whose content was just
-     merged into state are rewritten to canonical form (full vault paths, ordered lines,
-     marker attrs from state), mirroring how the Relations section is canonicalized. */
   for (const node of Object.values(state.nodes)) {
     if (!present.has(node.id)) {
       content = updateNodeBlock(content, node);

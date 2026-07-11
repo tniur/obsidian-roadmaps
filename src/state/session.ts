@@ -69,11 +69,8 @@ const HISTORY_LIMIT = 200;
  * immutable state snapshots and keep the content in sync so the view can persist the
  * latest text. Layout-only changes touch just the hidden state block; structural
  * changes also update the readable Markdown body (node markers and `## Relations`).
- * Every mutation funnels through `commit`, which owns that persist policy.
- *
- * Each mutation records the prior snapshot so `undo`/`redo` can step through the edit
- * history. Snapshots are cheap to keep because state and content are replaced wholesale
- * rather than mutated in place.
+ * Every mutation funnels through `commit`, which owns that persist policy, and records
+ * the prior snapshot so `undo`/`redo` can step through the edit history.
  */
 export class RoadmapSession {
   private stateValue: RoadmapState;

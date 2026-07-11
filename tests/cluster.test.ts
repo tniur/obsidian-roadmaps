@@ -405,7 +405,6 @@ describe("clusters storage", () => {
     expect(session.state.nodes.n2?.layout).toMatchObject({ x: 256, y: 40 });
     expect(session.state.nodes.n1?.clusterId).toBe(clusterId);
     expect(session.state.nodes.n2?.clusterId).toBe(clusterId);
-    // exact fit: 2 columns of 200 + gap 24 + 2*pad 32, shrinks from the bbox width
     expect(session.state.clusters[clusterId]?.layout).toMatchObject({ width: 488, height: 152 });
     expect(session.state.clusters[clusterId]?.layout.width).toBeLessThan(before);
   });
@@ -474,7 +473,6 @@ describe("clusters storage", () => {
 
     session.arrangeCluster(clusterId);
 
-    // single column (cell 200x80); the smaller node is centered in its cell
     expect(session.state.nodes.big?.layout).toMatchObject({ x: 32, y: 40, width: 200, height: 80 });
     expect(session.state.nodes.small?.layout).toMatchObject({
       x: 82,

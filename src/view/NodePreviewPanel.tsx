@@ -14,7 +14,9 @@ interface NodePreviewPanelProps {
 /**
  * Right-docked panel that renders a node's source content inside the canvas. The actual
  * Markdown/image rendering is delegated to mount, which owns the Obsidian lifecycle and
- * returns a cleanup run on unmount or when the previewed node changes.
+ * returns a cleanup run on unmount or when the previewed node changes. A refresh
+ * re-mounts the content from scratch; the scroll offset carries across, so the reading
+ * position survives source-file changes (e.g. after toggling a task checkbox).
  */
 export function NodePreviewPanel({ node, mount, refreshNonce, onEdit, onClose }: NodePreviewPanelProps) {
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -30,9 +32,6 @@ export function NodePreviewPanel({ node, mount, refreshNonce, onEdit, onClose }:
     }
   };
 
-  // A refresh re-mounts the content from scratch; carrying the scroll offset across
-  // keeps the reading position when the source file changes under the preview
-  // (e.g. after toggling a task checkbox).
   useEffect(() => {
     const el = bodyRef.current;
 

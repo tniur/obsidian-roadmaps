@@ -294,7 +294,12 @@ export class RoadmapView extends TextFileView {
     return Promise.resolve();
   }
 
-  /** Session-dependent modules (menus, dialogs, add flows) get this narrow surface. */
+  /**
+   * Session-dependent modules (menus, dialogs, add flows) get this narrow surface. The
+   * context pins the current session: an async dialog may resolve after the file
+   * reloaded into a fresh one, so a stale commit no-ops with a Notice instead of
+   * dropping the dialog's change silently.
+   */
   private boardContext(): BoardContext | null {
     const session = this.session;
 
@@ -302,9 +307,6 @@ export class RoadmapView extends TextFileView {
       return null;
     }
 
-    /* The context captures this session; an async dialog may resolve after the file
-       reloaded into a fresh one. Committing then would drop the dialog's change silently,
-       so a stale commit no-ops with a Notice instead. */
     return {
       app: this.app,
       session,
@@ -587,6 +589,12 @@ export class RoadmapView extends TextFileView {
     };
   }
 
+  /**
+   * Fills the shared clipboard from the selection. A selected cluster stands in for its
+   * members (the canvas drops them from the selection), so the whole group is copied
+   * with cluster-relative member layouts; loose nodes are stored with absolute
+   * coordinates.
+   */
   private copySelection(): void {
     if (this.session === null) {
       return;
@@ -603,8 +611,6 @@ export class RoadmapView extends TextFileView {
       if (cluster !== undefined) {
         clusters.push(cluster);
 
-        /* A selected cluster stands in for its members (they are dropped from the
-           selection), so the whole group is copied: members keep relative layout. */
         for (const node of Object.values(state.nodes)) {
           if (node.clusterId === id && !taken.has(node.id)) {
             taken.add(node.id);
@@ -636,6 +642,8 @@ export class RoadmapView extends TextFileView {
     }
   }
 
+  /** Members of a copied cluster keep their relative layout and follow the cluster
+   * frame; loose nodes carry absolute coordinates and take the paste shift themselves. */
   private pasteClipboard(): void {
     const clipboard = this.host.getClipboard();
 
@@ -661,8 +669,6 @@ export class RoadmapView extends TextFileView {
       return clone;
     });
     const clones = clipboard.nodes.map((node) => {
-      /* Members of a copied cluster keep their relative layout and follow the cluster
-         frame; loose nodes carry absolute coordinates and take the shift themselves. */
       const memberOf = node.clusterId == null ? undefined : cloneIds.get(node.clusterId);
       const clone =
         memberOf === undefined
@@ -951,7 +957,11 @@ export class RoadmapView extends TextFileView {
     ctx.commit();
   };
 
-  /** A selection containing clusters asks how to treat their nodes before deleting. */
+  /**
+   * A selection containing clusters asks how to treat their nodes before deleting.
+   * React Flow lists children of a deleted parent too, so members of the deleted
+   * clusters are governed by the dialog choice, not by the free-node list.
+   */
   private readonly handleDeleteElements = (nodeIds: string[], edgeIds: string[]): void => {
     const ctx = this.editableContext();
 
@@ -968,8 +978,6 @@ export class RoadmapView extends TextFileView {
       return;
     }
 
-    /* React Flow lists children of a deleted parent too; members of the clusters being
-       deleted are governed by the dialog choice, not by the free-node list. */
     const clusterSet = new Set(clusterIds);
     const freeNodeIds = nodeIds.filter((id) => {
       const node = ctx.session.state.nodes[id];
