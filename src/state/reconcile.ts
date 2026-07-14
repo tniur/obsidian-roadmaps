@@ -1,5 +1,6 @@
 import { nanoid } from "nanoid";
 import {
+  CLUSTER_CONTENT_INSET_TOP,
   CLUSTER_PADDING,
   DEFAULT_CLUSTER_HEIGHT,
   DEFAULT_CLUSTER_WIDTH,
@@ -11,6 +12,7 @@ import { fileKindForPath } from "../domain/paths";
 import { sourceFile } from "../domain/source";
 import { clusterTitleKey, firstFreeTitle, nodeTitle } from "../domain/title";
 import {
+  DEFAULT_TEXT_ALIGN,
   isNodeKind,
   TEXT_ALIGNS_H,
   TEXT_ALIGNS_V,
@@ -446,7 +448,8 @@ function nodeFromMarker(
   const alignV = attrIn(TEXT_ALIGNS_V, marker.attrs.av);
 
   if (color !== undefined) node.style = { color };
-  if (alignH !== undefined || alignV !== undefined) node.align = { h: alignH ?? "left", v: alignV ?? "middle" };
+  if (alignH !== undefined || alignV !== undefined)
+    node.align = { h: alignH ?? DEFAULT_TEXT_ALIGN.h, v: alignV ?? DEFAULT_TEXT_ALIGN.v };
 
   return node;
 }
@@ -480,7 +483,7 @@ export function adoptNodeMarkers(
 
     if (clusterId !== null && state.clusters[clusterId] !== undefined) {
       node.clusterId = clusterId;
-      node.layout = { ...node.layout, x: CLUSTER_PADDING, y: CLUSTER_PADDING };
+      node.layout = { ...node.layout, x: CLUSTER_PADDING, y: CLUSTER_CONTENT_INSET_TOP };
     }
 
     nodes ??= { ...state.nodes };

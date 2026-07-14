@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createNoteNode } from "../src/domain/create";
+import { createAttachmentNode, createNoteNode, createUrlNode } from "../src/domain/create";
 import { createRoadmapDocument, readState } from "../src/state/document";
 import { RoadmapSession } from "../src/state/session";
 import {
@@ -81,6 +81,57 @@ describe("visible-node hit test", () => {
 
     expect(pointOverVisibleNode(flow, { x: absolute.x + 5, y: absolute.y + 5 })).toBe(true);
     expect(pointOverVisibleNode(flow, { x: member.position.x + 5, y: member.position.y + 5 })).toBe(false);
+  });
+});
+
+describe("card secondary line", () => {
+  it("shows the schemeless address or file name, hiding a repeat of the title", () => {
+    const { session } = sessionWithNodes();
+    const url = createUrlNode("https://figma.com/file/1", { x: 0, y: 200 });
+    const bareUrl = createUrlNode("https://figma.com", { x: 0, y: 300 });
+    const attachment = createAttachmentNode("files/spec-v2.pdf", { x: 0, y: 400 });
+
+    session.addNodes([url, bareUrl, attachment]);
+    session.updateNodeMeta(attachment.id, { title: "Product spec" });
+    const flow = stateToFlowNodes(session.state).filter(isCardNode);
+
+    expect(flow.find((node) => node.id === url.id)?.data.secondary).toBe("figma.com/file/1");
+    expect(flow.find((node) => node.id === bareUrl.id)?.data.secondary).toBeUndefined();
+    expect(flow.find((node) => node.id === attachment.id)?.data.secondary).toBe("spec-v2.pdf");
+
+    session.updateNodeMeta(attachment.id, { title: null });
+    const untitled = stateToFlowNodes(session.state).filter(isCardNode);
+
+    expect(untitled.find((node) => node.id === attachment.id)?.data.secondary).toBeUndefined();
+  });
+
+  it("stays undefined for note nodes regardless of title", () => {
+    const { session, ids } = sessionWithNodes();
+
+    session.updateNodeMeta(ids[0], { title: "Renamed" });
+    const flow = stateToFlowNodes(session.state).filter(isCardNode);
+
+    expect(flow.find((node) => node.id === ids[0])?.data.secondary).toBeUndefined();
+  });
+});
+
+describe("cluster member count", () => {
+  it("counts members and reports 0 for an emptied cluster", () => {
+    const { session, ids } = sessionWithNodes();
+
+    session.createClusterFromNodes([ids[0], ids[1]], "Group");
+    const clusterId = Object.keys(session.state.clusters)[0];
+    const grouped = stateToFlowNodes(session.state).find((node) => node.id === clusterId);
+
+    expect(grouped !== undefined && !isCardNode(grouped) && grouped.data.count).toBe(2);
+
+    session.setNodesCluster([
+      { id: ids[0], clusterId: null, x: 0, y: 0 },
+      { id: ids[1], clusterId: null, x: 300, y: 0 },
+    ]);
+    const emptied = stateToFlowNodes(session.state).find((node) => node.id === clusterId);
+
+    expect(emptied !== undefined && !isCardNode(emptied) && emptied.data.count).toBe(0);
   });
 });
 

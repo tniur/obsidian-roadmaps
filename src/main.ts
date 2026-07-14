@@ -14,6 +14,7 @@ import {
   BACKGROUND_DOTS_ICON_ID,
   ROADMAP_FRONTMATTER_KEY,
   ROADMAP_FRONTMATTER_VALUE,
+  STATUS_IN_PROGRESS_ICON_ID,
   VIEW_TYPE_ROADMAP,
 } from "./constants";
 import { canvasToState, parseCanvas } from "./domain/jsonCanvas";
@@ -35,6 +36,9 @@ const MARKDOWN_VIEW_TYPE = "markdown";
 
 const BACKGROUND_DOTS_ICON =
   '<circle cx="22" cy="22" r="9" fill="currentColor"/><circle cx="50" cy="22" r="9" fill="currentColor"/><circle cx="78" cy="22" r="9" fill="currentColor"/><circle cx="22" cy="50" r="9" fill="currentColor"/><circle cx="50" cy="50" r="9" fill="currentColor"/><circle cx="78" cy="50" r="9" fill="currentColor"/><circle cx="22" cy="78" r="9" fill="currentColor"/><circle cx="50" cy="78" r="9" fill="currentColor"/><circle cx="78" cy="78" r="9" fill="currentColor"/>';
+
+const STATUS_IN_PROGRESS_ICON =
+  '<path d="M50 8a42 42 0 1 0 42 42" fill="none" stroke="currentColor" stroke-width="8.3" stroke-linecap="round"/>';
 
 type LeafWithId = WorkspaceLeaf & { id?: string };
 
@@ -69,6 +73,7 @@ export default class RoadmapPlugin extends Plugin {
   async onload(): Promise<void> {
     await this.loadSettings();
     addIcon(BACKGROUND_DOTS_ICON_ID, BACKGROUND_DOTS_ICON);
+    addIcon(STATUS_IN_PROGRESS_ICON_ID, STATUS_IN_PROGRESS_ICON);
 
     this.registerView(VIEW_TYPE_ROADMAP, (leaf) => new RoadmapView(leaf, this.createViewHost()));
     this.addSettingTab(new RoadmapSettingTab(this.app, this));
@@ -339,7 +344,27 @@ export default class RoadmapPlugin extends Plugin {
       setClipboard: (value) => {
         this.boardClipboard = value;
       },
+      openPluginSettings: () => {
+        this.openPluginSettings();
+      },
     };
+  }
+
+  /**
+   * Opens this plugin's tab in the Obsidian settings dialog. `app.setting` is not part
+   * of the public API, so the access is isolated here behind a structural type.
+   */
+  private openPluginSettings(): void {
+    const settings = (this.app as App & { setting?: { open: () => void; openTabById: (id: string) => void } }).setting;
+
+    if (settings === undefined) {
+      new Notice("Open Settings → Roadmaps to configure the plugin.");
+
+      return;
+    }
+
+    settings.open();
+    settings.openTabById(this.manifest.id);
   }
 
   private async loadSettings(): Promise<void> {

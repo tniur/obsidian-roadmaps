@@ -20,7 +20,7 @@ export function NodeToolbar({ onAction }: NodeToolbarProps) {
   }, [getViewport, width, height]);
 
   return (
-    <Panel position="top-left" className="rm-panel rm-node-toolbar">
+    <Panel position="bottom-center" className="rm-panel rm-node-toolbar">
       {ADD_NODE_ACTIONS.map(({ id, label, icon }) => (
         <ToolbarButton key={id} icon={icon} label={label} onClick={() => onAction(id, placement())} />
       ))}

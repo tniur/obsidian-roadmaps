@@ -1,6 +1,6 @@
 import type { Edge, Node, ReactFlowInstance } from "@xyflow/react";
 import { COLLAPSED_CLUSTER_HEIGHT } from "../constants";
-import { nodeTitle } from "../domain/title";
+import { nodeSecondary, nodeTitle } from "../domain/title";
 import type {
   EdgeDirection,
   EdgeLine,
@@ -25,6 +25,8 @@ export type RoadmapNodeData = {
   displayTitle: string;
   /** Explicit user-set title only; image cards caption exclusively on it. */
   customTitle?: string;
+  /** Source hint under a custom title: the address (scheme stripped) for URLs, size and type for attachments. */
+  secondary?: string;
   description?: string;
   kind: RoadmapNodeKind;
   status?: RoadmapStatus;
@@ -39,6 +41,8 @@ export type RoadmapClusterData = {
   title: string;
   color?: string;
   collapsed: boolean;
+  /** Member count shown in the header chip; 0 renders the empty placeholder. */
+  count: number;
 };
 
 export type RoadmapEdgeData = {
@@ -144,6 +148,9 @@ export type NodeMissingPredicate = (node: RoadmapNode) => boolean;
 
 export type NodeImageResolver = (node: RoadmapNode) => string | null;
 
+/** Vault-backed source line ("2.4 MB · PDF"); falls back to the domain's nodeSecondary. */
+export type NodeFileInfoResolver = (node: RoadmapNode) => string | undefined;
+
 /**
  * Flat React Flow node list with cluster containers first (parents must precede children).
  * A clustered node renders as a child of its cluster, so its stored layout is relative to the
@@ -153,7 +160,16 @@ export function stateToFlowNodes(
   state: RoadmapState,
   isMissing?: NodeMissingPredicate,
   resolveImageSrc?: NodeImageResolver,
+  resolveFileInfo?: NodeFileInfoResolver,
 ): RoadmapFlowNode[] {
+  const memberCounts = new Map<string, number>();
+
+  for (const node of Object.values(state.nodes)) {
+    if (node.clusterId != null) {
+      memberCounts.set(node.clusterId, (memberCounts.get(node.clusterId) ?? 0) + 1);
+    }
+  }
+
   const clusters = Object.values(state.clusters).map(
     (cluster): RoadmapClusterNode => ({
       id: cluster.id,
@@ -165,6 +181,7 @@ export function stateToFlowNodes(
         title: cluster.title,
         color: cluster.style?.color,
         collapsed: cluster.collapsed === true,
+        count: memberCounts.get(cluster.id) ?? 0,
       },
     }),
   );
@@ -179,6 +196,7 @@ export function stateToFlowNodes(
       data: {
         displayTitle: nodeTitle(node),
         customTitle: node.title,
+        secondary: resolveFileInfo?.(node) ?? nodeSecondary(node),
         description: node.description,
         kind: node.kind,
         status: node.status,
@@ -209,6 +227,7 @@ export function stateToFlowNodes(
 const NODE_DATA_KEYS = Object.keys({
   displayTitle: true,
   customTitle: true,
+  secondary: true,
   description: true,
   kind: true,
   status: true,
@@ -223,6 +242,7 @@ const CLUSTER_DATA_KEYS = Object.keys({
   title: true,
   color: true,
   collapsed: true,
+  count: true,
 } satisfies Record<keyof RoadmapClusterData, true>) as ReadonlyArray<keyof RoadmapClusterData>;
 
 const EDGE_DATA_KEYS = Object.keys({

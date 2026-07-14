@@ -1,4 +1,4 @@
-import { fileBasename, stripMarkdownExtension, urlHostname } from "../domain/paths";
+import { fileBasename, fileName, stripMarkdownExtension, urlHostname } from "../domain/paths";
 import { nodeTitle } from "../domain/title";
 import {
   ROADMAP_PRIORITIES,
@@ -235,8 +235,9 @@ export function parseNodeBlock(
   }
 
   const result: ParsedNodeBlock = { source, ...parseTags(content) };
+  const defaultAlias = kind === "attachment" ? fileName(target) : fileBasename(target);
 
-  if (alias !== undefined && alias.length > 0 && alias !== fileBasename(target)) {
+  if (alias !== undefined && alias.length > 0 && alias !== defaultAlias) {
     result.title = alias;
   }
 

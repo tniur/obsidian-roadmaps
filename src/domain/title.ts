@@ -1,4 +1,4 @@
-import { fileBasename, urlHostname } from "./paths";
+import { fileBasename, fileName, urlHostname } from "./paths";
 import type { RoadmapCluster, RoadmapNode } from "./types";
 
 export function nodeTitle(node: RoadmapNode): string {
@@ -20,10 +20,27 @@ export function nodeTitle(node: RoadmapNode): string {
     case "image":
       return fileBasename(source.file);
     case "attachment":
-      return fileBasename(source.file);
+      return fileName(source.file);
     case "url":
       return urlHostname(source.url);
   }
+}
+
+/**
+ * Secondary source line of a card: the full address without its scheme for URL nodes,
+ * the file name for attachments (a fallback when no vault file info is available).
+ * Suppressed when it would just repeat the display title.
+ */
+export function nodeSecondary(node: RoadmapNode): string | undefined {
+  const source = node.source;
+  const secondary =
+    source.type === "url"
+      ? source.url.replace(/^https?:\/\//i, "").replace(/\/$/, "")
+      : source.type === "attachment"
+        ? fileName(source.file)
+        : undefined;
+
+  return secondary === undefined || secondary === nodeTitle(node) ? undefined : secondary;
 }
 
 /** Obsidian resolves heading links case-insensitively, so titles must differ that way too. */

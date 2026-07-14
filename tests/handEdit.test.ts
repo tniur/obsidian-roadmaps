@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { CLUSTER_PADDING } from "../src/constants";
 import { createNoteNode, createUrlNode } from "../src/domain/create";
+import { parseNodeBlock } from "../src/markdown/nodeBlock";
 import { createRoadmapDocument, readState } from "../src/state/document";
 import {
   adoptNodeMarkers,
@@ -140,8 +142,8 @@ describe("hand-written cluster headings", () => {
 
     const box = clusters[0].layout;
 
-    expect(box.x).toBe(500 - 32);
-    expect(box.y).toBe(400 - 32);
+    expect(box.x).toBe(500 - CLUSTER_PADDING);
+    expect(box.y).toBe(400 - CLUSTER_PADDING);
 
     for (const member of members) {
       expect(member.layout.x).toBeGreaterThanOrEqual(0);
@@ -310,5 +312,17 @@ describe("hand-written relation lines", () => {
     const adopted = adoptRelationEdges(reconcileState(state, edited), edited);
 
     expect(Object.keys(adopted.edges)).toHaveLength(1);
+  });
+});
+
+describe("wikilink alias as explicit title", () => {
+  it("suppresses the alias as a title when it equals the source default per kind", () => {
+    expect(parseNodeBlock("note", "[[notes/react|react]]")?.title).toBeUndefined();
+    expect(parseNodeBlock("attachment", "[[files/report.pdf|report.pdf]]")?.title).toBeUndefined();
+  });
+
+  it("keeps a genuinely custom alias as the title", () => {
+    expect(parseNodeBlock("note", "[[notes/react|React basics]]")?.title).toBe("React basics");
+    expect(parseNodeBlock("attachment", "[[files/report.pdf|Q3 spec]]")?.title).toBe("Q3 spec");
   });
 });

@@ -1,4 +1,4 @@
-import { CLUSTER_NODE_GAP, CLUSTER_PADDING, COLLAPSED_CLUSTER_HEIGHT } from "../constants";
+import { CLUSTER_CONTENT_INSET_TOP, CLUSTER_NODE_GAP, CLUSTER_PADDING, CLUSTER_PADDING_Y } from "../constants";
 import type { RoadmapLayout, RoadmapNode } from "./types";
 
 export interface ClusterArrangement {
@@ -43,7 +43,7 @@ export function arrangeClusterGrid(members: readonly RoadmapNode[], baseWidth: n
   const cellW = Math.max(...sorted.map((node) => node.layout.width));
   const cellH = Math.max(...sorted.map((node) => node.layout.height));
   const gap = CLUSTER_NODE_GAP;
-  const top = COLLAPSED_CLUSTER_HEIGHT;
+  const top = CLUSTER_CONTENT_INSET_TOP;
   const effectiveBase = Math.max(baseWidth, cellW + CLUSTER_PADDING * 2);
   const columns = Math.min(
     sorted.length,
@@ -69,7 +69,7 @@ export function arrangeClusterGrid(members: readonly RoadmapNode[], baseWidth: n
 
   return {
     width: CLUSTER_PADDING * 2 + contentWidth,
-    height: top + rows * (cellH + gap) - gap + CLUSTER_PADDING,
+    height: top + rows * (cellH + gap) - gap + CLUSTER_PADDING_Y,
     positions,
   };
 }

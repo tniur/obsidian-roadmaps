@@ -146,14 +146,14 @@ describe("clusters storage", () => {
     const clusterId = Object.keys(session.state.clusters)[0];
 
     expect(session.state.clusters[clusterId]?.layout).toEqual({
-      x: 68,
-      y: 68,
-      width: 564,
-      height: 344,
+      x: 76,
+      y: 44,
+      width: 548,
+      height: 352,
     });
     expect(session.state.nodes.n1?.clusterId).toBe(clusterId);
-    expect(session.state.nodes.n1?.layout.x).toBe(32);
-    expect(session.state.nodes.n2?.layout.x).toBe(332);
+    expect(session.state.nodes.n1?.layout.x).toBe(24);
+    expect(session.state.nodes.n2?.layout.x).toBe(324);
     expect(session.content).toContain("## Group");
 
     const reconciled = reconcileState(readState(session.content) ?? emptyState(), session.content);
@@ -401,11 +401,11 @@ describe("clusters storage", () => {
 
     session.arrangeCluster(clusterId);
 
-    expect(session.state.nodes.n1?.layout).toMatchObject({ x: 32, y: 40 });
-    expect(session.state.nodes.n2?.layout).toMatchObject({ x: 256, y: 40 });
+    expect(session.state.nodes.n1?.layout).toMatchObject({ x: 24, y: 56 });
+    expect(session.state.nodes.n2?.layout).toMatchObject({ x: 248, y: 56 });
     expect(session.state.nodes.n1?.clusterId).toBe(clusterId);
     expect(session.state.nodes.n2?.clusterId).toBe(clusterId);
-    expect(session.state.clusters[clusterId]?.layout).toMatchObject({ width: 488, height: 152 });
+    expect(session.state.clusters[clusterId]?.layout).toMatchObject({ width: 472, height: 152 });
     expect(session.state.clusters[clusterId]?.layout.width).toBeLessThan(before);
   });
 
@@ -437,9 +437,9 @@ describe("clusters storage", () => {
 
     session.arrangeCluster(clusterId);
 
-    expect(session.state.nodes.n1?.layout).toMatchObject({ x: 32, y: 40 });
-    expect(session.state.nodes.n2?.layout).toMatchObject({ x: 256, y: 40 });
-    expect(session.state.nodes.n3?.layout).toMatchObject({ x: 144, y: 144 });
+    expect(session.state.nodes.n1?.layout).toMatchObject({ x: 24, y: 56 });
+    expect(session.state.nodes.n2?.layout).toMatchObject({ x: 248, y: 56 });
+    expect(session.state.nodes.n3?.layout).toMatchObject({ x: 136, y: 160 });
   });
 
   it("centers a smaller node within its grid cell when arranging", () => {
@@ -473,10 +473,10 @@ describe("clusters storage", () => {
 
     session.arrangeCluster(clusterId);
 
-    expect(session.state.nodes.big?.layout).toMatchObject({ x: 32, y: 40, width: 200, height: 80 });
+    expect(session.state.nodes.big?.layout).toMatchObject({ x: 24, y: 56, width: 200, height: 80 });
     expect(session.state.nodes.small?.layout).toMatchObject({
-      x: 82,
-      y: 164,
+      x: 74,
+      y: 180,
       width: 100,
       height: 40,
     });

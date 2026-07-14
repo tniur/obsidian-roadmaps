@@ -5,6 +5,7 @@ import {
   BackgroundVariant,
   ConnectionMode,
   MiniMap,
+  Panel,
   ReactFlow,
   SelectionMode,
   useReactFlow,
@@ -26,6 +27,7 @@ import {
   useState,
 } from "react";
 import { nanoid } from "nanoid";
+import { BACKGROUND_DOT_GAP, BACKGROUND_DOT_SIZE } from "../constants";
 import { asSide, type NodePlacement } from "../domain/create";
 import { filterIsActive, nodeMatchesFilter, type NodeFilter } from "../domain/filter";
 import type { RoadmapState, RoadmapViewport } from "../domain/types";
@@ -49,6 +51,7 @@ import {
   ROADMAP_NODE_TYPE,
   stateToFlowEdges,
   stateToFlowNodes,
+  type NodeFileInfoResolver,
   type NodeImageResolver,
   type NodeMissingPredicate,
   type RoadmapFlowEdge,
@@ -130,6 +133,8 @@ export interface CanvasBoardActions {
   onToggleLock: () => void;
   onAutoLayout: () => void;
   onExportPdf: () => void;
+  onExportCanvas: () => void;
+  onOpenSettings: () => void;
   onDotsVisibleChange: (value: boolean) => void;
   onMiniMapVisibleChange: (value: boolean) => void;
   onViewportChange: (viewport: RoadmapViewport) => void;
@@ -163,6 +168,7 @@ interface RoadmapCanvasProps {
   focusNonce: number;
   isNodeMissing: NodeMissingPredicate;
   resolveImageSrc: NodeImageResolver;
+  resolveFileInfo: NodeFileInfoResolver;
   nodeActions: CanvasNodeActions;
   edgeActions: CanvasEdgeActions;
   clusterActions: CanvasClusterActions;
@@ -182,6 +188,7 @@ export function RoadmapCanvas({
   focusNonce,
   isNodeMissing,
   resolveImageSrc,
+  resolveFileInfo,
   nodeActions,
   edgeActions,
   clusterActions,
@@ -212,6 +219,8 @@ export function RoadmapCanvas({
     onToggleLock,
     onAutoLayout,
     onExportPdf,
+    onExportCanvas,
+    onOpenSettings,
     onDotsVisibleChange,
     onMiniMapVisibleChange,
     onViewportChange,
@@ -234,8 +243,12 @@ export function RoadmapCanvas({
   const [filterStatuses, setFilterStatuses] = useState<ReadonlySet<string>>(() => new Set());
   const [filterPriorities, setFilterPriorities] = useState<ReadonlySet<string>>(() => new Set());
   const initialViewportRef = useRef(state.viewport);
-  const [nodes, setNodes] = useState<RoadmapFlowNode[]>(() => stateToFlowNodes(state, isNodeMissing, resolveImageSrc));
+  const [nodes, setNodes] = useState<RoadmapFlowNode[]>(() =>
+    stateToFlowNodes(state, isNodeMissing, resolveImageSrc, resolveFileInfo),
+  );
   const [edges, setEdges] = useState<RoadmapFlowEdge[]>(() => stateToFlowEdges(state));
+  /** Counted from the domain state, so transient alt-drag copies never inflate the chip. */
+  const nodeCount = Object.keys(state.nodes).length;
   const [helperLines, setHelperLines] = useState<{ horizontal?: number; vertical?: number }>({});
   /** Alt-drag duplicate state. A rubber-band drag fires both onNodeDragStop and
    * onSelectionDragStop for one gesture; `finalized` makes the second finalize a no-op. */
@@ -272,9 +285,11 @@ export function RoadmapCanvas({
 
   useEffect(() => {
     stateRef.current = state;
-    setNodes((current) => reconcileFlowNodes(current, stateToFlowNodes(state, isNodeMissing, resolveImageSrc)));
+    setNodes((current) =>
+      reconcileFlowNodes(current, stateToFlowNodes(state, isNodeMissing, resolveImageSrc, resolveFileInfo)),
+    );
     setEdges((current) => reconcileFlowEdges(current, stateToFlowEdges(state)));
-  }, [state, isNodeMissing, resolveImageSrc]);
+  }, [state, isNodeMissing, resolveImageSrc, resolveFileInfo]);
 
   useEffect(() => {
     onFlowInit(reactFlow);
@@ -933,11 +948,13 @@ export function RoadmapCanvas({
             defaultViewport={initialViewportRef.current}
             fitView={initialViewportRef.current === undefined}
           >
-            {dotsVisible ? <Background variant={BackgroundVariant.Dots} /> : null}
+            {dotsVisible ? (
+              <Background variant={BackgroundVariant.Dots} gap={BACKGROUND_DOT_GAP} size={BACKGROUND_DOT_SIZE} />
+            ) : null}
             {miniMapVisible ? (
               <MiniMap
                 className="rm-minimap"
-                position="bottom-right"
+                position="bottom-left"
                 ariaLabel="Mini-map"
                 pannable
                 zoomable
@@ -946,6 +963,9 @@ export function RoadmapCanvas({
                 maskColor="var(--rm-minimap-mask)"
               />
             ) : null}
+            <Panel position="top-right" className="rm-count-chip">
+              <span className="rm-chip-text">{nodeCount === 1 ? "1 node" : `${nodeCount} nodes`}</span>
+            </Panel>
             <HelperLines horizontal={helperLines.horizontal} vertical={helperLines.vertical} />
             {!locked ? <NodeToolbar onAction={onAddAction} /> : null}
             {searchOpen ? (
@@ -978,6 +998,8 @@ export function RoadmapCanvas({
               onRedo={onRedo}
               onAutoLayout={onAutoLayout}
               onExportPdf={onExportPdf}
+              onExportCanvas={onExportCanvas}
+              onOpenSettings={onOpenSettings}
             />
           </ReactFlow>
           {nodes.length === 0 && !locked ? (

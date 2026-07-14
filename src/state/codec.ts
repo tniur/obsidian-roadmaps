@@ -1,11 +1,12 @@
 import { ROADMAP_SCHEMA_VERSION } from "../constants";
-import type {
-  EdgeDirection,
-  RoadmapCluster,
-  RoadmapEdge,
-  RoadmapNode,
-  RoadmapNodeSource,
-  RoadmapState,
+import {
+  DEFAULT_TEXT_ALIGN,
+  type EdgeDirection,
+  type RoadmapCluster,
+  type RoadmapEdge,
+  type RoadmapNode,
+  type RoadmapNodeSource,
+  type RoadmapState,
 } from "../domain/types";
 import {
   compactStateSchema,
@@ -68,7 +69,7 @@ function decodeNode(id: string, c: CompactNode): RoadmapNode {
   if (c.p !== undefined) node.priority = c.p;
 
   if (c.ah !== undefined || c.av !== undefined) {
-    node.align = { h: c.ah ?? "left", v: c.av ?? "middle" };
+    node.align = { h: c.ah ?? DEFAULT_TEXT_ALIGN.h, v: c.av ?? DEFAULT_TEXT_ALIGN.v };
   }
 
   if (c.cl !== undefined) node.clusterId = c.cl;

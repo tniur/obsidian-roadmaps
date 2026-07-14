@@ -1,5 +1,5 @@
 import { Menu } from "obsidian";
-import type { RoadmapNode } from "../../domain/types";
+import { DEFAULT_TEXT_ALIGN, type RoadmapNode } from "../../domain/types";
 import type { BoardContext } from "../boardContext";
 import { promptEditText, promptGroupIntoCluster, promptNodeText, promptNodeUrl } from "../dialogs";
 import {
@@ -19,7 +19,7 @@ export function showNodeContextMenu(
   event: MouseEvent,
 ): void {
   const id = node.id;
-  const align = node.align ?? { h: "left", v: "middle" };
+  const align = node.align ?? DEFAULT_TEXT_ALIGN;
   const menu = new Menu();
 
   addCheckedGroup(menu, withNone("No status", STATUS_OPTIONS), node.status ?? null, (status) => {

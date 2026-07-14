@@ -13,9 +13,14 @@
   /* shape */
   --rm-radius-s: var(--radius-s, 4px);
   --rm-radius-m: var(--radius-m, 8px);
-  --rm-radius-l: var(--radius-l, 12px);
   --rm-radius-full: 999px;
+  --rm-radius-control: 7px;
+  --rm-radius-tile: 9px;
+  --rm-radius-node: 12px;
+  --rm-radius-cluster: 14px;
+  --rm-radius-chip: 6px;
   --rm-border-width: 1px;
+  --rm-border-width-thick: 1.5px;
 
   /* palette */
   --rm-surface: var(--background-primary);
@@ -29,15 +34,14 @@
   --rm-danger: var(--text-error);
   --rm-accent-tint: color-mix(in srgb, var(--rm-accent) 12%, transparent);
   --rm-ring: color-mix(in srgb, var(--rm-accent) 35%, transparent);
-  --rm-ring-danger: color-mix(in srgb, var(--rm-danger) 35%, transparent);
   --rm-ring-width: 2px;
-  --rm-ring-width-handle: 3px;
   --rm-focus-outline: var(--rm-ring-width) solid var(--rm-ring);
 
-  /* elevation & motion */
-  --rm-shadow-card: var(--shadow-s);
-  --rm-shadow-card-hover: 0 3px 10px var(--background-modifier-box-shadow);
-  --rm-shadow-card-drag: 0 8px 24px var(--background-modifier-box-shadow);
+  /* elevation & motion: one shadow per surface role (card / panel) */
+  --rm-shadow-card: 0 1px 2px rgba(20, 22, 30, 0.06), 0 2px 6px rgba(20, 22, 30, 0.05);
+  --rm-shadow-card-hover: 0 4px 12px rgba(20, 22, 30, 0.13), 0 1px 3px rgba(20, 22, 30, 0.08);
+  --rm-shadow-card-drag: 0 6px 20px rgba(20, 22, 30, 0.14), 0 2px 6px rgba(20, 22, 30, 0.08);
+  --rm-shadow-panel: 0 4px 16px rgba(20, 22, 30, 0.1), 0 1px 3px rgba(20, 22, 30, 0.08);
   --rm-shadow-overlay: var(--shadow-l);
   --rm-transition-fast: 120ms ease;
   --rm-transition-med: 180ms ease;
@@ -48,7 +52,7 @@
   --rm-z-overlay: 20;
 
   /* board */
-  --rm-dot-color: color-mix(in srgb, var(--rm-text-faint) 50%, transparent);
+  --rm-dot-color: color-mix(in srgb, var(--rm-text-faint) 45%, transparent);
   --rm-guide-color: var(--rm-accent);
   --rm-guide-width: 1px;
   --rm-selection-fill: var(--rm-accent-tint);
@@ -59,31 +63,57 @@
   /* node cards */
   --rm-node-bg: var(--rm-surface);
   --rm-node-border: var(--rm-border);
-  --rm-node-radius: var(--rm-radius-l);
+  --rm-node-radius: var(--rm-radius-node);
+  --rm-node-pad-y: 11px;
+  --rm-node-pad-x: 13px;
   --rm-node-tint: 9%;
   --rm-dim-opacity: 0.15;
   --rm-dim-grayscale: 0.6;
 
+  /* node typography */
+  --rm-node-title-size: 14px;
+  --rm-node-title-weight: 650;
+  --rm-node-text-size: 17px;
+  --rm-node-text-weight: 550;
+  --rm-node-desc-size: 12px;
+  --rm-node-secondary-size: 11.5px;
+
+  /* shared small type: section labels, compact labels, chip text */
+  --rm-label-size: 13.5px;
+  --rm-label-size-sm: 12.5px;
+  --rm-chip-size: 11px;
+  --rm-chip-size-caps: 10.5px;
+
   /* clusters */
   --rm-cluster-border: var(--rm-border);
-  --rm-cluster-radius: var(--rm-radius-l);
+  --rm-cluster-radius: var(--rm-radius-cluster);
   --rm-cluster-fill: color-mix(in srgb, var(--rm-text-muted) 4%, transparent);
   --rm-cluster-header: color-mix(in srgb, var(--rm-text-muted) 8%, transparent);
-  --rm-cluster-tint: 10%;
+  --rm-cluster-tint: 9%;
   --rm-cluster-fill-tint: 5%;
-  --rm-cluster-line-tint: 25%;
+  --rm-cluster-line-tint: 18%;
+  --rm-cluster-border-tint: 55%;
+  /* Must stay equal to COLLAPSED_CLUSTER_HEIGHT in src/constants.ts, which uses the same
+     height for the collapsed footprint and the content inset of layout math. */
+  --rm-cluster-header-height: 40px;
 
   /* edges */
-  --rm-edge-color: var(--rm-text-muted);
-  --rm-edge-hover: var(--rm-text);
-  --rm-edge-width: 1.25px;
-  --rm-edge-dash: 6 4;
-  --rm-edge-dot: 0 6;
-  --rm-edge-dot-size: 2.25px;
+  --rm-edge-color: var(--rm-text-faint);
+  --rm-edge-width: 2px;
+  --rm-edge-width-hover: 2.8px;
+  --rm-edge-width-active: 3px;
+  --rm-edge-glow-width: calc(var(--rm-edge-width-hover) + 6px);
+  --rm-edge-glow-opacity: 0.22;
+  --rm-edge-dash: 7 6;
+  --rm-edge-dot: 2 7;
+  --rm-edge-dot-size: 2px;
   --rm-connection-color: var(--rm-accent);
 
-  /* handles & resize */
-  --rm-handle-size: 9px;
+  /* handles (connection ports) & resize */
+  --rm-handle-size: 11px;
+  --rm-handle-scale-active: 1.36;
+  --rm-handle-border: 2px;
+  --rm-handle-halo: 4px;
   --rm-resize-handle: 16px;
   --rm-resize-edge: 8px;
 
@@ -91,15 +121,29 @@
   --rm-control-size: 28px;
   --rm-icon-size: 16px;
   --rm-panel-bg: var(--rm-surface);
-  --rm-panel-radius: var(--rm-radius-m);
-  --rm-panel-shadow: var(--shadow-s);
+  --rm-panel-radius: 12px;
+  --rm-panel-shadow: var(--rm-shadow-panel);
   --rm-panel-pad: var(--rm-space-1);
   --rm-preview-width: 360px;
   --rm-search-width: 200px;
 
+  /* board chrome: add bar, view strip, count chip */
+  --rm-addbar-button: 34px;
+  --rm-addbar-icon: 18px;
+  --rm-strip-button: 28px;
+  --rm-strip-icon: 15px;
+  --rm-strip-bg: color-mix(in srgb, var(--rm-surface) 85%, transparent);
+  --rm-strip-border: color-mix(in srgb, var(--rm-border) 60%, transparent);
+  --rm-strip-radius: 11px;
+  --rm-strip-shadow: 0 1px 3px rgba(20, 22, 30, 0.06);
+  --rm-strip-lift: 34px;
+  --rm-count-chip-bg: color-mix(in srgb, var(--rm-surface) 82%, transparent);
+  --rm-edge-label-shadow: drop-shadow(0 1px 2px rgba(20, 22, 30, 0.06));
+
   /* mini-map */
-  --rm-minimap-width: 200px;
-  --rm-minimap-height: 140px;
+  --rm-minimap-width: 148px;
+  --rm-minimap-height: 96px;
+  --rm-minimap-opacity: 0.75;
   --rm-minimap-node: color-mix(in srgb, var(--rm-text-faint) 50%, transparent);
   --rm-minimap-mask: color-mix(in srgb, var(--rm-surface) 68%, transparent);
 
@@ -112,17 +156,58 @@
   --rm-priority-medium: var(--color-yellow);
   --rm-priority-high: var(--color-orange);
   --rm-priority-critical: var(--color-red);
-  --rm-badge-tint: 14%;
+  --rm-badge-tint: 13%;
+  --rm-badge-tint-priority: 15%;
 
-  /* React Flow theming bridge (inherited by the flow renderer) */
+  /* React Flow theming bridge (inherited by the flow renderer). The selected-stroke
+     variable also covers the focus flash between mousedown and the selected class. */
   --xy-background-pattern-color: var(--rm-dot-color);
   --xy-connectionline-stroke: var(--rm-connection-color);
   --xy-connectionline-stroke-width: var(--rm-edge-width);
+  --xy-edge-stroke-selected: var(--rm-accent);
 
   position: relative;
   height: 100%;
   background: var(--rm-surface);
   color: var(--rm-text);
+  container-type: inline-size;
+}
+
+/* Dark-theme overrides: only values Obsidian variables cannot express — the shadow
+   ladder needs deeper blacks and the tints need higher opacity over dark surfaces. */
+.theme-dark .rm-view {
+  --rm-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 3px 10px rgba(0, 0, 0, 0.32);
+  --rm-shadow-card-hover: 0 5px 16px rgba(0, 0, 0, 0.52), 0 1px 3px rgba(0, 0, 0, 0.4);
+  --rm-shadow-card-drag: 0 7px 22px rgba(0, 0, 0, 0.56), 0 2px 6px rgba(0, 0, 0, 0.42);
+  --rm-shadow-panel: 0 4px 16px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(0, 0, 0, 0.4);
+  --rm-strip-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  --rm-edge-label-shadow: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
+  --rm-node-tint: 18%;
+  --rm-badge-tint: 24%;
+  --rm-badge-tint-priority: 26%;
+  --rm-cluster-tint: 16%;
+  --rm-cluster-fill-tint: 9%;
+  --rm-cluster-line-tint: 28%;
+  --rm-cluster-border-tint: 65%;
+}
+
+/* Obsidian pads .view-content by default; the board claims the full tab area edge to edge. */
+.view-content.rm-view-content {
+  padding: 0;
+}
+
+/* Chip text centers optically on the glyphs (cap height to baseline) rather than on the
+   font's line box, whose ascent/descent are asymmetric. text-box only affects block
+   containers, so flex chips wrap their text in this block element; not applied to
+   ellipsized text, where a trimmed line box under overflow:hidden clips descenders.
+   Ignored gracefully by engines without text-box support. */
+.rm-view .rm-chip-text {
+  display: block;
+  text-box: trim-both cap alphabetic;
+}
+
+.rm-view .rm-toolbar__zoom {
+  text-box: trim-both cap alphabetic;
 }
 
 .rm-canvas {
@@ -148,15 +233,24 @@
   --icon-size: var(--rm-empty-icon);
 
   display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  background: var(--rm-hover);
+  border-radius: var(--rm-radius-cluster);
 }
 
 .rm-empty__title {
-  font-weight: var(--font-semibold);
-  color: var(--rm-text-muted);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--rm-text);
 }
 
 .rm-empty__hint {
-  font-size: var(--font-ui-small);
+  max-width: 280px;
+  font-size: var(--rm-label-size);
+  line-height: 1.45;
 }
 
 .rm-load-error {
@@ -268,12 +362,121 @@
   box-shadow: var(--rm-panel-shadow);
 }
 
+/* The view-controls strip is quieter than a regular panel: translucent, hairline border.
+   Lifted above Obsidian's status bar, which floats over the window's bottom-right corner. */
 .rm-toolbar {
   flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  margin-bottom: var(--rm-strip-lift);
+  background: var(--rm-strip-bg);
+  border-color: var(--rm-strip-border);
+  border-radius: var(--rm-strip-radius);
+  box-shadow: var(--rm-strip-shadow);
+  opacity: 0.9;
 }
 
+.rm-toolbar .rm-toolbar__button {
+  --icon-size: var(--rm-strip-icon);
+
+  width: var(--rm-strip-button);
+  height: var(--rm-strip-button);
+  border-radius: var(--rm-radius-control);
+  color: var(--rm-text-faint);
+}
+
+.rm-toolbar .rm-toolbar__button:hover:not(:disabled) {
+  color: var(--rm-text-muted);
+}
+
+.rm-toolbar__divider {
+  width: 18px;
+  height: var(--rm-border-width);
+  margin: 3px 0;
+  background: var(--rm-border);
+}
+
+/* The zoom readout doubles as a reset-to-100% button; the `button.` prefix outweighs
+   Obsidian's default button styling. */
+button.rm-toolbar__zoom {
+  width: var(--rm-strip-button);
+  height: auto;
+  padding: var(--rm-space-1) 0;
+  background-color: transparent;
+  border: none;
+  border-radius: var(--rm-radius-control);
+  box-shadow: none;
+  color: var(--rm-text-faint);
+  font-size: 10px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  text-align: center;
+  cursor: pointer;
+  transition:
+    background-color var(--rm-transition-fast),
+    color var(--rm-transition-fast);
+}
+
+button.rm-toolbar__zoom:hover,
+button.rm-toolbar__zoom:active {
+  color: var(--rm-text-muted);
+  background-color: var(--rm-hover);
+  box-shadow: none;
+}
+
+button.rm-toolbar__zoom:focus-visible {
+  outline: var(--rm-focus-outline);
+}
+
+/* The add bar: primary node-creation actions, docked bottom-center. */
 .rm-node-toolbar {
   flex-direction: row;
+  padding: 5px;
+}
+
+.rm-node-toolbar .rm-toolbar__button {
+  --icon-size: var(--rm-addbar-icon);
+
+  width: var(--rm-addbar-button);
+  height: var(--rm-addbar-button);
+  border-radius: var(--rm-radius-tile);
+}
+
+.rm-canvas .react-flow__panel.rm-count-chip {
+  display: flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 10px;
+  margin: var(--rm-space-2);
+  background: var(--rm-count-chip-bg);
+  border: var(--rm-border-width) solid var(--rm-strip-border);
+  border-radius: var(--rm-radius-full);
+  box-shadow: var(--rm-strip-shadow);
+  color: var(--rm-text-faint);
+  font-size: var(--rm-label-size-sm);
+  opacity: 0.8;
+  pointer-events: none;
+}
+
+/* Narrow panes: drop the passive chrome first, then compact the add bar. */
+@container (max-width: 560px) {
+  .rm-canvas .react-flow__panel.rm-count-chip {
+    display: none;
+  }
+}
+
+@container (max-width: 460px) {
+  .rm-canvas .react-flow__panel.react-flow__minimap.rm-minimap {
+    display: none;
+  }
+
+  .rm-node-toolbar .rm-toolbar__button {
+    --icon-size: var(--rm-strip-icon);
+
+    width: var(--rm-strip-button);
+    height: var(--rm-strip-button);
+  }
 }
 
 .rm-search {
@@ -392,7 +595,8 @@
   cursor: default;
 }
 
-.rm-toolbar__button {
+/* The `button.` prefix outweighs Obsidian's default button styling (background, shadow). */
+button.rm-toolbar__button {
   --icon-size: var(--rm-icon-size);
 
   display: inline-flex;
@@ -401,19 +605,22 @@
   width: var(--rm-control-size);
   height: var(--rm-control-size);
   padding: 0;
-  background: transparent;
+  background-color: transparent;
   color: var(--rm-text-muted);
   border: none;
   border-radius: var(--rm-radius-s);
+  box-shadow: none;
   cursor: pointer;
   transition:
-    background var(--rm-transition-fast),
+    background-color var(--rm-transition-fast),
     color var(--rm-transition-fast);
 }
 
-.rm-toolbar__button:hover:not(:disabled) {
-  background: var(--rm-hover);
+button.rm-toolbar__button:hover:not(:disabled),
+button.rm-toolbar__button:active:not(:disabled) {
+  background-color: var(--rm-hover);
   color: var(--rm-text);
+  box-shadow: none;
 }
 
 .rm-toolbar__button:focus-visible {
@@ -430,18 +637,17 @@
   background: var(--rm-accent-tint);
 }
 
-/* Sits in the bottom-right corner, shifted left to clear the vertical toolbar column. */
+/* Muted overview docked bottom-left, out of the way of the add bar and the strip. */
 .rm-canvas .react-flow__panel.react-flow__minimap.rm-minimap {
   width: var(--rm-minimap-width);
   height: var(--rm-minimap-height);
-  margin: 0;
-  right: calc(var(--rm-control-size) + var(--rm-space-4) + var(--rm-space-2));
-  bottom: var(--rm-space-3);
+  margin: var(--rm-space-3);
   background: var(--rm-panel-bg);
-  border: var(--rm-border-width) solid var(--rm-border);
-  border-radius: var(--rm-panel-radius);
-  box-shadow: var(--rm-panel-shadow);
+  border: var(--rm-border-width) solid var(--rm-strip-border);
+  border-radius: var(--rm-radius-tile);
+  box-shadow: var(--rm-strip-shadow);
   overflow: hidden;
+  opacity: var(--rm-minimap-opacity);
 }
 
 .rm-canvas .react-flow__minimap-node {
@@ -454,16 +660,21 @@
   justify-content: center;
 }
 
+/* No-box shell of a card node: only exists to cascade inline color variables down to the
+   sibling resizer and connection handles (see RoadmapNodeView). */
+.rm-node-shell {
+  display: contents;
+}
+
 .rm-node {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: var(--rm-space-1);
   width: 100%;
   height: 100%;
   box-sizing: border-box;
   overflow: hidden;
-  padding: var(--rm-space-2) var(--rm-space-3);
+  padding: var(--rm-node-pad-y) var(--rm-node-pad-x);
   background: var(--rm-node-bg);
   color: var(--rm-text);
   border: var(--rm-border-width) solid var(--rm-node-border);
@@ -475,6 +686,10 @@
     background var(--rm-transition-fast),
     box-shadow var(--rm-transition-fast),
     opacity var(--rm-transition-med);
+}
+
+.rm-node[data-kind="image"] {
+  padding: 0;
 }
 
 /* Dimmed by the active status/priority filter; still interactive, just de-emphasised. */
@@ -489,7 +704,7 @@
   transition: opacity var(--rm-transition-med);
 }
 
-.react-flow__node:hover .rm-node:not([data-selected="true"]) {
+.react-flow__node:hover .rm-node {
   box-shadow: var(--rm-shadow-card-hover);
 }
 
@@ -503,56 +718,63 @@
 }
 
 .rm-node[data-selected="true"] {
-  border-color: var(--rm-accent);
-  box-shadow:
-    var(--rm-shadow-card),
-    0 0 0 var(--rm-ring-width) var(--rm-ring);
+  outline: var(--rm-ring-width) solid var(--rm-accent);
+  outline-offset: 1px;
 }
 
 .rm-node[data-missing="true"] {
-  border-color: var(--rm-danger);
+  border-style: dashed;
+  opacity: 0.6;
 }
 
 .rm-node[data-missing="true"][data-selected="true"] {
-  box-shadow:
-    var(--rm-shadow-card),
-    0 0 0 var(--rm-ring-width) var(--rm-ring-danger);
+  outline-color: var(--rm-danger);
 }
 
 .rm-node__broken {
-  --icon-size: var(--rm-icon-size);
+  --icon-size: 12px;
 
   position: absolute;
-  top: var(--rm-space-1);
-  right: var(--rm-space-1);
+  top: var(--rm-space-2);
+  right: var(--rm-space-2);
+  z-index: 2;
   display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
   color: var(--rm-danger);
+  background: var(--rm-surface);
+  border: var(--rm-border-width) solid color-mix(in srgb, var(--rm-danger) 50%, transparent);
+  border-radius: var(--rm-radius-full);
+  box-shadow: var(--rm-shadow-card);
 }
 
-.rm-node[data-align-h="left"] {
+/* The alignment matrix moves only the text block; the meta chips stay pinned below it. */
+.rm-node[data-align-h="left"] .rm-node__content {
   align-items: flex-start;
   text-align: left;
 }
 
-.rm-node[data-align-h="center"] {
+.rm-node[data-align-h="center"] .rm-node__content {
   align-items: center;
   text-align: center;
 }
 
-.rm-node[data-align-h="right"] {
+.rm-node[data-align-h="right"] .rm-node__content {
   align-items: flex-end;
   text-align: right;
 }
 
-.rm-node[data-align-v="top"] {
+.rm-node[data-align-v="top"] .rm-node__content {
   justify-content: flex-start;
 }
 
-.rm-node[data-align-v="middle"] {
+.rm-node[data-align-v="middle"] .rm-node__content {
   justify-content: center;
 }
 
-.rm-node[data-align-v="bottom"] {
+.rm-node[data-align-v="bottom"] .rm-node__content {
   justify-content: flex-end;
 }
 
@@ -585,6 +807,8 @@
   pointer-events: none;
 }
 
+/* Resize controls are oversized transparent hit areas with no visible affordance:
+   the cursor change and the selection outline are enough of a hint. */
 .rm-canvas .react-flow__resize-control.handle {
   width: var(--rm-resize-handle);
   height: var(--rm-resize-handle);
@@ -606,43 +830,169 @@
   height: var(--rm-resize-edge);
 }
 
+/* Text block of a card; fills the space above the pinned meta row. */
+.rm-node__content {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+
 .rm-node__title {
   min-width: 0;
-  font-weight: var(--font-semibold);
+  max-width: 100%;
+  font-size: var(--rm-node-title-size);
+  font-weight: var(--rm-node-title-weight);
+  line-height: 1.3;
   overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .rm-node__title-row {
   display: flex;
   align-items: center;
-  gap: var(--rm-space-1);
+  gap: var(--rm-space-2);
   min-width: 0;
+  max-width: 100%;
+}
+
+.rm-node__title-row .rm-node__title {
+  display: block;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.rm-node__secondary {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--rm-text-faint);
+  font-size: var(--rm-node-secondary-size);
+  line-height: 1.35;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .rm-node__image {
-  flex: 1 1 auto;
-  min-height: 0;
+  position: absolute;
+  inset: 0;
   width: 100%;
-  object-fit: contain;
-  border-radius: var(--rm-radius-s);
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.rm-node__caption {
+  position: absolute;
+  inset: auto 0 0 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--rm-space-0);
+  padding: 9px 12px;
+  background: var(--rm-node-bg);
+  border-top: var(--rm-border-width) solid var(--rm-node-border);
+}
+
+.rm-node[data-colored="true"] .rm-node__caption {
+  background: color-mix(in srgb, var(--rm-node-color) calc(var(--rm-node-tint) + 6%), var(--rm-node-bg));
+  border-top-color: color-mix(in srgb, var(--rm-node-color) 50%, transparent);
+}
+
+.rm-node[data-align-h="center"] .rm-node__caption {
+  align-items: center;
+  text-align: center;
+}
+
+.rm-node[data-align-h="right"] .rm-node__caption {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.rm-node__caption-title {
+  max-width: 100%;
+  font-size: var(--rm-label-size-sm);
+  font-weight: 600;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.rm-node__caption-desc {
+  max-width: 100%;
+  color: var(--rm-text-muted);
+  font-size: var(--rm-node-secondary-size);
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.rm-node__image-fallback {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--rm-space-1);
+  min-height: 0;
+  padding: var(--rm-node-pad-y) var(--rm-node-pad-x);
+  text-align: center;
+}
+
+.rm-node__fallback-icon {
+  --icon-size: 26px;
+
+  display: inline-flex;
+  color: var(--rm-text-faint);
+}
+
+.rm-node__fallback-note {
+  color: var(--rm-text-faint);
+  font-size: var(--rm-chip-size);
 }
 
 .rm-node__text {
   min-width: 0;
+  max-width: 100%;
+  font-size: var(--rm-node-text-size);
+  font-weight: var(--rm-node-text-weight);
+  line-height: 1.35;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* No-box shell of a cluster: cascades the inline color variables to the sibling
+   resize controls and connection handles (see ClusterNodeView). */
+.rm-cluster-shell {
+  display: contents;
 }
 
 .rm-cluster {
+  position: relative;
   display: flex;
   flex-direction: column;
   width: 100%;
   height: 100%;
   box-sizing: border-box;
   overflow: hidden;
-  border: var(--rm-border-width) solid var(--rm-cluster-border);
+  border: var(--rm-border-width-thick) solid var(--rm-cluster-border);
   border-radius: var(--rm-cluster-radius);
   background: var(--rm-cluster-fill);
+  box-shadow: var(--rm-shadow-card);
   transition:
     border-color var(--rm-transition-fast),
     background var(--rm-transition-fast),
@@ -650,26 +1000,78 @@
 }
 
 .rm-cluster[data-colored="true"] {
-  border-color: var(--rm-cluster-color);
+  border-color: color-mix(in srgb, var(--rm-cluster-color) var(--rm-cluster-border-tint), transparent);
   background: color-mix(in srgb, var(--rm-cluster-color) var(--rm-cluster-fill-tint), transparent);
 }
 
+.react-flow__node:hover .rm-cluster {
+  box-shadow: var(--rm-shadow-card-hover);
+}
+
 .rm-cluster[data-selected="true"] {
-  border-color: var(--rm-accent);
-  box-shadow: 0 0 0 var(--rm-ring-width) var(--rm-ring);
+  outline: var(--rm-ring-width) solid var(--rm-accent);
+  outline-offset: 2px;
 }
 
 .rm-cluster__label {
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
-  gap: var(--rm-space-1);
+  gap: var(--rm-space-2);
   min-width: 0;
-  padding: var(--rm-space-1) var(--rm-space-2);
+  height: calc(var(--rm-cluster-header-height) - 2 * var(--rm-border-width-thick));
+  padding: 0 12px;
   background: var(--rm-cluster-header);
   border-bottom: var(--rm-border-width) solid color-mix(in srgb, var(--rm-cluster-border) 60%, transparent);
-  font-weight: var(--font-semibold);
-  font-size: var(--font-ui-small);
+  font-weight: 700;
+  font-size: var(--rm-label-size);
+  line-height: 1;
+  color: var(--rm-text);
+}
+
+.rm-cluster__count {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: var(--rm-radius-chip);
+  background: color-mix(in srgb, var(--rm-text-muted) 12%, transparent);
   color: var(--rm-text-muted);
+  font-size: var(--rm-chip-size);
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.rm-cluster[data-colored="true"] .rm-cluster__count {
+  background: color-mix(in srgb, var(--rm-cluster-color) 16%, transparent);
+  color: var(--rm-cluster-color);
+}
+
+.rm-cluster__placeholder {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--rm-space-2);
+  min-height: 0;
+  margin: 12px;
+  border: var(--rm-border-width-thick) dashed color-mix(in srgb, var(--rm-text-faint) 55%, transparent);
+  border-radius: var(--rm-radius-tile);
+  color: var(--rm-text-faint);
+  font-size: var(--rm-label-size-sm);
+  font-weight: 600;
+}
+
+.rm-cluster__placeholder-icon {
+  --icon-size: 22px;
+
+  display: inline-flex;
+  opacity: 0.8;
 }
 
 .rm-cluster[data-colored="true"] .rm-cluster__label {
@@ -677,35 +1079,50 @@
   border-bottom-color: color-mix(in srgb, var(--rm-cluster-color) var(--rm-cluster-line-tint), transparent);
 }
 
+/* Collapsed keeps the divider thickness (transparent), so the header content box stays
+   an even 36px in both states and its centerline lands on a whole pixel. */
 .rm-cluster[data-collapsed="true"] .rm-cluster__label {
   flex: 1;
-  border-bottom: none;
+  border-bottom-color: transparent;
 }
 
-.rm-cluster__toggle,
-.rm-cluster__action {
+/* The `button.` prefix outweighs Obsidian's default button styling (background, shadow),
+   which otherwise paints these icon buttons as raised white squares. */
+button.rm-cluster__toggle,
+button.rm-cluster__action {
   --icon-size: var(--rm-icon-size);
 
   display: inline-flex;
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  padding: var(--rm-space-0);
-  background: transparent;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  background-color: transparent;
   border: none;
   border-radius: var(--rm-radius-s);
-  color: var(--rm-text-muted);
+  box-shadow: none;
+  color: var(--rm-text-faint);
   cursor: pointer;
   transition:
-    background var(--rm-transition-fast),
+    background-color var(--rm-transition-fast),
     color var(--rm-transition-fast),
     opacity var(--rm-transition-fast);
 }
 
-.rm-cluster__toggle:hover,
-.rm-cluster__action:hover {
+button.rm-cluster__toggle:hover,
+button.rm-cluster__action:hover,
+button.rm-cluster__toggle:active,
+button.rm-cluster__action:active {
   color: var(--rm-text);
-  background: var(--rm-hover);
+  background-color: var(--rm-hover);
+  box-shadow: none;
+}
+
+.rm-cluster__toggle:focus-visible,
+.rm-cluster__action:focus-visible {
+  outline: var(--rm-focus-outline);
 }
 
 .rm-cluster__action {
@@ -717,13 +1134,25 @@
   opacity: 1;
 }
 
+/* Optical nudge: the flex-centered line box leaves the bold title looking a touch high
+   next to the cap-trimmed chip, so the text drops one pixel to sit on the shared axis. */
 .rm-cluster__title {
   flex: 1;
   min-width: 0;
   overflow: hidden;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
   white-space: nowrap;
   text-overflow: ellipsis;
   pointer-events: none;
+  transform: translateY(1px);
+}
+
+.rm-cluster__actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--rm-space-1);
 }
 
 .rm-node__type-icon {
@@ -735,24 +1164,59 @@
 
 .rm-node__desc {
   margin: 0;
+  max-width: 100%;
   color: var(--rm-text-muted);
-  font-size: var(--font-ui-smaller);
+  font-size: var(--rm-node-desc-size);
+  line-height: 1.4;
   overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
+/* Chips flow with the card content, following its alignment like any other row. */
 .rm-node__meta {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--rm-space-1);
+  align-items: center;
+  gap: 5px;
+}
+
+/* Floats over the top edge of picture cards instead of flowing with content. */
+.rm-node__meta--overlay {
+  position: absolute;
+  inset: var(--rm-space-2) var(--rm-space-2) auto;
+  z-index: 1;
 }
 
 .rm-node__badge {
-  padding: var(--rm-space-0) var(--rm-space-2);
+  --icon-size: 12px;
+
+  display: inline-flex;
+  align-items: center;
+  gap: var(--rm-space-1);
+  height: 20px;
+  padding: 0 var(--rm-space-2);
   background: color-mix(in srgb, currentColor var(--rm-badge-tint), transparent);
-  border-radius: var(--rm-radius-full);
-  font-size: var(--font-ui-smaller);
-  font-weight: var(--font-medium);
+  border-radius: var(--rm-radius-chip);
+  font-size: var(--rm-chip-size);
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.rm-node__badge[data-status] {
+  padding-left: 6px;
   text-transform: capitalize;
+}
+
+.rm-node__badge[data-priority] {
+  background: color-mix(in srgb, currentColor var(--rm-badge-tint-priority), transparent);
+  font-size: var(--rm-chip-size-caps);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
 .rm-node__badge[data-status="draft"] {
@@ -792,11 +1256,14 @@
   height: var(--rm-handle-size);
   min-width: 0;
   min-height: 0;
-  background: var(--rm-accent);
-  border: var(--rm-border-width) solid var(--rm-surface);
+  background: var(--rm-surface);
+  border: var(--rm-handle-border) solid var(--rm-port-color, var(--rm-accent));
+  box-shadow: var(--rm-shadow-card);
   opacity: 0;
   transition:
     opacity var(--rm-transition-fast),
+    scale var(--rm-transition-fast),
+    background var(--rm-transition-fast),
     box-shadow var(--rm-transition-fast);
 }
 
@@ -823,24 +1290,14 @@
   cursor: move;
 }
 
-/* Its visible dot, styled like a node handle; shows up when the edge is engaged. */
-.rm-canvas .rm-edge-grip-dot {
-  r: calc(var(--rm-handle-size) / 2);
-  fill: var(--rm-accent);
-  stroke: var(--rm-surface);
-  stroke-width: var(--rm-border-width);
-  opacity: 0;
-  transition: opacity var(--rm-transition-fast);
-  pointer-events: none;
-}
-
-.rm-canvas .react-flow__edge:hover .rm-edge-grip-dot,
-.rm-canvas .react-flow__edge.selected .rm-edge-grip-dot {
-  opacity: 1;
-}
-
+/* The grown state uses the standalone `scale` property so React Flow's positioning
+   transform on the handle stays untouched. */
 .rm-handle.react-flow__handle:hover {
-  box-shadow: 0 0 0 var(--rm-ring-width-handle) var(--rm-ring);
+  scale: var(--rm-handle-scale-active);
+  background: var(--rm-port-color, var(--rm-accent));
+  box-shadow:
+    0 0 0 var(--rm-handle-halo) color-mix(in srgb, var(--rm-port-color, var(--rm-accent)) 22%, transparent),
+    var(--rm-shadow-card);
 }
 
 .rm-canvas .react-flow__edge-path {
@@ -850,27 +1307,48 @@
 }
 
 .rm-canvas .rm-edge-arrow {
-  fill: none;
-  stroke: var(--rm-edge-color);
-  stroke-width: var(--rm-edge-width);
-  stroke-linecap: round;
-  stroke-linejoin: round;
+  fill: var(--rm-edge-color);
+  stroke: none;
   pointer-events: none;
-  transition: stroke var(--rm-transition-fast);
+  transition: fill var(--rm-transition-fast);
 }
 
-.rm-canvas .react-flow__edge:hover .react-flow__edge-path,
-.rm-canvas .react-flow__edge:hover .rm-edge-arrow {
-  stroke: var(--rm-edge-hover);
+/* Hover keeps the edge's own color: the line thickens and a soft same-color glow
+   underlay fades in; selection does the same in accent. */
+.rm-canvas .rm-edge-glow {
+  fill: none;
+  stroke: var(--rm-edge-color);
+  stroke-width: var(--rm-edge-glow-width);
+  stroke-linecap: round;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--rm-transition-fast);
+}
+
+.rm-canvas .react-flow__edge:hover .rm-edge-glow,
+.rm-canvas .react-flow__edge.selected .rm-edge-glow {
+  opacity: var(--rm-edge-glow-opacity);
+}
+
+.rm-canvas .react-flow__edge:hover .react-flow__edge-path {
+  stroke-width: var(--rm-edge-width-hover);
 }
 
 .rm-canvas .react-flow__edge.updating .react-flow__edge-path {
   stroke: var(--rm-connection-color);
 }
 
-.rm-canvas .react-flow__edge.selected .react-flow__edge-path,
-.rm-canvas .react-flow__edge.selected .rm-edge-arrow {
+.rm-canvas .react-flow__edge.selected .rm-edge-glow {
   stroke: var(--rm-accent);
+}
+
+.rm-canvas .react-flow__edge.selected .react-flow__edge-path {
+  stroke: var(--rm-accent);
+  stroke-width: var(--rm-edge-width-active);
+}
+
+.rm-canvas .react-flow__edge.selected .rm-edge-arrow {
+  fill: var(--rm-accent);
 }
 
 .rm-canvas .react-flow__connection-path {
@@ -878,16 +1356,35 @@
   stroke-linecap: round;
 }
 
-.rm-canvas .rm-edge-label {
-  position: absolute;
-  padding: var(--rm-space-0) var(--rm-space-2);
-  background: var(--rm-panel-bg);
-  color: var(--rm-text-muted);
-  border: var(--rm-border-width) solid var(--rm-border);
-  border-radius: var(--rm-radius-full);
-  font-size: var(--font-ui-smaller);
-  white-space: nowrap;
+/* The label lives inside the edge's own svg group, so it always paints above its line
+   regardless of how React Flow elevates edges attached to cluster members. */
+.rm-canvas .react-flow__edge-textwrapper {
   pointer-events: none;
+  user-select: none;
+  filter: var(--rm-edge-label-shadow);
+}
+
+.rm-canvas .react-flow__edge-textbg {
+  fill: var(--rm-panel-bg);
+  stroke: var(--rm-border);
+  stroke-width: var(--rm-border-width);
+  rx: var(--rm-radius-chip);
+}
+
+.rm-canvas .react-flow__edge-text {
+  fill: var(--rm-text-muted);
+  font-size: var(--rm-chip-size);
+  font-weight: 500;
+}
+
+/* A colored edge tints its label chip through the same inline edge-color variable. */
+.rm-canvas g[data-colored="true"] .react-flow__edge-textbg {
+  fill: color-mix(in srgb, var(--rm-edge-color) 9%, var(--rm-panel-bg));
+  stroke: color-mix(in srgb, var(--rm-edge-color) 40%, transparent);
+}
+
+.rm-canvas g[data-colored="true"] .react-flow__edge-text {
+  fill: var(--rm-edge-color);
 }
 
 /* Settings tab lives outside .rm-view, so the swatch hosts its own tokens over theme vars. */

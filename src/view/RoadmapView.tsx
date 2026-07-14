@@ -13,7 +13,7 @@ import {
 } from "../domain/create";
 import { roadmapToCanvas, serializeCanvas } from "../domain/jsonCanvas";
 import { nodeOpenTarget } from "../domain/openTarget";
-import { isSafeUrl } from "../domain/paths";
+import { formatFileSize, isSafeUrl } from "../domain/paths";
 import { sourceFile } from "../domain/source";
 import type { RoadmapCluster, RoadmapEdge, RoadmapNode, RoadmapViewport } from "../domain/types";
 import { availableVaultPath, draggedFiles, nodeForFile } from "../services/vaultFiles";
@@ -51,6 +51,7 @@ export interface RoadmapViewHost {
   getPalette: () => readonly string[];
   getClipboard: () => BoardClipboard | null;
   setClipboard: (value: BoardClipboard) => void;
+  openPluginSettings: () => void;
 }
 
 /**
@@ -132,6 +133,8 @@ export class RoadmapView extends TextFileView {
       onToggleLock: this.toggleLock,
       onAutoLayout: this.autoLayout,
       onExportPdf: this.handleExportPdf,
+      onExportCanvas: this.handleExportCanvas,
+      onOpenSettings: host.openPluginSettings,
       onDotsVisibleChange: host.setShowBackgroundDots,
       onMiniMapVisibleChange: host.setShowMiniMap,
       onViewportChange: this.handleViewportChange,
@@ -272,6 +275,7 @@ export class RoadmapView extends TextFileView {
   }
 
   protected onOpen(): Promise<void> {
+    this.contentEl.addClass("rm-view-content");
     this.root = createRoot(this.contentEl);
     this.registerDomEvent(this.contentEl.ownerDocument, "keydown", this.handleKeyDown);
     this.registerEvent(this.app.vault.on("modify", this.handleVaultModify));
@@ -290,6 +294,7 @@ export class RoadmapView extends TextFileView {
 
     this.root?.unmount();
     this.root = null;
+    this.contentEl.removeClass("rm-view-content");
 
     return Promise.resolve();
   }
@@ -570,6 +575,10 @@ export class RoadmapView extends TextFileView {
     void this.exportPdf();
   };
 
+  private readonly handleExportCanvas = (): void => {
+    void this.exportCanvas();
+  };
+
   /** Clipboard entries carry absolute coordinates: cluster members store cluster-relative
    * layout, but pasted copies land unclustered ([[copyNode]]), so their frame is absolute. */
   private withAbsoluteLayout(node: RoadmapNode): RoadmapNode {
@@ -733,6 +742,16 @@ export class RoadmapView extends TextFileView {
     const file = this.app.vault.getAbstractFileByPath(node.source.file);
 
     return file instanceof TFile ? this.app.vault.getResourcePath(file) : null;
+  };
+
+  private readonly resolveFileInfo = (node: RoadmapNode): string | undefined => {
+    if (node.source.type !== "attachment") {
+      return undefined;
+    }
+
+    const file = this.app.vault.getAbstractFileByPath(node.source.file);
+
+    return file instanceof TFile ? `${formatFileSize(file.stat.size)} · ${file.extension.toUpperCase()}` : undefined;
   };
 
   private readonly handleNodesDuplicated = (items: ReadonlyArray<{ id: string; x: number; y: number }>): void => {
@@ -1158,6 +1177,7 @@ export class RoadmapView extends TextFileView {
               focusNonce={this.focusNonce}
               isNodeMissing={this.isNodeMissing}
               resolveImageSrc={this.resolveImageSrc}
+              resolveFileInfo={this.resolveFileInfo}
               nodeActions={this.nodeActions}
               edgeActions={this.edgeActions}
               clusterActions={this.clusterActions}

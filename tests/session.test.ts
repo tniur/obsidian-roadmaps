@@ -89,7 +89,7 @@ describe("roadmap session", () => {
       type: "attachment",
       file: "files/report.pdf",
     });
-    expect(session.content).toContain("[[files/report.pdf|report]]");
+    expect(session.content).toContain("[[files/report.pdf|report.pdf]]");
     expect(readState(session.content)?.nodes[node.id]?.kind).toBe("attachment");
   });
 
@@ -167,7 +167,7 @@ describe("roadmap session", () => {
 
     session.setNodeAlign(node.id, { h: "center" });
 
-    expect(session.state.nodes[node.id]?.align).toEqual({ h: "center", v: "middle" });
+    expect(session.state.nodes[node.id]?.align).toEqual({ h: "center", v: "top" });
 
     session.setNodeAlign(node.id, { v: "bottom" });
 

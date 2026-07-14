@@ -1,6 +1,7 @@
 import { NodeResizeControl, ResizeControlVariant, type NodeProps, type ResizeParams } from "@xyflow/react";
-import type { CSSProperties, MouseEvent } from "react";
+import type { MouseEvent } from "react";
 import { MIN_CLUSTER_HEIGHT, MIN_CLUSTER_WIDTH } from "../constants";
+import { colorStyleVars } from "./colorStyle";
 import type { RoadmapClusterNode } from "./flow";
 import { Icon } from "./Icon";
 import { useNodeCallbacks } from "./nodeCallbacks";
@@ -10,12 +11,15 @@ import { NodeHandles } from "./NodeHandles";
  * nodes (positioned relative to it) stay put while the container grows. */
 const RESIZE_EDGES = ["right", "bottom", "bottom-right"] as const;
 
+/**
+ * Cluster container renderer, wrapped in the same no-box color-variable shell as cards.
+ * An expanded empty cluster shows a dashed drop placeholder instead of a body.
+ */
 export function ClusterNodeView({ id, data, selected, isConnectable }: NodeProps<RoadmapClusterNode>) {
   const cluster = data;
   const callbacks = useNodeCallbacks();
   const collapsed = cluster.collapsed;
-  const colorStyle =
-    cluster.color !== undefined ? ({ "--rm-cluster-color": cluster.color } as CSSProperties) : undefined;
+  const colorStyle = colorStyleVars("--rm-cluster-color", cluster.color);
   const showResize = selected === true && callbacks?.locked !== true && !collapsed;
   const onResizeEnd = (_event: unknown, params: ResizeParams): void => {
     callbacks?.onResizeEnd(id, params.width, params.height, params.x, params.y);
@@ -30,30 +34,47 @@ export function ClusterNodeView({ id, data, selected, isConnectable }: NodeProps
   };
 
   return (
-    <>
+    <div className="rm-cluster-shell" style={colorStyle}>
       <div
         className="rm-cluster"
         data-colored={cluster.color !== undefined}
         data-selected={selected === true}
         data-collapsed={collapsed}
-        style={colorStyle}
       >
         <div className="rm-cluster__label">
-          <button
-            type="button"
-            className="rm-cluster__toggle nodrag"
-            aria-label={collapsed ? "Expand cluster" : "Collapse cluster"}
-            onClick={onToggle}
-          >
-            <Icon name={collapsed ? "chevron-right" : "chevron-down"} />
-          </button>
+          <span className="rm-cluster__count">
+            <span className="rm-chip-text">{cluster.count}</span>
+          </span>
           <span className="rm-cluster__title">{cluster.title}</span>
-          {!collapsed && callbacks?.locked !== true ? (
-            <button type="button" className="rm-cluster__action nodrag" aria-label="Arrange nodes" onClick={onArrange}>
-              <Icon name="layout-grid" />
+          <div className="rm-cluster__actions">
+            {!collapsed && callbacks?.locked !== true ? (
+              <button
+                type="button"
+                className="rm-cluster__action nodrag"
+                aria-label="Arrange nodes"
+                onClick={onArrange}
+              >
+                <Icon name="layout-grid" />
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className="rm-cluster__toggle nodrag"
+              aria-label={collapsed ? "Expand cluster" : "Collapse cluster"}
+              onClick={onToggle}
+            >
+              <Icon name={collapsed ? "chevron-down" : "chevron-up"} />
             </button>
-          ) : null}
+          </div>
         </div>
+        {cluster.count === 0 && !collapsed ? (
+          <div className="rm-cluster__placeholder">
+            <span className="rm-cluster__placeholder-icon">
+              <Icon name="box" />
+            </span>
+            <span>No nodes yet</span>
+          </div>
+        ) : null}
       </div>
       {showResize
         ? RESIZE_EDGES.map((position) => (
@@ -68,6 +89,6 @@ export function ClusterNodeView({ id, data, selected, isConnectable }: NodeProps
           ))
         : null}
       <NodeHandles isConnectable={isConnectable} />
-    </>
+    </div>
   );
 }

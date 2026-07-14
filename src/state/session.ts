@@ -1,26 +1,27 @@
-import { CLUSTER_PADDING } from "../constants";
+import { CLUSTER_CONTENT_INSET_TOP, CLUSTER_PADDING, CLUSTER_PADDING_Y } from "../constants";
 import { computeAutoLayout } from "../domain/autoLayout";
 import { arrangeClusterGrid, membersBoundingBox } from "../domain/clusterLayout";
 import { asSide, createCluster, createEdge } from "../domain/create";
 import { sourceFile } from "../domain/source";
 import { uniqueClusterTitle } from "../domain/title";
-import type {
-  EdgeDirection,
-  EdgeLine,
-  EdgeShape,
-  EdgeSide,
-  RoadmapCluster,
-  RoadmapEdge,
-  RoadmapEndpoint,
-  RoadmapNode,
-  RoadmapNodeSource,
-  RoadmapPriority,
-  RoadmapState,
-  RoadmapStatus,
-  RoadmapViewport,
-  TextAlign,
-  TextAlignH,
-  TextAlignV,
+import {
+  DEFAULT_TEXT_ALIGN,
+  type EdgeDirection,
+  type EdgeLine,
+  type EdgeShape,
+  type EdgeSide,
+  type RoadmapCluster,
+  type RoadmapEdge,
+  type RoadmapEndpoint,
+  type RoadmapNode,
+  type RoadmapNodeSource,
+  type RoadmapPriority,
+  type RoadmapState,
+  type RoadmapStatus,
+  type RoadmapViewport,
+  type TextAlign,
+  type TextAlignH,
+  type TextAlignV,
 } from "../domain/types";
 import { isReservedHeading } from "../markdown/cluster";
 import { sanitizeAlias, sanitizeInline } from "../markdown/sanitize";
@@ -242,9 +243,9 @@ export class RoadmapSession {
 
     const layout = {
       x: box.x - CLUSTER_PADDING,
-      y: box.y - CLUSTER_PADDING,
+      y: box.y - CLUSTER_CONTENT_INSET_TOP,
       width: box.width + CLUSTER_PADDING * 2,
-      height: box.height + CLUSTER_PADDING * 2,
+      height: box.height + CLUSTER_CONTENT_INSET_TOP + CLUSTER_PADDING_Y,
     };
     const cluster = createCluster(uniqueClusterTitle(safeTitle, this.stateValue.clusters), layout);
     const nodes = { ...this.stateValue.nodes };
@@ -664,7 +665,7 @@ export class RoadmapSession {
       return;
     }
 
-    const current = node.align ?? { h: "left", v: "middle" };
+    const current = node.align ?? DEFAULT_TEXT_ALIGN;
     const align: TextAlign = { h: patch.h ?? current.h, v: patch.v ?? current.v };
 
     if (align.h === current.h && align.v === current.v && node.align !== undefined) {

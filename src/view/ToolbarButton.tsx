@@ -1,3 +1,4 @@
+import type { MouseEvent } from "react";
 import { Icon } from "./Icon";
 
 interface ToolbarButtonProps {
@@ -5,7 +6,7 @@ interface ToolbarButtonProps {
   label: string;
   pressed?: boolean;
   disabled?: boolean;
-  onClick: () => void;
+  onClick: (event: MouseEvent<HTMLButtonElement>) => void;
 }
 
 export function ToolbarButton({ icon, label, pressed, disabled, onClick }: ToolbarButtonProps) {

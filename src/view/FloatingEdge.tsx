@@ -1,6 +1,6 @@
 import {
   BaseEdge,
-  EdgeLabelRenderer,
+  EdgeText,
   getBezierPath,
   getSmoothStepPath,
   getStraightPath,
@@ -41,8 +41,15 @@ function forwardToReconnectAnchor(event: ReactMouseEvent<SVGCircleElement>, end:
   );
 }
 
-const ARROW_LENGTH = 6;
-const ARROW_SPREAD = 3.375;
+const ARROW_LENGTH = 9;
+const ARROW_SPREAD = 4.5;
+
+/** The line stops at the arrow base instead of the node border, so its stroke never pokes
+ * past the triangle tip; 1px of overlap keeps line and arrow visually joined. */
+const ARROW_INSET = ARROW_LENGTH - 1;
+
+/** Horizontal and vertical padding of the pill behind the edge label text. */
+const LABEL_BG_PADDING: [number, number] = [8, 2.5];
 
 interface Vec {
   x: number;
@@ -65,6 +72,7 @@ function inwardDirection(position: Position): Vec {
   return { x: 0, y: -1 };
 }
 
+/** Closed triangle pointing along `dir` with its tip at the endpoint; rendered filled. */
 function arrowPath(x: number, y: number, dir: Vec): string {
   const perp = { x: -dir.y, y: dir.x };
   const bx = x - dir.x * ARROW_LENGTH;
@@ -74,6 +82,7 @@ function arrowPath(x: number, y: number, dir: Vec): string {
     `M ${bx + perp.x * ARROW_SPREAD} ${by + perp.y * ARROW_SPREAD}`,
     `L ${x} ${y}`,
     `L ${bx - perp.x * ARROW_SPREAD} ${by - perp.y * ARROW_SPREAD}`,
+    "Z",
   ].join(" ");
 }
 
@@ -110,26 +119,6 @@ export function FloatingEdge(props: EdgeProps<RoadmapFlowEdge>) {
     data?.toSide,
   );
   const shape = data?.shape;
-  const [path, labelX, labelY] =
-    shape === "straight"
-      ? getStraightPath({ sourceX: sx, sourceY: sy, targetX: tx, targetY: ty })
-      : shape === "step"
-        ? getSmoothStepPath({
-            sourceX: sx,
-            sourceY: sy,
-            sourcePosition: sourcePos,
-            targetX: tx,
-            targetY: ty,
-            targetPosition: targetPos,
-          })
-        : getBezierPath({
-            sourceX: sx,
-            sourceY: sy,
-            sourcePosition: sourcePos,
-            targetX: tx,
-            targetY: ty,
-            targetPosition: targetPos,
-          });
   /** Bezier and step paths enter a node perpendicular to its side; a straight segment
    * arrives at an arbitrary angle, so its arrows follow the segment instead. */
   const targetArrowDir =
@@ -137,13 +126,40 @@ export function FloatingEdge(props: EdgeProps<RoadmapFlowEdge>) {
   const sourceArrowDir =
     shape === "straight" ? towards(tx, ty, sx, sy, inwardDirection(sourcePos)) : inwardDirection(sourcePos);
   const direction = data?.direction ?? "forward";
+  const hasTargetArrow = direction === "forward" || direction === "both";
+  const hasSourceArrow = direction === "both";
+  const lineSx = hasSourceArrow ? sx - sourceArrowDir.x * ARROW_INSET : sx;
+  const lineSy = hasSourceArrow ? sy - sourceArrowDir.y * ARROW_INSET : sy;
+  const lineTx = hasTargetArrow ? tx - targetArrowDir.x * ARROW_INSET : tx;
+  const lineTy = hasTargetArrow ? ty - targetArrowDir.y * ARROW_INSET : ty;
+  const [path, labelX, labelY] =
+    shape === "straight"
+      ? getStraightPath({ sourceX: lineSx, sourceY: lineSy, targetX: lineTx, targetY: lineTy })
+      : shape === "step"
+        ? getSmoothStepPath({
+            sourceX: lineSx,
+            sourceY: lineSy,
+            sourcePosition: sourcePos,
+            targetX: lineTx,
+            targetY: lineTy,
+            targetPosition: targetPos,
+          })
+        : getBezierPath({
+            sourceX: lineSx,
+            sourceY: lineSy,
+            sourcePosition: sourcePos,
+            targetX: lineTx,
+            targetY: lineTy,
+            targetPosition: targetPos,
+          });
   const line = data?.line;
   const label = data?.label;
   const color = data?.color;
-  /** Retargets the edge tokens so the line and arrows inherit the custom color; the
-   * selected/updating rules set stroke directly and still win, keeping those affordances. */
+  /** Retargets the edge token so the line, arrows, glow and label inherit the custom
+   * color; the selected/updating rules set stroke directly and still win, keeping those
+   * affordances. */
   const colorVars: CSSProperties | undefined =
-    color === undefined ? undefined : ({ "--rm-edge-color": color, "--rm-edge-hover": color } as CSSProperties);
+    color === undefined ? undefined : ({ "--rm-edge-color": color } as CSSProperties);
   const edgeStyle: CSSProperties =
     line === "dotted"
       ? {
@@ -157,45 +173,31 @@ export function FloatingEdge(props: EdgeProps<RoadmapFlowEdge>) {
         : (style ?? {});
 
   return (
-    <g style={colorVars} className={dimmed ? "rm-edge-dimmed" : undefined}>
+    <g style={colorVars} data-colored={color !== undefined} className={dimmed ? "rm-edge-dimmed" : undefined}>
+      <path className="rm-edge-glow" d={path} />
       <BaseEdge id={id} path={path} style={edgeStyle} interactionWidth={EDGE_INTERACTION_WIDTH} />
-      {direction === "forward" || direction === "both" ? (
-        <path className="rm-edge-arrow" d={arrowPath(tx, ty, targetArrowDir)} />
-      ) : null}
-      {direction === "both" ? <path className="rm-edge-arrow" d={arrowPath(sx, sy, sourceArrowDir)} /> : null}
+      {hasTargetArrow ? <path className="rm-edge-arrow" d={arrowPath(tx, ty, targetArrowDir)} /> : null}
+      {hasSourceArrow ? <path className="rm-edge-arrow" d={arrowPath(sx, sy, sourceArrowDir)} /> : null}
       {data?.fromSide === undefined ? (
-        <>
-          <circle className="rm-edge-grip-dot" cx={sx} cy={sy} />
-          <circle
-            className="rm-edge-grip"
-            cx={sx}
-            cy={sy}
-            r={EDGE_INTERACTION_WIDTH / 2}
-            onMouseDown={(event) => forwardToReconnectAnchor(event, "source")}
-          />
-        </>
+        <circle
+          className="rm-edge-grip"
+          cx={sx}
+          cy={sy}
+          r={EDGE_INTERACTION_WIDTH / 2}
+          onMouseDown={(event) => forwardToReconnectAnchor(event, "source")}
+        />
       ) : null}
       {data?.toSide === undefined ? (
-        <>
-          <circle className="rm-edge-grip-dot" cx={tx} cy={ty} />
-          <circle
-            className="rm-edge-grip"
-            cx={tx}
-            cy={ty}
-            r={EDGE_INTERACTION_WIDTH / 2}
-            onMouseDown={(event) => forwardToReconnectAnchor(event, "target")}
-          />
-        </>
+        <circle
+          className="rm-edge-grip"
+          cx={tx}
+          cy={ty}
+          r={EDGE_INTERACTION_WIDTH / 2}
+          onMouseDown={(event) => forwardToReconnectAnchor(event, "target")}
+        />
       ) : null}
       {label !== undefined && label.length > 0 ? (
-        <EdgeLabelRenderer>
-          <div
-            className="rm-edge-label nodrag nopan"
-            style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)` }}
-          >
-            {label}
-          </div>
-        </EdgeLabelRenderer>
+        <EdgeText x={labelX} y={labelY} label={label} labelBgPadding={LABEL_BG_PADDING} />
       ) : null}
     </g>
   );
