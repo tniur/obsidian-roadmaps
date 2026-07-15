@@ -25,7 +25,7 @@ import type { NodeSink } from "./addNode";
 import { runAddNodeAction, type AddNodeActionId } from "./addNodeActions";
 import type { BoardContext } from "./boardContext";
 import { ChoiceModal } from "./ChoiceModal";
-import { promptEditText, promptGroupIntoCluster } from "./dialogs";
+import { promptEditText, promptGroupIntoCluster, promptNodeUrl } from "./dialogs";
 import { exportBoardPdf } from "./exportPdf";
 import { showAddNodeMenu } from "./menus/addNodeMenu";
 import { showClusterContextMenu } from "./menus/clusterMenu";
@@ -49,6 +49,8 @@ export interface RoadmapViewHost {
   getShowMiniMap: () => boolean;
   setShowMiniMap: (value: boolean) => void;
   getPalette: () => readonly string[];
+  getPreviewWidth: () => number;
+  setPreviewWidth: (value: number) => void;
   getClipboard: () => BoardClipboard | null;
   setClipboard: (value: BoardClipboard) => void;
   openPluginSettings: () => void;
@@ -885,24 +887,7 @@ export class RoadmapView extends TextFileView {
   };
 
   private readonly handleNodePreview = (id: string): void => {
-    const ctx = this.boardContext();
-    const node = ctx?.session.state.nodes[id];
-
-    if (ctx === null || node === undefined) {
-      return;
-    }
-
-    if (node.source.type === "url") {
-      this.handleNodeOpen(id, false);
-
-      return;
-    }
-
-    if (node.source.type === "text") {
-      if (!this.locked) {
-        promptEditText(ctx, id);
-      }
-
+    if (this.session?.state.nodes[id] === undefined) {
       return;
     }
 
@@ -915,11 +900,33 @@ export class RoadmapView extends TextFileView {
     this.renderApp();
   };
 
-  private readonly handleEditPreview = (): void => {
-    if (this.previewNodeId !== null) {
-      this.handleNodeOpen(this.previewNodeId, true);
+  /**
+   * Header edit action of the preview panel: board-owned content (text, URL) edits in
+   * place through its dialog and disappears under lock; file-backed sources open the
+   * file in an Obsidian tab, which the lock does not restrict.
+   */
+  private previewEditAction(node: RoadmapNode): { label: string; run: () => void } | undefined {
+    const type = node.source.type;
+
+    if (type === "text" || type === "url") {
+      if (this.locked) {
+        return undefined;
+      }
+
+      return {
+        label: type === "text" ? "Edit text" : "Edit URL",
+        run: () => {
+          const ctx = this.editableContext();
+
+          if (ctx !== null) {
+            (type === "text" ? promptEditText : promptNodeUrl)(ctx, node.id);
+          }
+        },
+      };
     }
-  };
+
+    return { label: "Edit in Obsidian", run: () => this.handleNodeOpen(node.id, true) };
+  }
 
   private readonly mountPreview = (node: RoadmapNode, el: HTMLElement, onRendered: () => void): (() => void) =>
     mountPreviewContent(this.app, node, el, onRendered);
@@ -1190,7 +1197,9 @@ export class RoadmapView extends TextFileView {
               node={previewNode}
               mount={this.mountPreview}
               refreshNonce={this.previewRefreshNonce}
-              onEdit={this.handleEditPreview}
+              edit={this.previewEditAction(previewNode)}
+              initialWidth={this.host.getPreviewWidth()}
+              onWidthChange={this.host.setPreviewWidth}
               onClose={this.handleClosePreview}
             />
           ) : null}

@@ -47,3 +47,19 @@ export const BACKGROUND_DOT_GAP = 16;
 
 /** Passed to the React Flow dot background; renders as a dot of half this size at zoom 1. */
 export const BACKGROUND_DOT_SIZE = 1.6;
+
+/** Must stay equal to the CSS token `--rm-preview-width` in styles.css. */
+export const PREVIEW_DEFAULT_WIDTH = 440;
+
+export const PREVIEW_MIN_WIDTH = 320;
+
+export const PREVIEW_MAX_WIDTH = 760;
+
+/** Keeps a persisted or dragged preview-panel width inside its designed bounds. */
+export function clampPreviewWidth(value: number): number {
+  if (!Number.isFinite(value)) {
+    return PREVIEW_DEFAULT_WIDTH;
+  }
+
+  return Math.min(PREVIEW_MAX_WIDTH, Math.max(PREVIEW_MIN_WIDTH, Math.round(value)));
+}

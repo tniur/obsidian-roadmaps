@@ -27,6 +27,27 @@ export function nodeTitle(node: RoadmapNode): string {
 }
 
 /**
+ * Source identity under the preview-panel title: the file name with its extension for
+ * file-backed nodes, the hostname for URLs. Text nodes have no source and yield nothing.
+ */
+export function nodeSourceLabel(node: RoadmapNode): string | undefined {
+  const source = node.source;
+
+  switch (source.type) {
+    case "note":
+    case "heading":
+    case "block":
+    case "image":
+    case "attachment":
+      return fileName(source.file);
+    case "url":
+      return urlHostname(source.url);
+    case "text":
+      return undefined;
+  }
+}
+
+/**
  * Secondary source line of a card: the full address without its scheme for URL nodes,
  * the file name for attachments (a fallback when no vault file info is available).
  * Suppressed when it would just repeat the display title.

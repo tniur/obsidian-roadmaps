@@ -42,7 +42,7 @@
   --rm-shadow-card-hover: 0 4px 12px rgba(20, 22, 30, 0.13), 0 1px 3px rgba(20, 22, 30, 0.08);
   --rm-shadow-card-drag: 0 6px 20px rgba(20, 22, 30, 0.14), 0 2px 6px rgba(20, 22, 30, 0.08);
   --rm-shadow-panel: 0 4px 16px rgba(20, 22, 30, 0.1), 0 1px 3px rgba(20, 22, 30, 0.08);
-  --rm-shadow-overlay: var(--shadow-l);
+  --rm-shadow-overlay: -14px 0 34px rgba(20, 22, 30, 0.1);
   --rm-transition-fast: 120ms ease;
   --rm-transition-med: 180ms ease;
 
@@ -124,8 +124,22 @@
   --rm-panel-radius: 12px;
   --rm-panel-shadow: var(--rm-shadow-panel);
   --rm-panel-pad: var(--rm-space-1);
-  --rm-preview-width: 360px;
+  /* Must stay equal to PREVIEW_DEFAULT_WIDTH in src/constants.ts, which resets and
+     clamps the user-dragged width. */
+  --rm-preview-width: 440px;
   --rm-search-width: 200px;
+
+  /* preview panel */
+  --rm-preview-title-size: 14.5px;
+  --rm-preview-thumb: linear-gradient(
+    135deg,
+    var(--rm-accent),
+    color-mix(in srgb, var(--rm-accent) 55%, var(--rm-surface))
+  );
+  --rm-preview-scrollbar: color-mix(in srgb, var(--rm-text-faint) 45%, transparent);
+  --rm-preview-attachment-bg: color-mix(in srgb, var(--rm-text-muted) 5%, transparent);
+  --rm-preview-header-tint: 5%;
+  --rm-preview-header-bg: color-mix(in srgb, var(--rm-text-muted) var(--rm-preview-header-tint), transparent);
 
   /* board chrome: add bar, view strip, count chip */
   --rm-addbar-button: 34px;
@@ -180,6 +194,7 @@
   --rm-shadow-card-hover: 0 5px 16px rgba(0, 0, 0, 0.52), 0 1px 3px rgba(0, 0, 0, 0.4);
   --rm-shadow-card-drag: 0 7px 22px rgba(0, 0, 0, 0.56), 0 2px 6px rgba(0, 0, 0, 0.42);
   --rm-shadow-panel: 0 4px 16px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(0, 0, 0, 0.4);
+  --rm-shadow-overlay: -14px 0 34px rgba(0, 0, 0, 0.45);
   --rm-strip-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
   --rm-edge-label-shadow: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
   --rm-node-tint: 18%;
@@ -189,6 +204,7 @@
   --rm-cluster-fill-tint: 9%;
   --rm-cluster-line-tint: 28%;
   --rm-cluster-border-tint: 65%;
+  --rm-preview-header-tint: 9%;
 }
 
 /* Obsidian pads .view-content by default; the board claims the full tab area edge to edge. */
@@ -301,6 +317,7 @@
   width: var(--rm-preview-width);
   max-width: 100%;
   background: var(--rm-surface);
+  border-top: var(--rm-border-width) solid var(--rm-border);
   border-left: var(--rm-border-width) solid var(--rm-border);
   box-shadow: var(--rm-shadow-overlay);
 }
@@ -324,32 +341,277 @@
   }
 }
 
+/* Transparent resize strip on the panel's left edge: the cursor is the affordance,
+   matching the board's invisible resize hit zones. */
+.rm-preview__resizer {
+  position: absolute;
+  inset: 0 auto 0 0;
+  z-index: 1;
+  width: 6px;
+  cursor: col-resize;
+  touch-action: none;
+}
+
 .rm-preview__header {
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
-  gap: var(--rm-space-2);
-  padding: var(--rm-space-2) var(--rm-space-3);
+  gap: 9px;
+  padding: 12px 12px 12px 14px;
+  background: var(--rm-preview-header-bg);
   border-bottom: var(--rm-border-width) solid var(--rm-border);
 }
 
+.rm-preview__type {
+  --icon-size: 15px;
+
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
+  width: 30px;
+  min-height: 30px;
+  color: var(--rm-text-muted);
+  background: var(--rm-hover);
+  border-radius: var(--rm-radius-m);
+}
+
+.rm-preview__heading {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
 .rm-preview__title {
-  flex: 1;
   min-width: 0;
   overflow: hidden;
-  font-weight: var(--font-semibold);
+  font-size: var(--rm-preview-title-size);
+  font-weight: 700;
+  letter-spacing: -0.01em;
   white-space: nowrap;
   text-overflow: ellipsis;
 }
 
+.rm-preview__source {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--rm-text-faint);
+  font-size: var(--rm-node-secondary-size);
+  font-weight: 500;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.rm-preview .rm-toolbar__button {
+  border-radius: var(--rm-radius-control);
+}
+
+.rm-preview__desc {
+  flex: 0 0 auto;
+  padding: 10px 14px;
+  background: var(--rm-surface-alt);
+  border-bottom: var(--rm-border-width) solid var(--rm-border);
+  color: var(--rm-text-muted);
+  font-size: var(--rm-label-size-sm);
+  line-height: 1.5;
+}
+
 .rm-preview__body {
   flex: 1;
-  overflow: auto;
+  overflow-y: auto;
+  padding: var(--rm-space-3) var(--rm-space-3) 20px;
+}
+
+.rm-preview__body::-webkit-scrollbar {
+  width: 9px;
+}
+
+.rm-preview__body::-webkit-scrollbar-thumb {
+  background-color: var(--rm-preview-scrollbar);
+  background-clip: content-box;
+  border: 2px solid transparent;
+  border-radius: var(--rm-radius-full);
+}
+
+.rm-preview__body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Markdown rhythm of the note view: the panel's own sizes over the theme's colors.
+   Checkboxes restyle through Obsidian's own checkbox variables. */
+.rm-preview__body[data-preview-kind="note"] {
+  --checkbox-size: 17px;
+  --checkbox-radius: 5px;
+
+  font-size: var(--rm-label-size);
+  line-height: 1.6;
+}
+
+.rm-preview__body[data-preview-kind="note"] :is(h1, h2, h3, h4, h5, h6) {
+  margin: var(--rm-space-3) 0 4px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.rm-preview__body[data-preview-kind="note"] :is(h1, h2, h3, h4, h5, h6):first-child {
+  margin-top: 0;
+}
+
+.rm-preview__body[data-preview-kind="note"] h1 {
+  font-size: 16px;
+}
+
+.rm-preview__body[data-preview-kind="note"] h2 {
+  font-size: var(--rm-preview-title-size);
+}
+
+.rm-preview__body[data-preview-kind="note"] :is(h3, h4, h5, h6) {
+  font-size: var(--rm-label-size);
+}
+
+.rm-preview__body[data-preview-kind="note"] p {
+  margin: 4px 0;
+}
+
+.rm-preview__body[data-preview-kind="note"] :is(ul, ol) {
+  margin: 3px 0;
+}
+
+.rm-preview__body[data-preview-kind="note"] li {
+  line-height: 1.55;
+}
+
+.rm-preview__body[data-preview-kind="note"] pre {
+  margin: 8px 0;
+  padding: 10px 12px;
+  border: var(--rm-border-width) solid var(--rm-border);
+  border-radius: var(--rm-radius-m);
+}
+
+.rm-preview__body[data-preview-kind="note"] :is(pre, code) {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.rm-preview__body[data-preview-kind="url"],
+.rm-preview__body[data-preview-kind="missing"] {
+  display: flex;
+  flex-direction: column;
+}
+
+.rm-preview__body[data-preview-kind="url"] {
   padding: var(--rm-space-3);
 }
 
+.rm-preview__body[data-preview-kind="image"] {
+  padding: 0;
+}
+
+.rm-preview__body[data-preview-kind="attachment"] {
+  padding: var(--rm-space-3);
+  background: var(--rm-preview-attachment-bg);
+}
+
 .rm-preview__image {
-  max-width: 100%;
+  display: block;
+  width: 100%;
   height: auto;
+}
+
+.rm-preview__link-thumb {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  height: 150px;
+  border-radius: 11px;
+  background: var(--rm-preview-thumb);
+}
+
+.rm-preview__link-glyph {
+  --icon-size: 46px;
+
+  display: inline-flex;
+  color: var(--text-on-accent);
+  opacity: 0.92;
+}
+
+.rm-preview__link-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 2px 0;
+}
+
+.rm-preview__link-domain-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.rm-preview__link-favicon {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  background: var(--rm-text);
+  border-radius: 5px;
+  color: var(--rm-surface);
+  font-size: var(--rm-chip-size);
+  font-weight: 700;
+}
+
+.rm-preview__link-domain {
+  color: var(--rm-text-muted);
+  font-size: var(--rm-label-size-sm);
+  font-weight: 600;
+}
+
+.rm-preview__link-title {
+  margin-top: 2px;
+  font-size: 15.5px;
+  font-weight: 700;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.rm-view .rm-preview__link-url {
+  margin-top: 4px;
+  overflow: hidden;
+  color: var(--rm-accent);
+  font-size: 12px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.rm-preview__text {
+  font-size: 15px;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.rm-preview__missing {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--rm-space-2);
+  color: var(--rm-text-faint);
+  font-size: var(--rm-label-size);
+  text-align: center;
+}
+
+.rm-preview__missing-icon {
+  --icon-size: 26px;
+
+  display: inline-flex;
 }
 
 .rm-panel {

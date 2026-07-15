@@ -12,6 +12,8 @@ import {
 } from "obsidian";
 import {
   BACKGROUND_DOTS_ICON_ID,
+  clampPreviewWidth,
+  PREVIEW_DEFAULT_WIDTH,
   ROADMAP_FRONTMATTER_KEY,
   ROADMAP_FRONTMATTER_VALUE,
   STATUS_IN_PROGRESS_ICON_ID,
@@ -56,6 +58,8 @@ interface RoadmapSettings {
   newRoadmapFolder: string;
   /** Colors offered in the node, cluster and edge color menus. */
   palette: string[];
+  /** Preview panel width in px, adjusted by dragging the panel's left edge. */
+  previewWidth: number;
 }
 
 const DEFAULT_SETTINGS: RoadmapSettings = {
@@ -63,6 +67,7 @@ const DEFAULT_SETTINGS: RoadmapSettings = {
   showMiniMap: true,
   newRoadmapFolder: "",
   palette: [...DEFAULT_PALETTE],
+  previewWidth: PREVIEW_DEFAULT_WIDTH,
 };
 
 export default class RoadmapPlugin extends Plugin {
@@ -319,6 +324,15 @@ export default class RoadmapPlugin extends Plugin {
     void this.saveSettings();
   }
 
+  getPreviewWidth(): number {
+    return this.displaySettings.previewWidth;
+  }
+
+  setPreviewWidth(value: number): void {
+    this.displaySettings.previewWidth = clampPreviewWidth(value);
+    void this.saveSettings();
+  }
+
   getPalette(): readonly string[] {
     return this.displaySettings.palette;
   }
@@ -340,6 +354,10 @@ export default class RoadmapPlugin extends Plugin {
         this.setShowMiniMap(value);
       },
       getPalette: () => this.getPalette(),
+      getPreviewWidth: () => this.getPreviewWidth(),
+      setPreviewWidth: (value) => {
+        this.setPreviewWidth(value);
+      },
       getClipboard: () => this.boardClipboard,
       setClipboard: (value) => {
         this.boardClipboard = value;
@@ -370,7 +388,12 @@ export default class RoadmapPlugin extends Plugin {
   private async loadSettings(): Promise<void> {
     const data = (await this.loadData()) as Partial<RoadmapSettings> | null;
 
-    this.displaySettings = { ...DEFAULT_SETTINGS, ...data, palette: sanitizePalette(data?.palette ?? DEFAULT_PALETTE) };
+    this.displaySettings = {
+      ...DEFAULT_SETTINGS,
+      ...data,
+      palette: sanitizePalette(data?.palette ?? DEFAULT_PALETTE),
+      previewWidth: clampPreviewWidth(data?.previewWidth ?? PREVIEW_DEFAULT_WIDTH),
+    };
   }
 
   private async saveSettings(): Promise<void> {
