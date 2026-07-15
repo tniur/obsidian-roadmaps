@@ -83,7 +83,7 @@ export function addUrlNode(ctx: BoardContext, placement: NodePlacement, sink?: N
   const deliver = sink ?? standaloneSink(ctx);
 
   new PromptModal(ctx.app, {
-    title: "Add URL",
+    title: "Add URL node",
     placeholder: "https://example.com",
     cta: "Add",
     onSubmit: (value) => {
@@ -100,7 +100,7 @@ export function addTextNode(ctx: BoardContext, placement: NodePlacement, sink?: 
   const deliver = sink ?? standaloneSink(ctx);
 
   new PromptModal(ctx.app, {
-    title: "Add text",
+    title: "Add text node",
     placeholder: "Text",
     cta: "Add",
     onSubmit: (value) => {

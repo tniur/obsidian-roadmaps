@@ -1,8 +1,12 @@
 /*
  * Plugin design tokens, layered over Obsidian theme variables so the look can be
  * retargeted from a single place. Components consume these instead of literals.
+ * Modals mount outside the view, so they carry the same tokens through their own
+ * scope classes.
  */
-.rm-view {
+.rm-view,
+.rm-modal,
+.rm-modal-suggest {
   /* spacing */
   --rm-space-0: 2px;
   --rm-space-1: 4px;
@@ -36,6 +40,7 @@
   --rm-ring: color-mix(in srgb, var(--rm-accent) 35%, transparent);
   --rm-ring-width: 2px;
   --rm-focus-outline: var(--rm-ring-width) solid var(--rm-ring);
+  --rm-focus-halo: 0 0 0 3px color-mix(in srgb, var(--rm-accent) 14%, transparent);
 
   /* elevation & motion: one shadow per surface role (card / panel) */
   --rm-shadow-card: 0 1px 2px rgba(20, 22, 30, 0.06), 0 2px 6px rgba(20, 22, 30, 0.05);
@@ -43,6 +48,7 @@
   --rm-shadow-card-drag: 0 6px 20px rgba(20, 22, 30, 0.14), 0 2px 6px rgba(20, 22, 30, 0.08);
   --rm-shadow-panel: 0 4px 16px rgba(20, 22, 30, 0.1), 0 1px 3px rgba(20, 22, 30, 0.08);
   --rm-shadow-overlay: -14px 0 34px rgba(20, 22, 30, 0.1);
+  --rm-shadow-cta: 0 1px 3px color-mix(in srgb, var(--rm-accent) 40%, transparent);
   --rm-transition-fast: 120ms ease;
   --rm-transition-med: 180ms ease;
 
@@ -127,7 +133,7 @@
   /* Must stay equal to PREVIEW_DEFAULT_WIDTH in src/constants.ts, which resets and
      clamps the user-dragged width. */
   --rm-preview-width: 440px;
-  --rm-search-width: 200px;
+  --rm-search-width: 240px;
 
   /* preview panel */
   --rm-preview-title-size: 14.5px;
@@ -140,6 +146,13 @@
   --rm-preview-attachment-bg: color-mix(in srgb, var(--rm-text-muted) 5%, transparent);
   --rm-preview-header-tint: 5%;
   --rm-preview-header-bg: color-mix(in srgb, var(--rm-text-muted) var(--rm-preview-header-tint), transparent);
+
+  /* modals */
+  --rm-radius-modal: 13px;
+  --rm-shadow-modal: 0 16px 44px rgba(15, 17, 24, 0.3), 0 3px 10px rgba(15, 17, 24, 0.18);
+  --rm-danger-tint: color-mix(in srgb, var(--rm-danger) 5%, transparent);
+  --rm-danger-tint-strong: color-mix(in srgb, var(--rm-danger) 12%, transparent);
+  --rm-danger-border: color-mix(in srgb, var(--rm-danger) 40%, transparent);
 
   /* board chrome: add bar, view strip, count chip */
   --rm-addbar-button: 34px;
@@ -179,7 +192,9 @@
   --xy-connectionline-stroke: var(--rm-connection-color);
   --xy-connectionline-stroke-width: var(--rm-edge-width);
   --xy-edge-stroke-selected: var(--rm-accent);
+}
 
+.rm-view {
   position: relative;
   height: 100%;
   background: var(--rm-surface);
@@ -189,7 +204,9 @@
 
 /* Dark-theme overrides: only values Obsidian variables cannot express — the shadow
    ladder needs deeper blacks and the tints need higher opacity over dark surfaces. */
-.theme-dark .rm-view {
+.theme-dark .rm-view,
+.theme-dark .rm-modal,
+.theme-dark .rm-modal-suggest {
   --rm-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 3px 10px rgba(0, 0, 0, 0.32);
   --rm-shadow-card-hover: 0 5px 16px rgba(0, 0, 0, 0.52), 0 1px 3px rgba(0, 0, 0, 0.4);
   --rm-shadow-card-drag: 0 7px 22px rgba(0, 0, 0, 0.56), 0 2px 6px rgba(0, 0, 0, 0.42);
@@ -205,6 +222,10 @@
   --rm-cluster-line-tint: 28%;
   --rm-cluster-border-tint: 65%;
   --rm-preview-header-tint: 9%;
+  --rm-shadow-modal: 0 16px 44px rgba(0, 0, 0, 0.6), 0 3px 10px rgba(0, 0, 0, 0.45);
+  --rm-danger-tint: color-mix(in srgb, var(--rm-danger) 9%, transparent);
+  --rm-danger-tint-strong: color-mix(in srgb, var(--rm-danger) 18%, transparent);
+  --rm-danger-border: color-mix(in srgb, var(--rm-danger) 50%, transparent);
 }
 
 /* Obsidian pads .view-content by default; the board claims the full tab area edge to edge. */
@@ -741,27 +762,34 @@ button.rm-toolbar__zoom:focus-visible {
   }
 }
 
+.rm-panel.rm-search,
+.rm-panel.rm-filter {
+  border-radius: var(--rm-radius-modal);
+  box-shadow: var(--rm-shadow-modal);
+}
+
 .rm-search {
   align-items: center;
-  gap: var(--rm-space-1);
+  gap: 9px;
+  height: 42px;
+  padding: 0 5px 0 12px;
 }
 
 .rm-search__icon {
   --icon-size: var(--rm-icon-size);
 
   display: inline-flex;
-  padding-left: var(--rm-space-1);
-  color: var(--rm-text-muted);
+  color: var(--rm-text-faint);
 }
 
 .rm-search__input {
   width: var(--rm-search-width);
-  padding: var(--rm-space-1) var(--rm-space-1);
+  padding: var(--rm-space-1) 0;
   color: var(--rm-text);
   background: transparent;
   border: none;
   outline: none;
-  font-size: var(--font-ui-small);
+  font-size: 14px;
 }
 
 .rm-search__input::placeholder {
@@ -770,17 +798,22 @@ button.rm-toolbar__zoom:focus-visible {
 
 .rm-search__count {
   padding: 0 var(--rm-space-1);
-  color: var(--rm-text-muted);
-  font-size: var(--font-ui-smaller);
+  color: var(--rm-text-faint);
+  font-size: var(--rm-node-secondary-size);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+
+.rm-search .rm-toolbar__button,
+.rm-filter .rm-toolbar__button {
+  border-radius: var(--rm-radius-control);
 }
 
 .rm-filter {
   flex-direction: column;
   align-items: stretch;
-  gap: var(--rm-space-2);
-  padding: var(--rm-space-2);
+  gap: 10px;
+  padding: 14px 14px 10px;
 }
 
 .rm-filter__row {
@@ -793,22 +826,27 @@ button.rm-toolbar__zoom:focus-visible {
   flex: 0 0 auto;
   width: 56px;
   color: var(--rm-text-muted);
-  font-size: var(--font-ui-smaller);
+  font-size: var(--rm-label-size-sm);
+  font-weight: 600;
 }
 
 .rm-filter__chips {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--rm-space-1);
+  gap: 6px;
 }
 
 .rm-filter__chip {
-  padding: var(--rm-space-0) var(--rm-space-2);
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 9px;
   color: var(--rm-text-muted);
-  background: transparent;
+  background: var(--rm-surface);
   border: var(--rm-border-width) solid var(--rm-border);
-  border-radius: var(--rm-radius-full);
-  font-size: var(--font-ui-smaller);
+  border-radius: var(--rm-radius-chip);
+  font-size: var(--rm-label-size-sm);
+  font-weight: 500;
   cursor: pointer;
   transition:
     color var(--rm-transition-fast),
@@ -818,6 +856,7 @@ button.rm-toolbar__zoom:focus-visible {
 
 .rm-filter__chip:hover {
   color: var(--rm-text);
+  background: var(--rm-hover);
 }
 
 .rm-filter__chip:focus-visible {
@@ -838,13 +877,18 @@ button.rm-toolbar__zoom:focus-visible {
 }
 
 .rm-filter__clear {
-  padding: var(--rm-space-0) var(--rm-space-2);
+  height: var(--rm-control-size);
+  padding: 0 10px;
   color: var(--rm-text-muted);
   background: transparent;
   border: none;
-  border-radius: var(--rm-radius-s);
-  font-size: var(--font-ui-smaller);
+  border-radius: var(--rm-radius-control);
+  font-size: 13px;
+  font-weight: 600;
   cursor: pointer;
+  transition:
+    color var(--rm-transition-fast),
+    background var(--rm-transition-fast);
 }
 
 .rm-filter__clear:hover:not(:disabled) {
@@ -1659,4 +1703,250 @@ button.rm-cluster__action:active {
   border-radius: var(--radius-s);
   border: var(--rm-swatch-border-width) solid var(--background-modifier-border);
   background: var(--rm-swatch-color, transparent);
+}
+
+.modal.rm-modal {
+  --dialog-width: 320px;
+
+  padding: 18px;
+  border: var(--rm-border-width) solid var(--rm-border);
+  border-radius: var(--rm-radius-modal);
+  box-shadow: var(--rm-shadow-modal);
+}
+
+/* The `.modal.`-level compound keeps these ahead of theme rules of equal weight. */
+.modal.rm-modal .modal-title {
+  margin: 0;
+  padding: 0;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+}
+
+.modal.rm-modal .modal-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.rm-modal__title-icon {
+  --icon-size: var(--rm-icon-size);
+
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  margin-right: 10px;
+  vertical-align: middle;
+  color: var(--rm-danger);
+  background: var(--rm-danger-tint-strong);
+  border-radius: var(--rm-radius-m);
+}
+
+.rm-modal__body {
+  margin: 0;
+  color: var(--rm-text-muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.rm-modal .rm-modal__input {
+  width: 100%;
+  height: 40px;
+  padding: 0 12px;
+  background: var(--rm-surface);
+  border: var(--rm-border-width-thick) solid var(--rm-border);
+  border-radius: var(--rm-radius-tile);
+  color: var(--rm-text);
+  font-size: 14px;
+}
+
+.rm-modal .rm-modal__input:focus {
+  border-color: var(--rm-accent);
+  box-shadow: var(--rm-focus-halo);
+}
+
+.rm-modal__hint {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--rm-text-faint);
+  font-size: var(--rm-node-secondary-size);
+}
+
+.rm-modal__kbd {
+  padding: 1px 6px;
+  background: var(--rm-hover);
+  border: var(--rm-border-width) solid var(--rm-border);
+  border-radius: 5px;
+  color: var(--rm-text-muted);
+  font-family: inherit;
+  font-size: var(--rm-chip-size-caps);
+  font-weight: 600;
+}
+
+.rm-modal__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--rm-space-2);
+  margin-top: 2px;
+}
+
+.rm-modal__footer--column {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+button.rm-modal__btn {
+  height: 34px;
+  padding: 0 15px;
+  background-color: transparent;
+  border: none;
+  border-radius: var(--rm-radius-m);
+  box-shadow: none;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background-color var(--rm-transition-fast),
+    filter var(--rm-transition-fast);
+}
+
+button.rm-modal__btn:focus-visible {
+  outline: var(--rm-focus-outline);
+}
+
+button.rm-modal__btn--ghost {
+  color: var(--rm-text-muted);
+}
+
+button.rm-modal__btn--ghost:hover {
+  background-color: var(--rm-hover);
+}
+
+button.rm-modal__btn--primary {
+  background-color: var(--rm-accent);
+  box-shadow: var(--rm-shadow-cta);
+  color: var(--text-on-accent);
+}
+
+button.rm-modal__btn--primary:hover {
+  background-color: var(--rm-accent);
+  filter: brightness(1.07);
+}
+
+button.rm-modal__btn--choice,
+button.rm-modal__btn--choice-danger {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  height: auto;
+  padding: 9px 13px;
+  background-color: var(--rm-surface);
+  border: var(--rm-border-width) solid var(--rm-border);
+  border-radius: var(--rm-radius-tile);
+  box-shadow: none;
+  color: var(--rm-text);
+  font-size: var(--rm-label-size);
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--rm-transition-fast);
+}
+
+button.rm-modal__btn--choice:hover {
+  background-color: var(--rm-hover);
+}
+
+button.rm-modal__btn--choice-danger {
+  background-color: var(--rm-danger-tint);
+  border-color: var(--rm-danger-border);
+  color: var(--rm-danger);
+}
+
+button.rm-modal__btn--choice-danger:hover {
+  background-color: var(--rm-danger-tint-strong);
+}
+
+button.rm-modal__btn--choice:focus-visible,
+button.rm-modal__btn--choice-danger:focus-visible {
+  outline: var(--rm-focus-outline);
+}
+
+.rm-modal__btn-sub {
+  color: var(--rm-text-faint);
+  font-size: var(--rm-node-secondary-size);
+  font-weight: 400;
+}
+
+button.rm-modal__btn--choice-danger .rm-modal__btn-sub {
+  color: color-mix(in srgb, var(--rm-danger) 75%, transparent);
+}
+
+.prompt.rm-modal-suggest {
+  border: var(--rm-border-width) solid var(--rm-border);
+  border-radius: var(--rm-radius-modal);
+  box-shadow: var(--rm-shadow-modal);
+}
+
+.rm-modal-suggest .prompt-results {
+  padding: 4px;
+}
+
+.rm-modal-suggest .suggestion-item.rm-suggest {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 9px 12px;
+  border-radius: var(--rm-radius-m);
+}
+
+.rm-modal-suggest .suggestion-item.is-selected {
+  background: var(--rm-accent-tint);
+}
+
+.rm-suggest__icon {
+  --icon-size: var(--rm-icon-size);
+
+  display: inline-flex;
+  flex: 0 0 auto;
+  color: var(--rm-text-muted);
+}
+
+.rm-modal-suggest .suggestion-item.is-selected .rm-suggest__icon {
+  color: var(--rm-accent);
+}
+
+.rm-suggest__text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.rm-suggest__name {
+  overflow: hidden;
+  color: var(--rm-text);
+  font-size: var(--rm-label-size);
+  font-weight: 500;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.rm-suggest__folder {
+  overflow: hidden;
+  color: var(--rm-text-faint);
+  font-size: var(--rm-node-secondary-size);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.rm-modal-suggest .suggestion-highlight {
+  color: var(--rm-accent);
+  font-weight: 700;
 }

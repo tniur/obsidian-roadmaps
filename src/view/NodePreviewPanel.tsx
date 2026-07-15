@@ -8,19 +8,10 @@ import {
 } from "react";
 import { clampPreviewWidth, PREVIEW_DEFAULT_WIDTH } from "../constants";
 import { nodeSourceLabel, nodeTitle } from "../domain/title";
-import type { RoadmapNode, RoadmapNodeKind } from "../domain/types";
+import type { RoadmapNode } from "../domain/types";
 import { Icon } from "./Icon";
+import { KIND_ICONS } from "./kindIcons";
 import { ToolbarButton } from "./ToolbarButton";
-
-const KIND_ICONS: Record<RoadmapNodeKind, string> = {
-  note: "file-text",
-  heading: "heading",
-  block: "pilcrow",
-  text: "type",
-  image: "image",
-  attachment: "paperclip",
-  url: "link",
-};
 
 interface NodePreviewPanelProps {
   node: RoadmapNode;

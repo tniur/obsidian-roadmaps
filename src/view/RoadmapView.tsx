@@ -1015,12 +1015,24 @@ export class RoadmapView extends TextFileView {
       ctx.commit();
     };
 
+    const single = clusterIds.length === 1;
+
     new ChoiceModal(this.app, {
-      title: clusterIds.length === 1 ? "Delete cluster" : "Delete clusters",
+      title: single ? "Delete cluster" : "Delete clusters",
+      icon: "trash-2",
       message: "Vault files are not affected either way.",
       choices: [
-        { label: "Keep nodes", onPick: () => pick("keep-nodes") },
-        { label: "Delete nodes too", warning: true, onPick: () => pick("with-nodes") },
+        {
+          label: "Keep nodes",
+          detail: "Ungroup — nodes stay on the board",
+          onPick: () => pick("keep-nodes"),
+        },
+        {
+          label: "Delete nodes too",
+          detail: single ? "Remove the cluster and its nodes" : "Remove the clusters and their nodes",
+          warning: true,
+          onPick: () => pick("with-nodes"),
+        },
       ],
     }).open();
   };

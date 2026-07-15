@@ -1,19 +1,24 @@
-import { Modal, Setting, type App } from "obsidian";
+import { setIcon, type App } from "obsidian";
+import { addCancelButton, createModalFooter, RoadmapModal } from "./modalUi";
 
 interface Choice {
   label: string;
+  /** Explainer line rendered under the label. */
+  detail?: string;
   warning?: boolean;
   onPick: () => void;
 }
 
 interface ChoiceOptions {
   title: string;
+  /** Lucide icon shown as a danger-tinted tile before the title. */
+  icon?: string;
   message?: string;
   choices: Choice[];
 }
 
 /** Confirmation dialog with a button per outcome; closing it (or Cancel) picks nothing. */
-export class ChoiceModal extends Modal {
+export class ChoiceModal extends RoadmapModal {
   constructor(
     app: App,
     private readonly options: ChoiceOptions,
@@ -22,35 +27,38 @@ export class ChoiceModal extends Modal {
   }
 
   onOpen(): void {
-    this.titleEl.setText(this.options.title);
+    super.onOpen();
 
-    if (this.options.message !== undefined) {
-      this.contentEl.createEl("p", { text: this.options.message });
+    if (this.options.icon !== undefined) {
+      const tile = this.titleEl.createSpan({ cls: "rm-modal__title-icon" });
+
+      setIcon(tile, this.options.icon);
     }
 
-    const buttons = new Setting(this.contentEl);
+    this.titleEl.appendText(this.options.title);
+
+    if (this.options.message !== undefined) {
+      this.contentEl.createEl("p", { cls: "rm-modal__body", text: this.options.message });
+    }
+
+    const footer = createModalFooter(this.contentEl, true);
 
     for (const choice of this.options.choices) {
-      buttons.addButton((button) => {
-        button.setButtonText(choice.label).onClick(() => {
-          this.close();
-          choice.onPick();
-        });
+      const variant = choice.warning === true ? "rm-modal__btn--choice-danger" : "rm-modal__btn--choice";
+      const button = footer.createEl("button", { cls: ["rm-modal__btn", variant] });
 
-        if (choice.warning === true) {
-          button.setWarning();
-        }
+      button.createSpan({ text: choice.label });
+
+      if (choice.detail !== undefined) {
+        button.createSpan({ cls: "rm-modal__btn-sub", text: choice.detail });
+      }
+
+      button.addEventListener("click", () => {
+        this.close();
+        choice.onPick();
       });
     }
 
-    buttons.addButton((button) =>
-      button.setButtonText("Cancel").onClick(() => {
-        this.close();
-      }),
-    );
-  }
-
-  onClose(): void {
-    this.contentEl.empty();
+    addCancelButton(footer, () => this.close());
   }
 }
