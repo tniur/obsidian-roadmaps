@@ -46,6 +46,14 @@ export interface NodeMetaPatch {
   description?: string | null;
 }
 
+export interface EdgeUpdatePatch {
+  direction?: EdgeDirection;
+  line?: EdgeLine | "solid";
+  shape?: EdgeShape | "curved";
+  label?: string;
+  color?: string | null;
+}
+
 interface Snapshot {
   state: RoadmapState;
   content: string;
@@ -514,7 +522,7 @@ export class RoadmapSession {
     return next.title;
   }
 
-  setClusterColor(id: string, color: string | null): void {
+  setClusterColor(id: string, color: string | null, options?: { history?: boolean }): void {
     const cluster = this.stateValue.clusters[id];
 
     if (cluster === undefined || (cluster.style?.color ?? null) === (color === "" ? null : color)) {
@@ -528,7 +536,7 @@ export class RoadmapSession {
 
     this.commit(
       { ...this.stateValue, clusters: { ...this.stateValue.clusters, [id]: next } },
-      { body: (content) => replaceClusterHeading(content, next) },
+      { body: (content) => replaceClusterHeading(content, next), history: options?.history },
     );
   }
 
@@ -660,19 +668,11 @@ export class RoadmapSession {
 
   setNodeAlign(id: string, patch: { h?: TextAlignH; v?: TextAlignV }): void {
     const node = this.stateValue.nodes[id];
+    const next = node === undefined ? null : withAlignPatch(node, patch);
 
-    if (node === undefined) {
+    if (node === undefined || next === null) {
       return;
     }
-
-    const current = node.align ?? DEFAULT_TEXT_ALIGN;
-    const align: TextAlign = { h: patch.h ?? current.h, v: patch.v ?? current.v };
-
-    if (align.h === current.h && align.v === current.v && node.align !== undefined) {
-      return;
-    }
-
-    const next = { ...node, align };
 
     this.commit(
       { ...this.stateValue, nodes: { ...this.stateValue.nodes, [id]: next } },
@@ -682,59 +682,57 @@ export class RoadmapSession {
 
   updateNodeMeta(id: string, patch: NodeMetaPatch): void {
     const node = this.stateValue.nodes[id];
+    const next = node === undefined ? null : withNodeMetaPatch(node, patch);
 
-    if (node === undefined) {
+    if (node === undefined || next === null) {
       return;
     }
-
-    const next: RoadmapNode = { ...node };
-
-    if ("status" in patch) {
-      setOptional(next, "status", patch.status ?? undefined);
-    }
-
-    if ("priority" in patch) {
-      setOptional(next, "priority", patch.priority ?? undefined);
-    }
-
-    if ("title" in patch) {
-      const title = patch.title == null ? "" : sanitizeInline(patch.title);
-
-      setOptional(next, "title", title.length === 0 ? undefined : title);
-    }
-
-    if ("description" in patch) {
-      const description = patch.description == null ? "" : sanitizeInline(patch.description);
-
-      setOptional(next, "description", description.length === 0 ? undefined : description);
-    }
-
-    if ("color" in patch) {
-      const style = { ...next.style };
-
-      setOptional(style, "color", patch.color == null || patch.color.length === 0 ? undefined : patch.color);
-      next.style = Object.keys(style).length > 0 ? style : undefined;
-    }
-
-    if (
-      next.status === node.status &&
-      next.priority === node.priority &&
-      next.title === node.title &&
-      next.description === node.description &&
-      next.style?.color === node.style?.color
-    ) {
-      return;
-    }
-
-    const touchesBody =
-      "status" in patch || "priority" in patch || "title" in patch || "description" in patch || "color" in patch;
 
     this.commit(
       { ...this.stateValue, nodes: { ...this.stateValue.nodes, [id]: next } },
       {
-        body: touchesBody ? (content) => updateNodeBlock(content, next) : undefined,
+        body: (content) => updateNodeBlock(content, next),
         relations: "title" in patch,
       },
+    );
+  }
+
+  /** Applies one meta patch to every node in the set as a single undo step; live
+   * preview ticks (e.g. a dragged color picker) pass `history: false` after the first. */
+  updateNodesMeta(ids: readonly string[], patch: NodeMetaPatch, options?: { history?: boolean }): void {
+    this.commitNodesPatch(ids, (node) => withNodeMetaPatch(node, patch), options?.history);
+  }
+
+  /** Applies one alignment patch to every node in the set as a single undo step. */
+  setNodesAlign(ids: readonly string[], patch: { h?: TextAlignH; v?: TextAlignV }): void {
+    this.commitNodesPatch(ids, (node) => withAlignPatch(node, patch));
+  }
+
+  private commitNodesPatch(
+    ids: readonly string[],
+    apply: (node: RoadmapNode) => RoadmapNode | null,
+    history = true,
+  ): void {
+    const nodes = { ...this.stateValue.nodes };
+    const changed: RoadmapNode[] = [];
+
+    for (const id of new Set(ids)) {
+      const node = nodes[id];
+      const next = node === undefined ? null : apply(node);
+
+      if (next !== null && node !== undefined) {
+        nodes[id] = next;
+        changed.push(next);
+      }
+    }
+
+    if (changed.length === 0) {
+      return;
+    }
+
+    this.commit(
+      { ...this.stateValue, nodes },
+      { body: (content) => changed.reduce((acc, node) => updateNodeBlock(acc, node), content), history },
     );
   }
 
@@ -832,16 +830,7 @@ export class RoadmapSession {
     this.deleteSelection(nodeIds, edgeIds, [], "keep-nodes");
   }
 
-  updateEdge(
-    id: string,
-    patch: {
-      direction?: EdgeDirection;
-      line?: EdgeLine | "solid";
-      shape?: EdgeShape | "curved";
-      label?: string;
-      color?: string | null;
-    },
-  ): void {
+  updateEdge(id: string, patch: EdgeUpdatePatch, options?: { history?: boolean }): void {
     const edge = this.stateValue.edges[id];
 
     if (edge === undefined) {
@@ -888,7 +877,10 @@ export class RoadmapSession {
       return;
     }
 
-    this.commit({ ...this.stateValue, edges: { ...this.stateValue.edges, [id]: next } }, { relations: true });
+    this.commit(
+      { ...this.stateValue, edges: { ...this.stateValue.edges, [id]: next } },
+      { relations: true, history: options?.history },
+    );
   }
 
   reverseEdge(id: string): void {
@@ -1061,6 +1053,59 @@ function setOptional<T extends object, K extends OptionalKeys<T>>(target: T, key
 
 function endpointsEqual(a: RoadmapEndpoint, b: RoadmapEndpoint): boolean {
   return a.type === b.type && a.id === b.id;
+}
+
+/** Node with the meta patch applied, or null when nothing would effectively change. */
+function withNodeMetaPatch(node: RoadmapNode, patch: NodeMetaPatch): RoadmapNode | null {
+  const next: RoadmapNode = { ...node };
+
+  if ("status" in patch) {
+    setOptional(next, "status", patch.status ?? undefined);
+  }
+
+  if ("priority" in patch) {
+    setOptional(next, "priority", patch.priority ?? undefined);
+  }
+
+  if ("title" in patch) {
+    const title = patch.title == null ? "" : sanitizeInline(patch.title);
+
+    setOptional(next, "title", title.length === 0 ? undefined : title);
+  }
+
+  if ("description" in patch) {
+    const description = patch.description == null ? "" : sanitizeInline(patch.description);
+
+    setOptional(next, "description", description.length === 0 ? undefined : description);
+  }
+
+  if ("color" in patch) {
+    const style = { ...next.style };
+
+    setOptional(style, "color", patch.color == null || patch.color.length === 0 ? undefined : patch.color);
+    next.style = Object.keys(style).length > 0 ? style : undefined;
+  }
+
+  const unchanged =
+    next.status === node.status &&
+    next.priority === node.priority &&
+    next.title === node.title &&
+    next.description === node.description &&
+    next.style?.color === node.style?.color;
+
+  return unchanged ? null : next;
+}
+
+/** Node with the alignment patch merged over the default, or null when unchanged. */
+function withAlignPatch(node: RoadmapNode, patch: { h?: TextAlignH; v?: TextAlignV }): RoadmapNode | null {
+  const current = node.align ?? DEFAULT_TEXT_ALIGN;
+  const align: TextAlign = { h: patch.h ?? current.h, v: patch.v ?? current.v };
+
+  if (align.h === current.h && align.v === current.v && node.align !== undefined) {
+    return null;
+  }
+
+  return { ...node, align };
 }
 
 /**

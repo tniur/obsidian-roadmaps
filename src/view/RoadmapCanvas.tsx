@@ -5,9 +5,12 @@ import {
   BackgroundVariant,
   ConnectionMode,
   MiniMap,
+  NodeToolbar as FlowNodeToolbar,
   Panel,
+  Position,
   ReactFlow,
   SelectionMode,
+  useInternalNode,
   useReactFlow,
   useStore,
   useStoreApi,
@@ -19,6 +22,7 @@ import {
 import {
   type DragEvent,
   type MouseEvent as ReactMouseEvent,
+  type ReactNode,
   useCallback,
   useEffect,
   useId,
@@ -33,13 +37,18 @@ import { filterIsActive, nodeMatchesFilter, type NodeFilter } from "../domain/fi
 import type { RoadmapState, RoadmapViewport } from "../domain/types";
 import type { AddNodeActionId } from "./addNodeActions";
 import { ClusterNodeView } from "./ClusterNodeView";
+import { getEdgeEndpoints } from "./edgeParams";
 import { FloatingEdge } from "./FloatingEdge";
+import { ClusterBubble, EdgeBubble, NodeBubble } from "./menus/bubbles";
+import { AddActionRows, CardMenu, SelectionCard } from "./menus/cards";
+import type { CanvasMenuActions } from "./menus/menuActions";
 import { getHelperLines } from "./alignment";
 import { HelperLines } from "./HelperLines";
 import { NodeCallbacksContext, type NodeCallbacks } from "./nodeCallbacks";
 import { NodeFilterContext, type NodeDimPredicate } from "./nodeFilterContext";
 import {
   absoluteNodePosition,
+  isCardNode,
   nodeContainsPoint,
   nodeSize,
   normalizeClusterSelection,
@@ -54,6 +63,7 @@ import {
   type NodeFileInfoResolver,
   type NodeImageResolver,
   type NodeMissingPredicate,
+  type RoadmapCardNode,
   type RoadmapFlowEdge,
   type RoadmapFlowInstance,
   type RoadmapFlowNode,
@@ -72,6 +82,46 @@ const nodeTypes = {
 };
 
 const edgeTypes = { [ROADMAP_EDGE_TYPE]: FloatingEdge };
+
+/**
+ * Screen-space anchor for the edge bubble: tracks the midpoint of the selected edge
+ * through pans and zooms, so the toolbar keeps a constant size like the node toolbars.
+ */
+function EdgeBubbleAnchor({ edge, children }: { edge: RoadmapFlowEdge; children: ReactNode }) {
+  const source = useInternalNode(edge.source);
+  const target = useInternalNode(edge.target);
+  const transform = useStore((store) => store.transform);
+
+  if (source === undefined || target === undefined) {
+    return null;
+  }
+
+  const ends = getEdgeEndpoints(source, target, edge.data?.fromSide, edge.data?.toSide);
+  const x = ((ends.sx + ends.tx) / 2) * transform[2] + transform[0];
+  const y = ((ends.sy + ends.ty) / 2) * transform[2] + transform[1];
+
+  return (
+    <div className="rm-edge-bubble" style={{ transform: `translate(${x}px, ${y}px)` }}>
+      {children}
+    </div>
+  );
+}
+
+/**
+ * Pins its children to a board coordinate through the live viewport transform, so a card
+ * menu opened at a click point rides along with the canvas on pan and zoom.
+ */
+function FlowAnchor({ point, children }: { point: { x: number; y: number }; children: ReactNode }) {
+  const transform = useStore((store) => store.transform);
+  const x = point.x * transform[2] + transform[0];
+  const y = point.y * transform[2] + transform[1];
+
+  return (
+    <div className="rm-flow-anchor" style={{ transform: `translate(${x}px, ${y}px)` }}>
+      {children}
+    </div>
+  );
+}
 
 /** Ephemeral ids for alt-drag copies; the copies are replaced by real nodes on drop. */
 const ALT_COPY_ID_PREFIX = "dup-";
@@ -109,17 +159,13 @@ export interface CanvasNodeActions {
   onResized: (id: string, width: number, height: number, x: number, y: number) => void;
   onOpen: (id: string, newLeaf: boolean) => void;
   onPreview: (id: string) => void;
-  onContextMenu: (id: string, event: MouseEvent) => void;
-  onSelectionContextMenu: (ids: string[], event: MouseEvent) => void;
   onSelectionChange: (ids: string[]) => void;
 }
 
 export interface CanvasEdgeActions {
   onConnect: (source: string, target: string, sourceHandle: string | null, targetHandle: string | null) => void;
   onReconnect: (id: string, connection: Connection) => void;
-  onConnectToEmpty: (source: string, sourceHandle: string | null, placement: NodePlacement, event: MouseEvent) => void;
   onReconnectToEmpty: (edgeId: string) => void;
-  onContextMenu: (id: string, event: MouseEvent) => void;
 }
 
 export interface CanvasClusterActions {
@@ -140,7 +186,6 @@ export interface CanvasBoardActions {
   onViewportChange: (viewport: RoadmapViewport) => void;
   onFlowInit: (instance: RoadmapFlowInstance | null) => void;
   onAddAction: (id: AddNodeActionId, placement: NodePlacement) => void;
-  onPaneContextMenu: (placement: NodePlacement, event: MouseEvent) => void;
   onDropFiles: (placement: NodePlacement, dataTransfer: DataTransfer | null) => void;
   onDeleteElements: (nodeIds: string[], edgeIds: string[]) => void;
 }
@@ -173,6 +218,8 @@ interface RoadmapCanvasProps {
   edgeActions: CanvasEdgeActions;
   clusterActions: CanvasClusterActions;
   boardActions: CanvasBoardActions;
+  menuActions: CanvasMenuActions;
+  palette: readonly string[];
 }
 
 export function RoadmapCanvas({
@@ -193,6 +240,8 @@ export function RoadmapCanvas({
   edgeActions,
   clusterActions,
   boardActions,
+  menuActions,
+  palette,
 }: RoadmapCanvasProps) {
   const {
     onMoved: onNodesMoved,
@@ -201,17 +250,9 @@ export function RoadmapCanvas({
     onResized: onNodeResized,
     onOpen: onNodeOpen,
     onPreview: onNodePreview,
-    onContextMenu: onNodeContextMenu,
-    onSelectionContextMenu,
     onSelectionChange,
   } = nodeActions;
-  const {
-    onConnect: onConnectNodes,
-    onReconnect: onReconnectEdge,
-    onConnectToEmpty,
-    onReconnectToEmpty,
-    onContextMenu: onEdgeContextMenu,
-  } = edgeActions;
+  const { onConnect: onConnectNodes, onReconnect: onReconnectEdge, onReconnectToEmpty } = edgeActions;
   const { onToggleCollapse: onClusterToggleCollapse, onArrange: onClusterArrange } = clusterActions;
   const {
     onUndo,
@@ -226,7 +267,6 @@ export function RoadmapCanvas({
     onViewportChange,
     onFlowInit,
     onAddAction,
-    onPaneContextMenu,
     onDropFiles,
     onDeleteElements,
   } = boardActions;
@@ -249,6 +289,15 @@ export function RoadmapCanvas({
   const [edges, setEdges] = useState<RoadmapFlowEdge[]>(() => stateToFlowEdges(state));
   /** Counted from the domain state, so transient alt-drag copies never inflate the chip. */
   const nodeCount = Object.keys(state.nodes).length;
+  const [dragging, setDragging] = useState(false);
+  const [cardMenu, setCardMenu] = useState<
+    | ({ flow: NodePlacement } & (
+        | { kind: "pane" }
+        | { kind: "void"; source: string; handle: string | null }
+        | { kind: "selection"; ids: string[] }
+      ))
+    | null
+  >(null);
   const [helperLines, setHelperLines] = useState<{ horizontal?: number; vertical?: number }>({});
   /** Alt-drag duplicate state. A rubber-band drag fires both onNodeDragStop and
    * onSelectionDragStop for one gesture; `finalized` makes the second finalize a no-op. */
@@ -492,9 +541,9 @@ export function RoadmapCanvas({
         return;
       }
 
-      onConnectToEmpty(fromNodeId, connection.fromHandle?.id ?? null, point, event as MouseEvent);
+      setCardMenu({ kind: "void", source: fromNodeId, handle: connection.fromHandle?.id ?? null, flow: point });
     },
-    [screenToFlowPosition, nodeAtPoint, onConnectToEmpty, onReconnectToEmpty],
+    [screenToFlowPosition, nodeAtPoint, onReconnectToEmpty],
   );
 
   /** Spawns ephemeral copies of the dragged nodes, and of the edges between them, that
@@ -590,6 +639,8 @@ export function RoadmapCanvas({
 
   const onNodeDragStart = useCallback(
     (event: MouseEvent | TouchEvent, _node: RoadmapFlowNode, dragged: RoadmapFlowNode[]) => {
+      setDragging(true);
+
       if ("altKey" in event && event.altKey) {
         startAltDuplicate(dragged);
       }
@@ -599,6 +650,8 @@ export function RoadmapCanvas({
 
   const onSelectionDragStart = useCallback(
     (event: ReactMouseEvent, dragged: RoadmapFlowNode[]) => {
+      setDragging(true);
+
       if (event.altKey) {
         startAltDuplicate(dragged);
       }
@@ -652,6 +705,8 @@ export function RoadmapCanvas({
 
   const onNodeDragStop = useCallback(
     (_event: MouseEvent | TouchEvent, _node: RoadmapFlowNode, dragged: RoadmapFlowNode[]) => {
+      setDragging(false);
+
       if (!finalizeAltDuplicate()) {
         commitDrag(dragged);
       }
@@ -661,6 +716,8 @@ export function RoadmapCanvas({
 
   const onSelectionDragStop = useCallback(
     (_event: ReactMouseEvent, dragged: RoadmapFlowNode[]) => {
+      setDragging(false);
+
       if (!finalizeAltDuplicate()) {
         commitDrag(dragged);
       }
@@ -686,42 +743,59 @@ export function RoadmapCanvas({
     [onNodeOpen, onNodePreview],
   );
 
+  /** Right-click selects its target; the bubble toolbar follows the selection. */
+  const selectOnly = useCallback((id: string, kind: "node" | "edge") => {
+    setNodes((current) => current.map((node) => ({ ...node, selected: kind === "node" && node.id === id })));
+    setEdges((current) => current.map((edge) => ({ ...edge, selected: kind === "edge" && edge.id === id })));
+  }, []);
+
   const onEdgeContextMenuInternal = useCallback(
     (event: ReactMouseEvent, edge: RoadmapFlowEdge) => {
       event.preventDefault();
-      onEdgeContextMenu(edge.id, event.nativeEvent);
+
+      if (!locked) {
+        selectOnly(edge.id, "edge");
+      }
     },
-    [onEdgeContextMenu],
+    [locked, selectOnly],
   );
 
   const onNodeContextMenuInternal = useCallback(
     (event: ReactMouseEvent, node: RoadmapFlowNode) => {
       event.preventDefault();
-      onNodeContextMenu(node.id, event.nativeEvent);
+
+      if (!locked) {
+        selectOnly(node.id, "node");
+      }
     },
-    [onNodeContextMenu],
+    [locked, selectOnly],
   );
 
   const onSelectionContextMenuInternal = useCallback(
     (event: ReactMouseEvent, selected: RoadmapFlowNode[]) => {
       event.preventDefault();
-      onSelectionContextMenu(
-        selected.map((node) => node.id),
-        event.nativeEvent,
-      );
+
+      if (!locked) {
+        setCardMenu({
+          kind: "selection",
+          ids: selected.map((node) => node.id),
+          flow: screenToFlowPosition({ x: event.clientX, y: event.clientY }),
+        });
+      }
     },
-    [onSelectionContextMenu],
+    [locked, screenToFlowPosition],
   );
 
   const onPaneContextMenuInternal = useCallback(
     (event: ReactMouseEvent | MouseEvent) => {
       event.preventDefault();
       const native = "nativeEvent" in event ? event.nativeEvent : event;
-      const placement = screenToFlowPosition({ x: native.clientX, y: native.clientY });
 
-      onPaneContextMenu(placement, native);
+      if (!locked) {
+        setCardMenu({ kind: "pane", flow: screenToFlowPosition({ x: native.clientX, y: native.clientY }) });
+      }
     },
-    [screenToFlowPosition, onPaneContextMenu],
+    [locked, screenToFlowPosition],
   );
 
   /** React Flow also enumerates edges connected to the deleted nodes — including edges
@@ -855,6 +929,7 @@ export function RoadmapCanvas({
     (status, priority) => filterActive && !nodeMatchesFilter({ status, priority }, filter),
     [filter, filterActive],
   );
+  const filterState = useMemo(() => ({ dimmed: dimPredicate, active: filterActive }), [dimPredicate, filterActive]);
 
   /** Selects exactly the matched node and pans the camera to it, keeping the current zoom. */
   const focusMatch = useCallback(
@@ -896,9 +971,15 @@ export function RoadmapCanvas({
     [locked, onNodeResized, onClusterToggleCollapse, onClusterArrange],
   );
 
+  const selectedNodes = nodes.filter((node) => node.selected === true);
+  const selectedEdges = edges.filter((edge) => edge.selected === true);
+  const soleNode = selectedNodes.length === 1 && selectedEdges.length === 0 ? selectedNodes[0] : null;
+  const soleEdge = selectedEdges.length === 1 && selectedNodes.length === 0 ? selectedEdges[0] : null;
+  const bubblesVisible = !locked && !dragging && cardMenu === null;
+
   return (
     <NodeCallbacksContext.Provider value={nodeCallbacks}>
-      <NodeFilterContext.Provider value={dimPredicate}>
+      <NodeFilterContext.Provider value={filterState}>
         <div
           className="rm-canvas"
           data-locked={locked}
@@ -967,6 +1048,25 @@ export function RoadmapCanvas({
               <span className="rm-chip-text">{nodeCount === 1 ? "1 node" : `${nodeCount} nodes`}</span>
             </Panel>
             <HelperLines horizontal={helperLines.horizontal} vertical={helperLines.vertical} />
+            {bubblesVisible && soleNode !== null ? (
+              <FlowNodeToolbar nodeId={soleNode.id} isVisible position={Position.Top} offset={12}>
+                {isCardNode(soleNode) ? (
+                  <NodeBubble
+                    node={soleNode}
+                    selectionIds={selectedNodes.map((node) => node.id)}
+                    palette={palette}
+                    actions={menuActions}
+                  />
+                ) : (
+                  <ClusterBubble cluster={soleNode} palette={palette} actions={menuActions} />
+                )}
+              </FlowNodeToolbar>
+            ) : null}
+            {bubblesVisible && soleEdge !== null ? (
+              <EdgeBubbleAnchor edge={soleEdge}>
+                <EdgeBubble edge={soleEdge} palette={palette} actions={menuActions} />
+              </EdgeBubbleAnchor>
+            ) : null}
             {!locked ? <NodeToolbar onAction={onAddAction} /> : null}
             {searchOpen ? (
               <NodeSearchPanel state={state} onActivate={focusMatch} onClose={() => setSearchOpen(false)} />
@@ -1002,6 +1102,46 @@ export function RoadmapCanvas({
               onOpenSettings={onOpenSettings}
             />
           </ReactFlow>
+          {cardMenu !== null && !locked ? (
+            <FlowAnchor point={cardMenu.flow}>
+              <CardMenu
+                title={
+                  cardMenu.kind === "pane"
+                    ? "Add to canvas"
+                    : cardMenu.kind === "void"
+                      ? "Connect to new node"
+                      : `${cardMenu.ids.length} nodes selected`
+                }
+                onClose={() => setCardMenu(null)}
+              >
+                {cardMenu.kind === "selection" ? (
+                  <SelectionCard
+                    ids={cardMenu.ids}
+                    nodes={nodes.filter(
+                      (node): node is RoadmapCardNode => cardMenu.ids.includes(node.id) && isCardNode(node),
+                    )}
+                    palette={palette}
+                    actions={menuActions}
+                    onClose={() => setCardMenu(null)}
+                  />
+                ) : (
+                  <AddActionRows
+                    onPick={(action) => {
+                      const menu = cardMenu;
+
+                      setCardMenu(null);
+
+                      if (menu.kind === "pane") {
+                        menuActions.addNodeAt(action, menu.flow);
+                      } else if (menu.kind === "void") {
+                        menuActions.connectNewNode(action, menu.source, menu.handle, menu.flow);
+                      }
+                    }}
+                  />
+                )}
+              </CardMenu>
+            </FlowAnchor>
+          ) : null}
           {nodes.length === 0 && !locked ? (
             <div className="rm-empty">
               <span className="rm-empty__icon">

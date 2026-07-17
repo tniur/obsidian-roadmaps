@@ -90,6 +90,11 @@
   --rm-chip-size: 11px;
   --rm-chip-size-caps: 10.5px;
 
+  /* menu type: flyout/card rows and inputs, control chips, caps field labels */
+  --rm-menu-row-size: 13px;
+  --rm-menu-chip-size: 12px;
+  --rm-menu-caps-size: 10px;
+
   /* clusters */
   --rm-cluster-border: var(--rm-border);
   --rm-cluster-radius: var(--rm-radius-cluster);
@@ -125,6 +130,7 @@
 
   /* panels & controls */
   --rm-control-size: 28px;
+  --rm-control-lg: 34px;
   --rm-icon-size: 16px;
   --rm-panel-bg: var(--rm-surface);
   --rm-panel-radius: 12px;
@@ -147,15 +153,16 @@
   --rm-preview-header-tint: 5%;
   --rm-preview-header-bg: color-mix(in srgb, var(--rm-text-muted) var(--rm-preview-header-tint), transparent);
 
-  /* modals */
+  /* modals & menus */
   --rm-radius-modal: 13px;
+  --rm-flyout-wide: 250px;
   --rm-shadow-modal: 0 16px 44px rgba(15, 17, 24, 0.3), 0 3px 10px rgba(15, 17, 24, 0.18);
   --rm-danger-tint: color-mix(in srgb, var(--rm-danger) 5%, transparent);
   --rm-danger-tint-strong: color-mix(in srgb, var(--rm-danger) 12%, transparent);
   --rm-danger-border: color-mix(in srgb, var(--rm-danger) 40%, transparent);
 
   /* board chrome: add bar, view strip, count chip */
-  --rm-addbar-button: 34px;
+  --rm-addbar-button: var(--rm-control-lg);
   --rm-addbar-icon: 18px;
   --rm-strip-button: 28px;
   --rm-strip-icon: 15px;
@@ -248,6 +255,7 @@
 }
 
 .rm-canvas {
+  position: relative;
   width: 100%;
   height: 100%;
 }
@@ -1004,6 +1012,13 @@ button.rm-toolbar__button:active:not(:disabled) {
   filter: grayscale(var(--rm-dim-grayscale));
 }
 
+/* Clusters are not filterable, so any active filter recedes them wholesale; matching
+   member nodes stay bright on top. */
+.rm-cluster[data-dimmed="true"] {
+  opacity: var(--rm-dim-opacity);
+  filter: grayscale(var(--rm-dim-grayscale));
+}
+
 /* An edge touching a filtered-out node is dimmed with it (see FloatingEdge). */
 .rm-canvas .rm-edge-dimmed {
   opacity: var(--rm-dim-opacity);
@@ -1514,7 +1529,6 @@ button.rm-cluster__action:active {
 
 .rm-node__badge[data-status] {
   padding-left: 6px;
-  text-transform: capitalize;
 }
 
 .rm-node__badge[data-priority] {
@@ -1802,7 +1816,7 @@ button.rm-cluster__action:active {
 }
 
 button.rm-modal__btn {
-  height: 34px;
+  height: var(--rm-control-lg);
   padding: 0 15px;
   background-color: transparent;
   border: none;
@@ -1949,4 +1963,572 @@ button.rm-modal__btn--choice-danger .rm-modal__btn-sub {
 .rm-modal-suggest .suggestion-highlight {
   color: var(--rm-accent);
   font-weight: 700;
+}
+
+/* Context bubble: floating toolbar above the selected node, edge or cluster. */
+.rm-bubble {
+  position: relative;
+}
+
+.rm-bubble__bar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  background: var(--rm-surface);
+  border: var(--rm-border-width) solid var(--rm-border);
+  border-radius: var(--rm-radius-node);
+  box-shadow: var(--rm-shadow-card-drag);
+}
+
+.rm-bubble__caret {
+  position: absolute;
+  bottom: -5px;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  background: var(--rm-surface);
+  border-right: var(--rm-border-width) solid var(--rm-border);
+  border-bottom: var(--rm-border-width) solid var(--rm-border);
+  transform: translateX(-50%) rotate(45deg);
+}
+
+button.rm-bubble__btn {
+  --icon-size: 18px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--rm-control-lg);
+  height: var(--rm-control-lg);
+  padding: 0;
+  background-color: transparent;
+  border: none;
+  border-radius: var(--rm-radius-m);
+  box-shadow: none;
+  color: var(--rm-text-muted);
+  cursor: pointer;
+  transition:
+    background-color var(--rm-transition-fast),
+    color var(--rm-transition-fast);
+}
+
+button.rm-bubble__btn:hover:not(:disabled) {
+  background-color: var(--rm-hover);
+  color: var(--rm-text);
+}
+
+button.rm-bubble__btn[data-active="true"] {
+  background-color: var(--rm-accent-tint);
+  color: var(--rm-accent);
+}
+
+button.rm-bubble__btn:disabled {
+  color: var(--rm-text-faint);
+  cursor: default;
+}
+
+button.rm-bubble__btn:focus-visible {
+  outline: var(--rm-focus-outline);
+}
+
+.rm-bubble__divider {
+  flex: 0 0 auto;
+  width: 1px;
+  height: 20px;
+  margin: 0 3px;
+  background: var(--rm-border);
+}
+
+.rm-bubble__dot {
+  width: 17px;
+  height: 17px;
+  border-radius: var(--rm-radius-full);
+  background: var(--rm-swatch);
+}
+
+.rm-bubble__dot[data-empty="true"] {
+  position: relative;
+  overflow: hidden;
+  background: var(--rm-surface);
+  border: var(--rm-border-width-thick) solid var(--rm-border);
+}
+
+.rm-bubble__dot[data-empty="true"]::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 12px;
+  height: 1.5px;
+  background: var(--rm-text-faint);
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+button.rm-bubble__btn[data-active="true"] .rm-bubble__dot {
+  box-shadow:
+    0 0 0 2px var(--rm-surface),
+    0 0 0 3.5px var(--rm-accent);
+}
+
+/* Sized to its content, not to the bubble: an absolutely positioned auto-width box under
+   left:50% would otherwise shrink to the narrow toolbar's half-width. */
+.rm-bubble__flyout {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: max-content;
+  padding: 11px 12px;
+  background: var(--rm-surface);
+  border: var(--rm-border-width) solid var(--rm-border);
+  border-radius: var(--rm-radius-node);
+  box-shadow: var(--rm-shadow-card-drag);
+  transform: translateX(-50%);
+}
+
+.rm-bubble__flyout--wide {
+  width: var(--rm-flyout-wide);
+}
+
+.rm-bubble__flyout--tight {
+  gap: 1px;
+  width: 210px;
+  padding: 6px;
+}
+
+/* Anchors the edge bubble to the selected edge's midpoint in screen space. */
+.rm-edge-bubble {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: var(--rm-z-overlay);
+}
+
+.rm-edge-bubble .rm-bubble {
+  position: absolute;
+  transform: translate(-50%, calc(-100% - 12px));
+}
+
+/* Shared flyout and card-menu controls. */
+.rm-menu__section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rm-menu__section-label {
+  color: var(--rm-text-faint);
+  font-size: var(--rm-chip-size-caps);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.rm-menu__seg {
+  display: flex;
+  gap: 3px;
+  padding: 3px;
+  background: var(--rm-hover);
+  border-radius: var(--rm-radius-tile);
+}
+
+button.rm-menu__seg-btn {
+  --icon-size: 16px;
+
+  display: inline-flex;
+  flex: 1 1 0;
+  align-items: center;
+  justify-content: center;
+  min-width: 52px;
+  height: 28px;
+  padding: 0 8px;
+  background-color: transparent;
+  border: none;
+  border-radius: var(--rm-radius-chip);
+  box-shadow: none;
+  color: var(--rm-text-muted);
+  font-size: var(--rm-menu-chip-size);
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background-color var(--rm-transition-fast),
+    color var(--rm-transition-fast);
+}
+
+button.rm-menu__seg-btn[data-active="true"] {
+  background-color: var(--rm-surface);
+  box-shadow: var(--rm-shadow-card);
+  color: var(--rm-accent);
+}
+
+button.rm-menu__seg-btn:focus-visible {
+  outline: var(--rm-focus-outline);
+}
+
+.rm-menu__swatches {
+  display: grid;
+  grid-template-columns: repeat(5, 23px);
+  gap: 7px;
+}
+
+button.rm-menu__swatch,
+label.rm-menu__swatch {
+  width: 23px;
+  height: 23px;
+  padding: 0;
+  background-color: var(--rm-swatch);
+  border: none;
+  border-radius: var(--rm-radius-full);
+  box-shadow: none;
+  cursor: pointer;
+  transition: scale var(--rm-transition-fast);
+}
+
+button.rm-menu__swatch:hover,
+label.rm-menu__swatch:hover {
+  scale: 1.12;
+}
+
+button.rm-menu__swatch:focus-visible,
+label.rm-menu__swatch:focus-within {
+  outline: var(--rm-focus-outline);
+  outline-offset: 1px;
+}
+
+button.rm-menu__swatch[data-active="true"],
+label.rm-menu__swatch[data-active="true"] {
+  box-shadow:
+    0 0 0 2px var(--rm-surface),
+    0 0 0 4px var(--rm-swatch, var(--rm-accent));
+  scale: 1.05;
+}
+
+button.rm-menu__swatch--none,
+label.rm-menu__swatch--custom {
+  --icon-size: 13px;
+
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background-color: var(--rm-surface);
+  border: var(--rm-border-width-thick) solid var(--rm-border);
+  color: var(--rm-text-faint);
+}
+
+button.rm-menu__swatch--none::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 14px;
+  height: 1.5px;
+  background: var(--rm-text-faint);
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+label.rm-menu__swatch--custom[data-active="true"] {
+  background-color: var(--rm-swatch);
+  border: none;
+}
+
+/* The picker input is the click target of its swatch label, itself invisible. */
+.rm-menu__swatch-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: none;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.rm-menu__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-width: var(--rm-flyout-wide);
+}
+
+button.rm-menu__chip {
+  --icon-size: 13px;
+
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 10px;
+  background-color: var(--rm-hover);
+  border: var(--rm-border-width) solid transparent;
+  border-radius: var(--rm-radius-control);
+  box-shadow: none;
+  color: var(--rm-text-muted);
+  font-size: var(--rm-menu-chip-size);
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background-color var(--rm-transition-fast),
+    border-color var(--rm-transition-fast),
+    color var(--rm-transition-fast);
+}
+
+button.rm-menu__chip[data-caps="true"] {
+  font-size: var(--rm-chip-size);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+button.rm-menu__chip[data-active="true"] {
+  background-color: color-mix(in srgb, var(--rm-chip-color) 14%, transparent);
+  border-color: color-mix(in srgb, var(--rm-chip-color) 40%, transparent);
+  color: var(--rm-chip-color);
+}
+
+button.rm-menu__chip:focus-visible {
+  outline: var(--rm-focus-outline);
+}
+
+.rm-menu__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.rm-menu__field-label {
+  color: var(--rm-text-faint);
+  font-size: var(--rm-menu-caps-size);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.rm-menu__input {
+  width: 100%;
+  height: 30px;
+  padding: 0 9px;
+  background: var(--rm-surface);
+  border: var(--rm-border-width) solid var(--rm-border);
+  border-radius: var(--rm-radius-m);
+  color: var(--rm-text);
+  font-size: var(--rm-menu-row-size);
+  font-weight: 500;
+}
+
+.rm-view .rm-menu__input:focus {
+  border-color: var(--rm-accent);
+  box-shadow: var(--rm-focus-halo);
+}
+
+.rm-menu__input--area {
+  height: 50px;
+  padding: 7px 9px;
+  line-height: 1.35;
+  resize: none;
+}
+
+button.rm-menu__row {
+  --icon-size: 16px;
+
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: var(--rm-control-lg);
+  padding: 0 9px;
+  background-color: transparent;
+  border: none;
+  border-radius: var(--rm-radius-m);
+  box-shadow: none;
+  color: var(--rm-text);
+  font-size: var(--rm-menu-row-size);
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--rm-transition-fast);
+}
+
+button.rm-menu__row .rm-icon {
+  color: var(--rm-text-muted);
+}
+
+button.rm-menu__row:hover {
+  background-color: var(--rm-hover);
+}
+
+button.rm-menu__row[data-danger="true"],
+button.rm-menu__row[data-danger="true"] .rm-icon {
+  color: var(--rm-danger);
+}
+
+button.rm-menu__row[data-danger="true"]:hover {
+  background-color: var(--rm-danger-tint);
+}
+
+/* Card menus: empty-canvas, dangling-edge and selection menus at the pointer. */
+/* Zero-size point pinned to a board coordinate; the card menu positions off its origin. */
+.rm-flow-anchor {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: var(--rm-z-overlay);
+}
+
+.rm-card-menu {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 264px;
+  padding: var(--rm-space-2);
+  background: var(--rm-surface);
+  border: var(--rm-border-width) solid var(--rm-border);
+  border-radius: var(--rm-radius-modal);
+  box-shadow: var(--rm-shadow-modal);
+}
+
+.rm-card-menu__title {
+  padding: 4px 8px 3px;
+  color: var(--rm-text-faint);
+  font-size: var(--rm-chip-size-caps);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+button.rm-card-menu__item {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 8px 10px;
+  background-color: transparent;
+  border: none;
+  border-radius: var(--rm-radius-tile);
+  box-shadow: none;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--rm-transition-fast);
+}
+
+button.rm-card-menu__item:hover {
+  background-color: var(--rm-hover);
+}
+
+button.rm-card-menu__item:focus-visible {
+  outline: var(--rm-focus-outline);
+}
+
+.rm-card-menu__tile {
+  --icon-size: 16px;
+
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  background: var(--rm-hover);
+  border-radius: var(--rm-radius-m);
+  color: var(--rm-text-muted);
+}
+
+.rm-card-menu__text {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.rm-card-menu__label {
+  color: var(--rm-text);
+  font-size: var(--rm-label-size);
+  font-weight: 600;
+}
+
+.rm-card-menu__hint {
+  color: var(--rm-text-faint);
+  font-size: var(--rm-node-secondary-size);
+}
+
+.rm-card-menu__value {
+  --icon-size: 14px;
+
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
+  color: var(--rm-text-faint);
+  font-size: var(--rm-menu-chip-size);
+  text-transform: capitalize;
+}
+
+button.rm-card-menu__item[data-hero="true"] {
+  background-color: var(--rm-accent-tint);
+}
+
+button.rm-card-menu__item[data-hero="true"]:hover {
+  background-color: color-mix(in srgb, var(--rm-accent) 18%, transparent);
+}
+
+button.rm-card-menu__item[data-hero="true"] .rm-card-menu__tile {
+  background: var(--rm-accent);
+  color: var(--text-on-accent);
+}
+
+button.rm-card-menu__item[data-hero="true"] .rm-card-menu__label {
+  color: var(--rm-accent);
+}
+
+button.rm-card-menu__item[data-hero="true"] .rm-card-menu__hint {
+  color: color-mix(in srgb, var(--rm-accent) 70%, transparent);
+}
+
+button.rm-card-menu__item[data-danger="true"] .rm-card-menu__label {
+  color: var(--rm-danger);
+}
+
+button.rm-card-menu__item[data-danger="true"] .rm-card-menu__tile {
+  background: var(--rm-danger-tint);
+  color: var(--rm-danger);
+}
+
+button.rm-card-menu__item[data-danger="true"]:hover {
+  background-color: var(--rm-danger-tint);
+}
+
+.rm-card-menu__divider {
+  height: 1px;
+  margin: 5px 2px;
+  background: var(--rm-border);
+}
+
+.rm-card-menu__section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 4px 8px;
+}
+
+.rm-card-menu__section-label {
+  color: var(--rm-text-faint);
+  font-size: var(--rm-chip-size-caps);
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.rm-card-menu__segs {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.rm-card-menu__chips {
+  padding: 2px 8px 6px;
 }

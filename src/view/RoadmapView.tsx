@@ -1,4 +1,4 @@
-import { Menu, Notice, TextFileView, TFile, type TAbstractFile, type WorkspaceLeaf } from "obsidian";
+import { Notice, TextFileView, TFile, type Menu, type TAbstractFile, type WorkspaceLeaf } from "obsidian";
 import { ReactFlowProvider } from "@xyflow/react";
 import { StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -13,24 +13,21 @@ import {
 } from "../domain/create";
 import { roadmapToCanvas, serializeCanvas } from "../domain/jsonCanvas";
 import { nodeOpenTarget } from "../domain/openTarget";
-import { formatFileSize, isSafeUrl } from "../domain/paths";
+import { formatFileSize, isSafeUrl, normalizeHttpUrl } from "../domain/paths";
 import { sourceFile } from "../domain/source";
-import type { RoadmapCluster, RoadmapEdge, RoadmapNode, RoadmapViewport } from "../domain/types";
+import { facingSide } from "../domain/edges";
+import type { EdgeSide, RoadmapCluster, RoadmapEdge, RoadmapNode, RoadmapViewport } from "../domain/types";
 import { availableVaultPath, draggedFiles, nodeForFile } from "../services/vaultFiles";
 import type { RoadmapFlowInstance } from "./flow";
 import { StateVersionError } from "../state/codec";
 import { loadDocument, rebuildDocument, type DocumentWarning, type LoadedDocument } from "../state/reconcile";
 import { RoadmapSession, type RoadmapConnection } from "../state/session";
-import type { NodeSink } from "./addNode";
 import { runAddNodeAction, type AddNodeActionId } from "./addNodeActions";
 import type { BoardContext } from "./boardContext";
 import { ChoiceModal } from "./ChoiceModal";
 import { promptEditText, promptGroupIntoCluster, promptNodeUrl } from "./dialogs";
 import { exportBoardPdf } from "./exportPdf";
-import { showAddNodeMenu } from "./menus/addNodeMenu";
-import { showClusterContextMenu } from "./menus/clusterMenu";
-import { showEdgeContextMenu } from "./menus/edgeMenu";
-import { showNodeContextMenu } from "./menus/nodeMenu";
+import type { CanvasMenuActions } from "./menus/menuActions";
 import { NodePreviewPanel } from "./NodePreviewPanel";
 import { mountPreviewContent } from "./preview";
 import { RF_VIEWPORT_CLASS } from "./reactFlowInternals";
@@ -101,6 +98,7 @@ export class RoadmapView extends TextFileView {
   private readonly edgeActions: CanvasEdgeActions;
   private readonly clusterActions: CanvasClusterActions;
   private readonly boardActions: CanvasBoardActions;
+  private readonly menuActions: CanvasMenuActions;
 
   constructor(
     leaf: WorkspaceLeaf,
@@ -114,17 +112,14 @@ export class RoadmapView extends TextFileView {
       onResized: this.handleNodeResized,
       onOpen: this.handleNodeOpen,
       onPreview: this.handleNodePreview,
-      onContextMenu: this.handleNodeContextMenu,
-      onSelectionContextMenu: this.handleSelectionContextMenu,
       onSelectionChange: this.handleSelectionChange,
     };
     this.edgeActions = {
       onConnect: this.handleConnectNodes,
       onReconnect: this.handleReconnectEdge,
-      onConnectToEmpty: this.handleConnectToEmpty,
       onReconnectToEmpty: this.handleReconnectToEmpty,
-      onContextMenu: this.handleEdgeContextMenu,
     };
+    this.menuActions = this.buildMenuActions();
     this.clusterActions = {
       onToggleCollapse: this.handleClusterToggleCollapse,
       onArrange: this.handleClusterArrange,
@@ -142,7 +137,6 @@ export class RoadmapView extends TextFileView {
       onViewportChange: this.handleViewportChange,
       onFlowInit: this.handleFlowInit,
       onAddAction: this.runAddActionAt,
-      onPaneContextMenu: this.handlePaneContextMenu,
       onDropFiles: this.handleDropFiles,
       onDeleteElements: this.handleDeleteElements,
     };
@@ -931,45 +925,96 @@ export class RoadmapView extends TextFileView {
   private readonly mountPreview = (node: RoadmapNode, el: HTMLElement, onRendered: () => void): (() => void) =>
     mountPreviewContent(this.app, node, el, onRendered);
 
-  private readonly handlePaneContextMenu = (placement: NodePlacement, event: MouseEvent): void => {
-    if (this.locked) {
-      return;
-    }
-
-    showAddNodeMenu(this.runAddActionAt, centeredPlacement(placement), event);
-  };
-
-  /** The full add-node menu at the drop point; the created node is delivered to `sink`. */
-  private showAddMenuWithSink(ctx: BoardContext, sink: NodeSink, placement: NodePlacement, event: MouseEvent): void {
-    showAddNodeMenu(
-      (id, at) => runAddNodeAction(id, ctx, this.noteFolder(), at, sink),
-      centeredPlacement(placement),
-      event,
-    );
-  }
-
-  private readonly handleConnectToEmpty = (
-    source: string,
-    sourceHandle: string | null,
-    placement: NodePlacement,
-    event: MouseEvent,
-  ): void => {
+  private withEditable(run: (ctx: BoardContext) => void): void {
     const ctx = this.editableContext();
 
-    if (ctx === null) {
-      return;
+    if (ctx !== null) {
+      run(ctx);
     }
+  }
 
-    this.showAddMenuWithSink(
-      ctx,
-      (node) => {
-        ctx.session.addNodeWithEdge(node, source, sourceHandle, null);
+  /**
+   * Handlers behind the canvas menus (bubble toolbars and card menus). Session no-ops
+   * are safe to commit, so every mutation runs through the same commit wrapper.
+   */
+  private buildMenuActions(): CanvasMenuActions {
+    const mutate = (run: (ctx: BoardContext) => void): void =>
+      this.withEditable((ctx) => {
+        run(ctx);
         ctx.commit();
+      });
+
+    return {
+      setNodesMeta: (ids, patch, options) => mutate((ctx) => ctx.session.updateNodesMeta(ids, patch, options)),
+      setNodesAlign: (ids, patch) => mutate((ctx) => ctx.session.setNodesAlign(ids, patch)),
+      setNodeTitle: (id, value) =>
+        mutate((ctx) => ctx.session.updateNodeMeta(id, { title: value.length === 0 ? null : value })),
+      setNodeDescription: (id, value) =>
+        mutate((ctx) => ctx.session.updateNodeMeta(id, { description: value.length === 0 ? null : value })),
+      setNodeUrl: (id, value) => {
+        if (value.length > 0) {
+          mutate((ctx) => ctx.session.setNodeUrl(id, normalizeHttpUrl(value)));
+        }
       },
-      placement,
-      event,
-    );
-  };
+      setNodeText: (id, value) => {
+        if (value.length > 0) {
+          mutate((ctx) => ctx.session.updateNodeMeta(id, { title: value }));
+        }
+      },
+      openNodeSource: (id) => this.handleNodeOpen(id, true),
+      duplicateNodes: (ids) => this.duplicateNodes(ids),
+      deleteNodes: (ids) => this.handleDeleteElements([...ids], []),
+      groupIntoCluster: (ids) => this.withEditable((ctx) => promptGroupIntoCluster(ctx, [...ids])),
+      updateEdge: (id, patch, options) => mutate((ctx) => ctx.session.updateEdge(id, patch, options)),
+      reverseEdge: (id) => mutate((ctx) => ctx.session.reverseEdge(id)),
+      setEdgeAnchored: (id, end, anchored) => mutate((ctx) => setEdgeAnchor(ctx, id, end, anchored)),
+      deleteEdge: (id) => this.handleDeleteElements([], [id]),
+      renameCluster: (id, value) => {
+        if (value.trim().length > 0) {
+          mutate((ctx) => ctx.session.renameCluster(id, value));
+        }
+      },
+      setClusterColor: (id, color, options) => mutate((ctx) => ctx.session.setClusterColor(id, color, options)),
+      arrangeCluster: (id) => mutate((ctx) => ctx.session.arrangeCluster(id)),
+      toggleClusterCollapsed: (id) => mutate((ctx) => ctx.session.toggleClusterCollapsed(id)),
+      ungroupCluster: (id) => mutate((ctx) => ctx.session.dissolveCluster(id)),
+      deleteCluster: (id) => this.handleDeleteElements([id], []),
+      addNodeAt: (action, placement) => this.runAddActionAt(action, centeredPlacement(placement)),
+      connectNewNode: (action, source, sourceHandle, placement) =>
+        this.withEditable((ctx) =>
+          runAddNodeAction(action, ctx, this.noteFolder(), centeredPlacement(placement), (node) => {
+            ctx.session.addNodeWithEdge(node, source, sourceHandle, null);
+            ctx.commit();
+          }),
+        ),
+    };
+  }
+
+  /** Clones the given nodes (and the edges between them) with a small cascade offset. */
+  private duplicateNodes(ids: readonly string[]): void {
+    this.withEditable((ctx) => {
+      const nodes = ids
+        .map((id) => ctx.session.state.nodes[id])
+        .filter((node): node is RoadmapNode => node !== undefined);
+
+      if (nodes.length === 0) {
+        return;
+      }
+
+      const clones = nodes.map((node) => {
+        const absolute = this.withAbsoluteLayout(node);
+
+        return copyNode(absolute, absolute.layout.x + CASCADE_OFFSET, absolute.layout.y + CASCADE_OFFSET);
+      });
+      const cloneIds = new Map(nodes.map((node, index) => [node.id, clones[index].id]));
+
+      ctx.session.addNodes(clones, copiedEdges(Object.values(ctx.session.state.edges), cloneIds));
+      ctx.commit();
+      this.focusIds = clones.map((clone) => clone.id);
+      this.focusNonce += 1;
+      this.renderApp();
+    });
+  }
 
   /** Dropping an existing edge end on empty canvas breaks the edge. */
   private readonly handleReconnectToEmpty = (edgeId: string): void => {
@@ -1050,63 +1095,6 @@ export class RoadmapView extends TextFileView {
   private readonly handleReconnectEdge = (id: string, connection: RoadmapConnection): void => {
     this.session?.reconnectEdge(id, connection);
     this.commit();
-  };
-
-  private readonly handleEdgeContextMenu = (id: string, event: MouseEvent): void => {
-    const ctx = this.editableContext();
-    const edge = ctx?.session.state.edges[id];
-
-    if (ctx === null || edge === undefined) {
-      return;
-    }
-
-    showEdgeContextMenu(ctx, edge, event);
-  };
-
-  private readonly handleNodeContextMenu = (id: string, event: MouseEvent): void => {
-    const ctx = this.editableContext();
-
-    if (ctx === null) {
-      return;
-    }
-
-    const cluster = ctx.session.state.clusters[id];
-
-    if (cluster !== undefined) {
-      showClusterContextMenu(ctx, cluster, event);
-
-      return;
-    }
-
-    const node = ctx.session.state.nodes[id];
-
-    if (node !== undefined) {
-      showNodeContextMenu(ctx, node, this.selectedNodeIds, event);
-    }
-  };
-
-  private readonly handleSelectionContextMenu = (ids: string[], event: MouseEvent): void => {
-    const ctx = this.editableContext();
-
-    if (ctx === null) {
-      return;
-    }
-
-    const targets = ids.filter((id) => ctx.session.state.nodes[id]?.clusterId == null);
-
-    if (targets.length === 0) {
-      return;
-    }
-
-    const menu = new Menu();
-
-    menu.addItem((item) =>
-      item
-        .setTitle("Group into cluster")
-        .setIcon("group")
-        .onClick(() => promptGroupIntoCluster(ctx, targets)),
-    );
-    menu.showAtMouseEvent(event);
   };
 
   private readonly handleDropFiles = (placement: NodePlacement, dataTransfer: DataTransfer | null): void => {
@@ -1201,6 +1189,8 @@ export class RoadmapView extends TextFileView {
               edgeActions={this.edgeActions}
               clusterActions={this.clusterActions}
               boardActions={this.boardActions}
+              menuActions={this.menuActions}
+              palette={this.host.getPalette()}
             />
           </ReactFlowProvider>
           {previewNode !== undefined ? (
@@ -1219,4 +1209,26 @@ export class RoadmapView extends TextFileView {
       </StrictMode>,
     );
   }
+}
+
+/** Re-anchors an edge end to the side facing the other endpoint, or sets it afloat. */
+function setEdgeAnchor(ctx: BoardContext, id: string, end: "from" | "to", anchored: boolean): void {
+  const edge = ctx.session.state.edges[id];
+
+  if (edge === undefined) {
+    return;
+  }
+
+  let side: EdgeSide | undefined;
+
+  if (anchored) {
+    const self = edge[end];
+    const other = end === "from" ? edge.to : edge.from;
+    const selfNode = self.type === "node" ? ctx.session.state.nodes[self.id] : undefined;
+    const otherNode = other.type === "node" ? ctx.session.state.nodes[other.id] : undefined;
+
+    side = selfNode !== undefined && otherNode !== undefined ? facingSide(selfNode.layout, otherNode.layout) : "top";
+  }
+
+  ctx.session.setEdgeEndpointSide(id, end, side);
 }

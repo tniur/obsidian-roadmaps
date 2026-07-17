@@ -2,6 +2,7 @@ import { Panel } from "@xyflow/react";
 import { useEffect, type CSSProperties } from "react";
 import { FILTER_NONE } from "../domain/filter";
 import { ROADMAP_PRIORITIES, ROADMAP_STATUSES } from "../domain/types";
+import { humanizeValue } from "../domain/title";
 import { ToolbarButton } from "./ToolbarButton";
 
 type ChipKind = "status" | "priority";
@@ -13,16 +14,10 @@ interface Chip {
   color?: string;
 }
 
-function humanize(value: string): string {
-  const text = value.replace(/-/g, " ");
-
-  return text.charAt(0).toUpperCase() + text.slice(1);
-}
-
 /** Chips for a category, derived from the domain literals plus a trailing "no value" chip. */
 function chipsFor(kind: ChipKind, values: readonly string[], noneLabel: string): Chip[] {
   return [
-    ...values.map((value) => ({ value, label: humanize(value), color: `var(--rm-${kind}-${value})` })),
+    ...values.map((value) => ({ value, label: humanizeValue(value), color: `var(--rm-${kind}-${value})` })),
     { value: FILTER_NONE, label: noneLabel },
   ];
 }

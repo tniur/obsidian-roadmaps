@@ -1,9 +1,10 @@
 import { STATUS_IN_PROGRESS_ICON_ID } from "../constants";
+import { humanizeValue } from "../domain/title";
 import type { RoadmapStatus } from "../domain/types";
 import { Icon } from "./Icon";
 import type { NodeBodyProps } from "./nodeRegistry";
 
-const STATUS_ICONS: Record<RoadmapStatus, string> = {
+export const STATUS_ICONS: Record<RoadmapStatus, string> = {
   draft: "pencil",
   "in-progress": STATUS_IN_PROGRESS_ICON_ID,
   done: "check",
@@ -30,7 +31,7 @@ export function NodeBadges({ data, overlay = false }: NodeBodyProps & { overlay?
       {data.status !== undefined ? (
         <span className="rm-node__badge" data-status={data.status}>
           <Icon name={STATUS_ICONS[data.status]} />
-          <span className="rm-chip-text">{data.status.replace("-", " ")}</span>
+          <span className="rm-chip-text">{humanizeValue(data.status)}</span>
         </span>
       ) : null}
     </div>

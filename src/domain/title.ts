@@ -64,6 +64,13 @@ export function nodeSecondary(node: RoadmapNode): string | undefined {
   return secondary === undefined || secondary === nodeTitle(node) ? undefined : secondary;
 }
 
+/** Sentence-case label of a kebab-case domain value: "in-progress" → "In progress". */
+export function humanizeValue(value: string): string {
+  const text = value.replace(/-/g, " ");
+
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
 /** Obsidian resolves heading links case-insensitively, so titles must differ that way too. */
 export function clusterTitleKey(title: string): string {
   return title.trim().toLowerCase();

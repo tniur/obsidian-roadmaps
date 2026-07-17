@@ -703,3 +703,74 @@ describe("roadmap session", () => {
     expect(session.content).toContain(`id=${clone.id}`);
   });
 });
+
+describe("bulk node mutations", () => {
+  it("applies one meta patch to the whole set as a single undo step", () => {
+    const session = newSession();
+    const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
+    const b = createNoteNode("notes/b.md", { x: 300, y: 0 });
+
+    session.addNode(a);
+    session.addNode(b);
+    session.updateNodesMeta([a.id, b.id], { status: "done", color: "var(--color-green)" });
+
+    expect(session.state.nodes[a.id]?.status).toBe("done");
+    expect(session.state.nodes[b.id]?.status).toBe("done");
+    expect(session.state.nodes[b.id]?.style?.color).toBe("var(--color-green)");
+    expect(session.content).toContain("#done");
+    expect(readState(session.content)?.nodes[a.id]?.status).toBe("done");
+
+    session.undo();
+
+    expect(session.state.nodes[a.id]?.status).toBeUndefined();
+    expect(session.state.nodes[b.id]?.status).toBeUndefined();
+  });
+
+  it("aligns the whole set and skips missing or unchanged nodes", () => {
+    const session = newSession();
+    const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
+    const b = createNoteNode("notes/b.md", { x: 300, y: 0 });
+
+    session.addNode(a);
+    session.addNode(b);
+    session.setNodeAlign(a.id, { h: "center" });
+    const before = session.state;
+
+    session.setNodesAlign([a.id, b.id, "ghost"], { h: "center" });
+
+    expect(session.state.nodes[a.id]?.align).toEqual({ h: "center", v: "top" });
+    expect(session.state.nodes[b.id]?.align).toEqual({ h: "center", v: "top" });
+    expect(session.state.nodes[a.id]).toBe(before.nodes[a.id]);
+  });
+
+  it("is a no-op commit when nothing effectively changes", () => {
+    const session = newSession();
+    const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
+
+    session.addNode(a);
+    session.updateNodeMeta(a.id, { status: "done" });
+    const before = session.state;
+
+    session.updateNodesMeta([a.id], { status: "done" });
+
+    expect(session.state).toBe(before);
+  });
+});
+
+describe("live color gesture", () => {
+  it("collapses history-less preview ticks into a single undo step", () => {
+    const session = newSession();
+    const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
+
+    session.addNode(a);
+    session.updateNodesMeta([a.id], { color: "#112233" }, { history: true });
+    session.updateNodesMeta([a.id], { color: "#445566" }, { history: false });
+    session.updateNodesMeta([a.id], { color: "#778899" }, { history: false });
+
+    expect(session.state.nodes[a.id]?.style?.color).toBe("#778899");
+
+    session.undo();
+
+    expect(session.state.nodes[a.id]?.style?.color).toBeUndefined();
+  });
+});

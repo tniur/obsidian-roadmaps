@@ -35,6 +35,8 @@ export type RoadmapNodeData = {
   align?: TextAlign;
   missing?: boolean;
   imageSrc?: string;
+  /** Raw address of a url node; feeds the URL field of the node bubble. */
+  url?: string;
 };
 
 export type RoadmapClusterData = {
@@ -205,6 +207,7 @@ export function stateToFlowNodes(
         align: node.align,
         missing: isMissing?.(node) ?? false,
         imageSrc: resolveImageSrc?.(node) ?? undefined,
+        url: node.source.type === "url" ? node.source.url : undefined,
       },
     };
 
@@ -236,6 +239,7 @@ const NODE_DATA_KEYS = Object.keys({
   align: true,
   missing: true,
   imageSrc: true,
+  url: true,
 } satisfies Record<keyof RoadmapNodeData, true>) as ReadonlyArray<keyof RoadmapNodeData>;
 
 const CLUSTER_DATA_KEYS = Object.keys({

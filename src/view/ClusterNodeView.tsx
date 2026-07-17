@@ -5,6 +5,7 @@ import { colorStyleVars } from "./colorStyle";
 import type { RoadmapClusterNode } from "./flow";
 import { Icon } from "./Icon";
 import { useNodeCallbacks } from "./nodeCallbacks";
+import { useFilterActive } from "./nodeFilterContext";
 import { NodeHandles } from "./NodeHandles";
 
 /** Resize handles confined to the right/bottom edges keep the cluster origin fixed, so member
@@ -18,6 +19,7 @@ const RESIZE_EDGES = ["right", "bottom", "bottom-right"] as const;
 export function ClusterNodeView({ id, data, selected, isConnectable }: NodeProps<RoadmapClusterNode>) {
   const cluster = data;
   const callbacks = useNodeCallbacks();
+  const dimmed = useFilterActive();
   const collapsed = cluster.collapsed;
   const colorStyle = colorStyleVars("--rm-cluster-color", cluster.color);
   const showResize = selected === true && callbacks?.locked !== true && !collapsed;
@@ -40,6 +42,7 @@ export function ClusterNodeView({ id, data, selected, isConnectable }: NodeProps
         data-colored={cluster.color !== undefined}
         data-selected={selected === true}
         data-collapsed={collapsed}
+        data-dimmed={dimmed}
       >
         <div className="rm-cluster__label">
           <span className="rm-cluster__count">

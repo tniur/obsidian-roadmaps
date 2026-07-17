@@ -1,11 +1,9 @@
 import { Notice } from "obsidian";
-import { isHexColor } from "../domain/palette";
 import { normalizeHttpUrl } from "../domain/paths";
 import type { RoadmapCluster } from "../domain/types";
 import { isReservedHeading } from "../markdown/cluster";
 import { sanitizeAlias } from "../markdown/sanitize";
 import type { BoardContext } from "./boardContext";
-import { ColorModal } from "./ColorModal";
 import { PromptModal } from "./PromptModal";
 
 function acceptClusterName(value: string): boolean {
@@ -130,19 +128,6 @@ export function promptNodeUrl(ctx: BoardContext, id: string): void {
       ctx.session.setNodeUrl(id, normalizeHttpUrl(value));
       ctx.commit();
     },
-  }).open();
-}
-
-/** Free color choice beyond the palette; theme-token current values reseed the picker. */
-export function promptCustomColor(
-  ctx: BoardContext,
-  current: string | undefined,
-  apply: (color: string) => void,
-): void {
-  new ColorModal(ctx.app, {
-    title: "Custom color",
-    initialValue: current !== undefined && isHexColor(current) ? current : undefined,
-    onSubmit: apply,
   }).open();
 }
 
