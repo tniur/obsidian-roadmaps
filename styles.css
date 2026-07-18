@@ -1678,33 +1678,34 @@ button.rm-cluster__action:active {
 
 /* The label lives inside the edge's own svg group, so it always paints above its line
    regardless of how React Flow elevates edges attached to cluster members. */
-.rm-canvas .react-flow__edge-textwrapper {
+/* Rendered in the edge-label layer (above nodes) so a nearby node never hides it;
+ * the line itself stays in the edge layer below nodes. */
+.rm-canvas .rm-edge-label {
+  position: absolute;
+  z-index: 1001;
+  padding: 2.5px 8px;
+  background: var(--rm-panel-bg);
+  border: var(--rm-border-width) solid var(--rm-border);
+  border-radius: var(--rm-radius-chip);
+  color: var(--rm-text-muted);
+  font-size: var(--rm-chip-size);
+  font-weight: 500;
+  line-height: 1.3;
+  white-space: nowrap;
   pointer-events: none;
   user-select: none;
   filter: var(--rm-edge-label-shadow);
 }
 
-.rm-canvas .react-flow__edge-textbg {
-  fill: var(--rm-panel-bg);
-  stroke: var(--rm-border);
-  stroke-width: var(--rm-border-width);
-  rx: var(--rm-radius-chip);
-}
-
-.rm-canvas .react-flow__edge-text {
-  fill: var(--rm-text-muted);
-  font-size: var(--rm-chip-size);
-  font-weight: 500;
-}
-
 /* A colored edge tints its label chip through the same inline edge-color variable. */
-.rm-canvas g[data-colored="true"] .react-flow__edge-textbg {
-  fill: color-mix(in srgb, var(--rm-edge-color) 9%, var(--rm-panel-bg));
-  stroke: color-mix(in srgb, var(--rm-edge-color) 40%, transparent);
+.rm-canvas .rm-edge-label[data-colored="true"] {
+  background: color-mix(in srgb, var(--rm-edge-color) 9%, var(--rm-panel-bg));
+  border-color: color-mix(in srgb, var(--rm-edge-color) 40%, transparent);
+  color: var(--rm-edge-color);
 }
 
-.rm-canvas g[data-colored="true"] .react-flow__edge-text {
-  fill: var(--rm-edge-color);
+.rm-canvas .rm-edge-label[data-dimmed="true"] {
+  opacity: var(--rm-dim-opacity);
 }
 
 /* Settings tab lives outside .rm-view, so the swatch hosts its own tokens over theme vars. */

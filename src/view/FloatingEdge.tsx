@@ -1,6 +1,6 @@
 import {
   BaseEdge,
-  EdgeText,
+  EdgeLabelRenderer,
   getBezierPath,
   getSmoothStepPath,
   getStraightPath,
@@ -47,9 +47,6 @@ const ARROW_SPREAD = 4.5;
 /** The line stops at the arrow base instead of the node border, so its stroke never pokes
  * past the triangle tip; 1px of overlap keeps line and arrow visually joined. */
 const ARROW_INSET = ARROW_LENGTH - 1;
-
-/** Horizontal and vertical padding of the pill behind the edge label text. */
-const LABEL_BG_PADDING: [number, number] = [8, 2.5];
 
 interface Vec {
   x: number;
@@ -173,32 +170,43 @@ export function FloatingEdge(props: EdgeProps<RoadmapFlowEdge>) {
         : (style ?? {});
 
   return (
-    <g style={colorVars} data-colored={color !== undefined} className={dimmed ? "rm-edge-dimmed" : undefined}>
-      <path className="rm-edge-glow" d={path} />
-      <BaseEdge id={id} path={path} style={edgeStyle} interactionWidth={EDGE_INTERACTION_WIDTH} />
-      {hasTargetArrow ? <path className="rm-edge-arrow" d={arrowPath(tx, ty, targetArrowDir)} /> : null}
-      {hasSourceArrow ? <path className="rm-edge-arrow" d={arrowPath(sx, sy, sourceArrowDir)} /> : null}
-      {data?.fromSide === undefined ? (
-        <circle
-          className="rm-edge-grip"
-          cx={sx}
-          cy={sy}
-          r={EDGE_INTERACTION_WIDTH / 2}
-          onMouseDown={(event) => forwardToReconnectAnchor(event, "source")}
-        />
-      ) : null}
-      {data?.toSide === undefined ? (
-        <circle
-          className="rm-edge-grip"
-          cx={tx}
-          cy={ty}
-          r={EDGE_INTERACTION_WIDTH / 2}
-          onMouseDown={(event) => forwardToReconnectAnchor(event, "target")}
-        />
-      ) : null}
+    <>
+      <g style={colorVars} className={dimmed ? "rm-edge-dimmed" : undefined}>
+        <path className="rm-edge-glow" d={path} />
+        <BaseEdge id={id} path={path} style={edgeStyle} interactionWidth={EDGE_INTERACTION_WIDTH} />
+        {hasTargetArrow ? <path className="rm-edge-arrow" d={arrowPath(tx, ty, targetArrowDir)} /> : null}
+        {hasSourceArrow ? <path className="rm-edge-arrow" d={arrowPath(sx, sy, sourceArrowDir)} /> : null}
+        {data?.fromSide === undefined ? (
+          <circle
+            className="rm-edge-grip"
+            cx={sx}
+            cy={sy}
+            r={EDGE_INTERACTION_WIDTH / 2}
+            onMouseDown={(event) => forwardToReconnectAnchor(event, "source")}
+          />
+        ) : null}
+        {data?.toSide === undefined ? (
+          <circle
+            className="rm-edge-grip"
+            cx={tx}
+            cy={ty}
+            r={EDGE_INTERACTION_WIDTH / 2}
+            onMouseDown={(event) => forwardToReconnectAnchor(event, "target")}
+          />
+        ) : null}
+      </g>
       {label !== undefined && label.length > 0 ? (
-        <EdgeText x={labelX} y={labelY} label={label} labelBgPadding={LABEL_BG_PADDING} />
+        <EdgeLabelRenderer>
+          <div
+            className="rm-edge-label"
+            data-colored={color !== undefined}
+            data-dimmed={dimmed || undefined}
+            style={{ ...colorVars, transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)` }}
+          >
+            {label}
+          </div>
+        </EdgeLabelRenderer>
       ) : null}
-    </g>
+    </>
   );
 }
