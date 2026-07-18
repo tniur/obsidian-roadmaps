@@ -45,6 +45,12 @@ export interface RoadmapViewHost {
   setShowBackgroundDots: (value: boolean) => void;
   getShowMiniMap: () => boolean;
   setShowMiniMap: (value: boolean) => void;
+  getShowAddBar: () => boolean;
+  setShowAddBar: (value: boolean) => void;
+  getShowNodeCount: () => boolean;
+  setShowNodeCount: (value: boolean) => void;
+  getCompactControls: () => boolean;
+  setCompactControls: (value: boolean) => void;
   getPalette: () => readonly string[];
   getPreviewWidth: () => number;
   setPreviewWidth: (value: number) => void;
@@ -134,6 +140,9 @@ export class RoadmapView extends TextFileView {
       onOpenSettings: host.openPluginSettings,
       onDotsVisibleChange: host.setShowBackgroundDots,
       onMiniMapVisibleChange: host.setShowMiniMap,
+      onAddBarVisibleChange: host.setShowAddBar,
+      onNodeCountVisibleChange: host.setShowNodeCount,
+      onCompactControlsChange: host.setCompactControls,
       onViewportChange: this.handleViewportChange,
       onFlowInit: this.handleFlowInit,
       onAddAction: this.runAddActionAt,
@@ -1178,6 +1187,9 @@ export class RoadmapView extends TextFileView {
               canRedo={this.canRedoEdit()}
               initialDotsVisible={this.host.getShowBackgroundDots()}
               initialMiniMapVisible={this.host.getShowMiniMap()}
+              initialAddBarVisible={this.host.getShowAddBar()}
+              initialNodeCountVisible={this.host.getShowNodeCount()}
+              initialCompactControls={this.host.getCompactControls()}
               openSearchNonce={this.searchOpenNonce}
               openFilterNonce={this.filterOpenNonce}
               focusIds={this.focusIds}

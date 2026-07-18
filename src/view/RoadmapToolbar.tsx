@@ -4,10 +4,16 @@ import { showBoardMenu } from "./menus/boardMenu";
 import { ToolbarButton } from "./ToolbarButton";
 
 interface RoadmapToolbarProps {
+  compact: boolean;
+  onToggleCompact: () => void;
   dotsVisible: boolean;
   onToggleDots: () => void;
   miniMapVisible: boolean;
   onToggleMiniMap: () => void;
+  addBarVisible: boolean;
+  onToggleAddBar: () => void;
+  nodeCountVisible: boolean;
+  onToggleNodeCount: () => void;
   searchOpen: boolean;
   onToggleSearch: () => void;
   filterOpen: boolean;
@@ -45,10 +51,16 @@ function ZoomLabel() {
 }
 
 export function RoadmapToolbar({
+  compact,
+  onToggleCompact,
   dotsVisible,
   onToggleDots,
   miniMapVisible,
   onToggleMiniMap,
+  addBarVisible,
+  onToggleAddBar,
+  nodeCountVisible,
+  onToggleNodeCount,
   searchOpen,
   onToggleSearch,
   filterOpen,
@@ -67,42 +79,69 @@ export function RoadmapToolbar({
 }: RoadmapToolbarProps) {
   const { zoomIn, zoomOut, fitView } = useReactFlow();
 
+  const settingsButton = (
+    <ToolbarButton
+      icon="settings"
+      label="Board settings"
+      onClick={(event) =>
+        showBoardMenu(
+          {
+            miniMapVisible,
+            onToggleMiniMap,
+            addBarVisible,
+            onToggleAddBar,
+            nodeCountVisible,
+            onToggleNodeCount,
+            compact,
+            onToggleCompact,
+            locked,
+            onAutoLayout,
+            onExportPdf,
+            onExportCanvas,
+            onOpenSettings,
+          },
+          event.nativeEvent,
+        )
+      }
+    />
+  );
+
   return (
     <Panel position="bottom-right" className="rm-panel rm-toolbar">
-      <ToolbarButton icon="undo-2" label="Undo" disabled={!canUndo} onClick={onUndo} />
-      <ToolbarButton icon="redo-2" label="Redo" disabled={!canRedo} onClick={onRedo} />
-      <div className="rm-toolbar__divider" />
-      <ToolbarButton icon="zoom-in" label="Zoom in" onClick={() => void zoomIn()} />
-      <ZoomLabel />
-      <ToolbarButton icon="zoom-out" label="Zoom out" onClick={() => void zoomOut()} />
-      <ToolbarButton icon="frame" label="Fit to nodes" onClick={() => void fitView()} />
-      <div className="rm-toolbar__divider" />
-      <ToolbarButton icon="search" label="Search nodes" pressed={searchOpen} onClick={onToggleSearch} />
-      <ToolbarButton icon="filter" label="Filter nodes" pressed={filterOpen || filterActive} onClick={onToggleFilter} />
-      <div className="rm-toolbar__divider" />
-      <ToolbarButton
-        icon={BACKGROUND_DOTS_ICON_ID}
-        label="Toggle background dots"
-        pressed={dotsVisible}
-        onClick={onToggleDots}
-      />
-      <ToolbarButton
-        icon={locked ? "lock" : "unlock"}
-        label={locked ? "Unlock board" : "Lock board"}
-        pressed={locked}
-        onClick={onToggleLock}
-      />
-      <div className="rm-toolbar__divider" />
-      <ToolbarButton
-        icon="settings"
-        label="Board settings"
-        onClick={(event) =>
-          showBoardMenu(
-            { miniMapVisible, onToggleMiniMap, locked, onAutoLayout, onExportPdf, onExportCanvas, onOpenSettings },
-            event.nativeEvent,
-          )
-        }
-      />
+      {compact ? null : (
+        <>
+          <ToolbarButton icon="undo-2" label="Undo" disabled={!canUndo} onClick={onUndo} />
+          <ToolbarButton icon="redo-2" label="Redo" disabled={!canRedo} onClick={onRedo} />
+          <div className="rm-toolbar__divider" />
+          <ToolbarButton icon="zoom-in" label="Zoom in" onClick={() => void zoomIn()} />
+          <ZoomLabel />
+          <ToolbarButton icon="zoom-out" label="Zoom out" onClick={() => void zoomOut()} />
+          <ToolbarButton icon="frame" label="Fit to nodes" onClick={() => void fitView()} />
+          <div className="rm-toolbar__divider" />
+          <ToolbarButton icon="search" label="Search nodes" pressed={searchOpen} onClick={onToggleSearch} />
+          <ToolbarButton
+            icon="filter"
+            label="Filter nodes"
+            pressed={filterOpen || filterActive}
+            onClick={onToggleFilter}
+          />
+          <div className="rm-toolbar__divider" />
+          <ToolbarButton
+            icon={BACKGROUND_DOTS_ICON_ID}
+            label="Toggle background dots"
+            pressed={dotsVisible}
+            onClick={onToggleDots}
+          />
+          <ToolbarButton
+            icon={locked ? "lock" : "unlock"}
+            label={locked ? "Unlock board" : "Lock board"}
+            pressed={locked}
+            onClick={onToggleLock}
+          />
+          <div className="rm-toolbar__divider" />
+        </>
+      )}
+      {settingsButton}
     </Panel>
   );
 }

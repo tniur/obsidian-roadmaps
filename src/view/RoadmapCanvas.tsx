@@ -183,6 +183,9 @@ export interface CanvasBoardActions {
   onOpenSettings: () => void;
   onDotsVisibleChange: (value: boolean) => void;
   onMiniMapVisibleChange: (value: boolean) => void;
+  onAddBarVisibleChange: (value: boolean) => void;
+  onNodeCountVisibleChange: (value: boolean) => void;
+  onCompactControlsChange: (value: boolean) => void;
   onViewportChange: (viewport: RoadmapViewport) => void;
   onFlowInit: (instance: RoadmapFlowInstance | null) => void;
   onAddAction: (id: AddNodeActionId, placement: NodePlacement) => void;
@@ -201,6 +204,9 @@ interface RoadmapCanvasProps {
   canRedo: boolean;
   initialDotsVisible: boolean;
   initialMiniMapVisible: boolean;
+  initialAddBarVisible: boolean;
+  initialNodeCountVisible: boolean;
+  initialCompactControls: boolean;
   /** Bumping `openSearchNonce` opens the find bar (palette command entry point). */
   openSearchNonce: number;
   /** Bumping `openFilterNonce` opens the filter bar (palette command entry point). */
@@ -229,6 +235,9 @@ export function RoadmapCanvas({
   canRedo,
   initialDotsVisible,
   initialMiniMapVisible,
+  initialAddBarVisible,
+  initialNodeCountVisible,
+  initialCompactControls,
   openSearchNonce,
   openFilterNonce,
   focusIds,
@@ -264,6 +273,9 @@ export function RoadmapCanvas({
     onOpenSettings,
     onDotsVisibleChange,
     onMiniMapVisibleChange,
+    onAddBarVisibleChange,
+    onNodeCountVisibleChange,
+    onCompactControlsChange,
     onViewportChange,
     onFlowInit,
     onAddAction,
@@ -278,6 +290,9 @@ export function RoadmapCanvas({
   const flowId = useId();
   const [dotsVisible, setDotsVisible] = useState(initialDotsVisible);
   const [miniMapVisible, setMiniMapVisible] = useState(initialMiniMapVisible);
+  const [addBarVisible, setAddBarVisible] = useState(initialAddBarVisible);
+  const [nodeCountVisible, setNodeCountVisible] = useState(initialNodeCountVisible);
+  const [compactControls, setCompactControls] = useState(initialCompactControls);
   const [searchOpen, setSearchOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const [filterStatuses, setFilterStatuses] = useState<ReadonlySet<string>>(() => new Set());
@@ -874,6 +889,27 @@ export function RoadmapCanvas({
     onMiniMapVisibleChange(next);
   }, [miniMapVisible, onMiniMapVisibleChange]);
 
+  const toggleAddBar = useCallback(() => {
+    const next = !addBarVisible;
+
+    setAddBarVisible(next);
+    onAddBarVisibleChange(next);
+  }, [addBarVisible, onAddBarVisibleChange]);
+
+  const toggleNodeCount = useCallback(() => {
+    const next = !nodeCountVisible;
+
+    setNodeCountVisible(next);
+    onNodeCountVisibleChange(next);
+  }, [nodeCountVisible, onNodeCountVisibleChange]);
+
+  const toggleCompactControls = useCallback(() => {
+    const next = !compactControls;
+
+    setCompactControls(next);
+    onCompactControlsChange(next);
+  }, [compactControls, onCompactControlsChange]);
+
   /** Search and filter share the top-centre slot, so opening one closes the other. */
   const toggleSearch = useCallback(() => {
     setFilterOpen(false);
@@ -1044,9 +1080,11 @@ export function RoadmapCanvas({
                 maskColor="var(--rm-minimap-mask)"
               />
             ) : null}
-            <Panel position="top-right" className="rm-count-chip">
-              <span className="rm-chip-text">{nodeCount === 1 ? "1 node" : `${nodeCount} nodes`}</span>
-            </Panel>
+            {nodeCountVisible ? (
+              <Panel position="top-right" className="rm-count-chip">
+                <span className="rm-chip-text">{nodeCount === 1 ? "1 node" : `${nodeCount} nodes`}</span>
+              </Panel>
+            ) : null}
             <HelperLines horizontal={helperLines.horizontal} vertical={helperLines.vertical} />
             {bubblesVisible && soleNode !== null ? (
               <FlowNodeToolbar nodeId={soleNode.id} isVisible position={Position.Top} offset={12}>
@@ -1067,7 +1105,7 @@ export function RoadmapCanvas({
                 <EdgeBubble edge={soleEdge} palette={palette} actions={menuActions} />
               </EdgeBubbleAnchor>
             ) : null}
-            {!locked ? <NodeToolbar onAction={onAddAction} /> : null}
+            {addBarVisible && !locked ? <NodeToolbar onAction={onAddAction} /> : null}
             {searchOpen ? (
               <NodeSearchPanel state={state} onActivate={focusMatch} onClose={() => setSearchOpen(false)} />
             ) : null}
@@ -1081,10 +1119,16 @@ export function RoadmapCanvas({
               />
             ) : null}
             <RoadmapToolbar
+              compact={compactControls}
+              onToggleCompact={toggleCompactControls}
               dotsVisible={dotsVisible}
               onToggleDots={toggleDots}
               miniMapVisible={miniMapVisible}
               onToggleMiniMap={toggleMiniMap}
+              addBarVisible={addBarVisible}
+              onToggleAddBar={toggleAddBar}
+              nodeCountVisible={nodeCountVisible}
+              onToggleNodeCount={toggleNodeCount}
               searchOpen={searchOpen}
               onToggleSearch={toggleSearch}
               filterOpen={filterOpen}

@@ -54,6 +54,12 @@ type ViewMode = typeof MARKDOWN_VIEW_TYPE | typeof VIEW_TYPE_ROADMAP;
 interface RoadmapSettings {
   showBackgroundDots: boolean;
   showMiniMap: boolean;
+  /** Show the bottom add-node bar. */
+  showAddBar: boolean;
+  /** Show the node-count chip in the board corner. */
+  showNodeCount: boolean;
+  /** Collapse the view-controls strip to just the settings gear. */
+  compactControls: boolean;
   /** Folder new roadmaps are created in; empty means the vault root. */
   newRoadmapFolder: string;
   /** Colors offered in the node, cluster and edge color menus. */
@@ -65,6 +71,9 @@ interface RoadmapSettings {
 const DEFAULT_SETTINGS: RoadmapSettings = {
   showBackgroundDots: true,
   showMiniMap: true,
+  showAddBar: true,
+  showNodeCount: true,
+  compactControls: false,
   newRoadmapFolder: "",
   palette: [...DEFAULT_PALETTE],
   previewWidth: PREVIEW_DEFAULT_WIDTH,
@@ -315,6 +324,33 @@ export default class RoadmapPlugin extends Plugin {
     void this.saveSettings();
   }
 
+  getShowAddBar(): boolean {
+    return this.displaySettings.showAddBar;
+  }
+
+  setShowAddBar(value: boolean): void {
+    this.displaySettings.showAddBar = value;
+    void this.saveSettings();
+  }
+
+  getShowNodeCount(): boolean {
+    return this.displaySettings.showNodeCount;
+  }
+
+  setShowNodeCount(value: boolean): void {
+    this.displaySettings.showNodeCount = value;
+    void this.saveSettings();
+  }
+
+  getCompactControls(): boolean {
+    return this.displaySettings.compactControls;
+  }
+
+  setCompactControls(value: boolean): void {
+    this.displaySettings.compactControls = value;
+    void this.saveSettings();
+  }
+
   getNewRoadmapFolder(): string {
     return this.displaySettings.newRoadmapFolder;
   }
@@ -352,6 +388,18 @@ export default class RoadmapPlugin extends Plugin {
       getShowMiniMap: () => this.getShowMiniMap(),
       setShowMiniMap: (value) => {
         this.setShowMiniMap(value);
+      },
+      getShowAddBar: () => this.getShowAddBar(),
+      setShowAddBar: (value) => {
+        this.setShowAddBar(value);
+      },
+      getShowNodeCount: () => this.getShowNodeCount(),
+      setShowNodeCount: (value) => {
+        this.setShowNodeCount(value);
+      },
+      getCompactControls: () => this.getCompactControls(),
+      setCompactControls: (value) => {
+        this.setCompactControls(value);
       },
       getPalette: () => this.getPalette(),
       getPreviewWidth: () => this.getPreviewWidth(),
@@ -593,6 +641,33 @@ class RoadmapSettingTab extends PluginSettingTab {
       .addToggle((toggle) =>
         toggle.setValue(this.plugin.getShowMiniMap()).onChange((value) => {
           this.plugin.setShowMiniMap(value);
+        }),
+      );
+
+    new Setting(this.containerEl)
+      .setName("Show add bar")
+      .setDesc("Show the bottom bar for adding nodes. Newly opened boards pick up the change.")
+      .addToggle((toggle) =>
+        toggle.setValue(this.plugin.getShowAddBar()).onChange((value) => {
+          this.plugin.setShowAddBar(value);
+        }),
+      );
+
+    new Setting(this.containerEl)
+      .setName("Show node count")
+      .setDesc("Show the node-count chip in the board corner. Newly opened boards pick up the change.")
+      .addToggle((toggle) =>
+        toggle.setValue(this.plugin.getShowNodeCount()).onChange((value) => {
+          this.plugin.setShowNodeCount(value);
+        }),
+      );
+
+    new Setting(this.containerEl)
+      .setName("Compact controls")
+      .setDesc("Collapse the view-controls strip to just the settings gear. Newly opened boards pick up the change.")
+      .addToggle((toggle) =>
+        toggle.setValue(this.plugin.getCompactControls()).onChange((value) => {
+          this.plugin.setCompactControls(value);
         }),
       );
 

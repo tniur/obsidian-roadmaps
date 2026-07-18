@@ -3,6 +3,12 @@ import { Menu } from "obsidian";
 export interface BoardMenuOptions {
   miniMapVisible: boolean;
   onToggleMiniMap: () => void;
+  addBarVisible: boolean;
+  onToggleAddBar: () => void;
+  nodeCountVisible: boolean;
+  onToggleNodeCount: () => void;
+  compact: boolean;
+  onToggleCompact: () => void;
   locked: boolean;
   onAutoLayout: () => void;
   onExportPdf: () => void;
@@ -16,6 +22,27 @@ export function showBoardMenu(options: BoardMenuOptions, event: MouseEvent): voi
 
   menu.addItem((item) =>
     item.setTitle("Show mini-map").setIcon("map").setChecked(options.miniMapVisible).onClick(options.onToggleMiniMap),
+  );
+  menu.addItem((item) =>
+    item
+      .setTitle("Show add bar")
+      .setIcon("plus-square")
+      .setChecked(options.addBarVisible)
+      .onClick(options.onToggleAddBar),
+  );
+  menu.addItem((item) =>
+    item
+      .setTitle("Show node count")
+      .setIcon("hash")
+      .setChecked(options.nodeCountVisible)
+      .onClick(options.onToggleNodeCount),
+  );
+  menu.addItem((item) =>
+    item
+      .setTitle("Compact controls")
+      .setIcon("minimize-2")
+      .setChecked(options.compact)
+      .onClick(options.onToggleCompact),
   );
   menu.addSeparator();
   menu.addItem((item) =>
