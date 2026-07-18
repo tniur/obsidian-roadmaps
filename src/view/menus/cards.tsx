@@ -14,13 +14,13 @@ import { ALIGN_H_ICONS, ALIGN_V_ICONS, PRIORITY_CHIPS, STATUS_CHIPS } from "./ch
 import type { CanvasMenuActions } from "./menuActions";
 import { ChipRow, ColorSwatchRow, SegControl } from "./primitives";
 
-const ADD_ACTION_HINTS: Record<AddNodeActionId, string> = {
-  "create-note": "New .md file",
-  "add-note": "Pick a note from the vault",
-  "add-url": "Link to an external page",
-  "add-image": "Pick an image from the vault",
-  "add-text": "Free-text node",
-  "add-attachment": "PDF, video, any file",
+const ADD_ACTION_LABELS: Record<AddNodeActionId, string> = {
+  "create-note": "New note",
+  "add-note": "Existing note",
+  "add-url": "URL",
+  "add-image": "Image",
+  "add-text": "Text",
+  "add-attachment": "Attachment",
 };
 
 /**
@@ -29,7 +29,17 @@ const ADD_ACTION_HINTS: Record<AddNodeActionId, string> = {
  * when that would overflow the board; the open direction is decided once on mount, so it
  * never jitters while panning. Closes on Escape or any press outside.
  */
-export function CardMenu({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+export function CardMenu({
+  title,
+  narrow,
+  onClose,
+  children,
+}: {
+  title: string;
+  narrow?: boolean;
+  onClose: () => void;
+  children: ReactNode;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const [flip, setFlip] = useState({ x: false, y: false });
 
@@ -75,7 +85,11 @@ export function CardMenu({ title, onClose, children }: { title: string; onClose:
   const transform = `translate(${flip.x ? "calc(-100% - 4px)" : "4px"}, ${flip.y ? "calc(-100% - 4px)" : "4px"})`;
 
   return (
-    <div ref={ref} className="rm-card-menu" style={{ transform }}>
+    <div
+      ref={ref}
+      className={narrow === true ? "rm-card-menu rm-card-menu--narrow" : "rm-card-menu"}
+      style={{ transform }}
+    >
       <span className="rm-card-menu__title">{title}</span>
       {children}
     </div>
@@ -123,8 +137,8 @@ export function CardRow({
 export function AddActionRows({ onPick }: { onPick: (action: AddNodeActionId) => void }) {
   return (
     <>
-      {ADD_NODE_ACTIONS.map(({ id, label, icon }) => (
-        <CardRow key={id} icon={icon} label={label} hint={ADD_ACTION_HINTS[id]} onClick={() => onPick(id)} />
+      {ADD_NODE_ACTIONS.map(({ id, icon }) => (
+        <CardRow key={id} icon={icon} label={ADD_ACTION_LABELS[id]} onClick={() => onPick(id)} />
       ))}
     </>
   );

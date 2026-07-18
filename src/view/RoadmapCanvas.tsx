@@ -1112,6 +1112,7 @@ export function RoadmapCanvas({
                       ? "Connect to new node"
                       : `${cardMenu.ids.length} nodes selected`
                 }
+                narrow={cardMenu.kind !== "selection"}
                 onClose={() => setCardMenu(null)}
               >
                 {cardMenu.kind === "selection" ? (
