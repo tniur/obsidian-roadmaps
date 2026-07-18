@@ -121,10 +121,10 @@
   --rm-connection-color: var(--rm-accent);
 
   /* handles (connection ports) & resize */
-  --rm-handle-size: 11px;
-  --rm-handle-scale-active: 1.36;
-  --rm-handle-border: 2px;
-  --rm-handle-halo: 4px;
+  --rm-handle-size: 9px;
+  --rm-handle-size-active: 11px;
+  --rm-handle-border: 1.5px;
+  --rm-handle-halo: 2px;
   --rm-resize-handle: 16px;
   --rm-resize-edge: 8px;
 
@@ -1582,7 +1582,8 @@ button.rm-cluster__action:active {
   opacity: 0;
   transition:
     opacity var(--rm-transition-fast),
-    scale var(--rm-transition-fast),
+    width var(--rm-transition-fast),
+    height var(--rm-transition-fast),
     background var(--rm-transition-fast),
     box-shadow var(--rm-transition-fast);
 }
@@ -1610,13 +1611,15 @@ button.rm-cluster__action:active {
   cursor: move;
 }
 
-/* The grown state uses the standalone `scale` property so React Flow's positioning
-   transform on the handle stays untouched. */
+/* Growth uses width/height, not `scale`: React Flow centers the port on the side with a
+   percentage translate that recomputes against the new size, so the center stays fixed.
+   A `scale` would multiply that translate instead and drift the port off the side. */
 .rm-handle.react-flow__handle:hover {
-  scale: var(--rm-handle-scale-active);
+  width: var(--rm-handle-size-active);
+  height: var(--rm-handle-size-active);
   background: var(--rm-port-color, var(--rm-accent));
   box-shadow:
-    0 0 0 var(--rm-handle-halo) color-mix(in srgb, var(--rm-port-color, var(--rm-accent)) 22%, transparent),
+    0 0 0 var(--rm-handle-halo) color-mix(in srgb, var(--rm-port-color, var(--rm-accent)) 14%, transparent),
     var(--rm-shadow-card);
 }
 
