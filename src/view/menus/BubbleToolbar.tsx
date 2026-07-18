@@ -10,7 +10,8 @@ export interface BubbleItem {
   disabled?: boolean;
   /** Direct action; mutually exclusive with `flyout`. */
   run?: () => void;
-  flyout?: () => ReactNode;
+  /** `close` dismisses the flyout, e.g. after an input commits on Enter. */
+  flyout?: (close: () => void) => ReactNode;
   flyoutKind?: "card" | "tight" | "wide";
 }
 
@@ -36,7 +37,9 @@ export function BubbleToolbar({ groups }: { groups: readonly BubbleGroup[] }) {
   return (
     <div className="rm-bubble" onKeyDown={onKeyDown}>
       {active?.flyout !== undefined ? (
-        <div className={`rm-bubble__flyout rm-bubble__flyout--${active.flyoutKind ?? "card"}`}>{active.flyout()}</div>
+        <div className={`rm-bubble__flyout rm-bubble__flyout--${active.flyoutKind ?? "card"}`}>
+          {active.flyout(() => setOpen(null))}
+        </div>
       ) : null}
       <div className="rm-bubble__bar">
         {groups.map((group, index) => (

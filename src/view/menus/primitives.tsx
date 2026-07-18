@@ -221,6 +221,7 @@ export function CommitField({
   placeholder,
   multiline,
   onCommit,
+  onDone,
 }: {
   /** Field caption; omit in single-field flyouts, where the section label already names it. */
   label?: string;
@@ -228,6 +229,8 @@ export function CommitField({
   placeholder?: string;
   multiline?: boolean;
   onCommit: (value: string) => void;
+  /** Invoked after an Enter commit, e.g. to close the containing flyout. */
+  onDone?: () => void;
 }) {
   const ref = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
   const [draft, setDraft] = useState(value);
@@ -245,7 +248,8 @@ export function CommitField({
   const onKeyDown = (event: KeyboardEvent): void => {
     if (event.key === "Enter" && !multiline) {
       event.preventDefault();
-      commit();
+      ref.current?.blur();
+      onDone?.();
     } else if (event.key === "Escape") {
       event.stopPropagation();
       setDraft(value);

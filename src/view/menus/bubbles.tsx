@@ -46,7 +46,7 @@ export function NodeBubble({
   const groupIds = selectionIds.includes(id) ? selectionIds : [id];
   const openLabel = data.kind === "url" ? "Open link" : data.kind === "image" ? "Open image" : "Open note";
 
-  const contentFlyout = (): ReactNode => (
+  const contentFlyout = (close: () => void): ReactNode => (
     <FlyoutSection label="Content">
       {data.kind === "text" ? (
         <CommitField
@@ -62,6 +62,7 @@ export function NodeBubble({
           value={data.customTitle ?? ""}
           placeholder={data.displayTitle}
           onCommit={(value) => actions.setNodeTitle(id, value)}
+          onDone={close}
         />
       )}
       {data.kind === "url" ? (
@@ -70,6 +71,7 @@ export function NodeBubble({
           value={data.url ?? ""}
           placeholder="https://example.com"
           onCommit={(value) => actions.setNodeUrl(id, value)}
+          onDone={close}
         />
       ) : null}
       <CommitField
@@ -198,12 +200,13 @@ export function EdgeBubble({ edge, palette, actions }: BubbleProps & { edge: Roa
         label: "Label",
         icon: "pencil",
         flyoutKind: "wide",
-        flyout: () => (
+        flyout: (close) => (
           <FlyoutSection label="Label">
             <CommitField
               value={data.label ?? ""}
               placeholder="Optional label"
               onCommit={(value) => actions.updateEdge(id, { label: value })}
+              onDone={close}
             />
           </FlyoutSection>
         ),
@@ -306,12 +309,13 @@ export function ClusterBubble({ cluster, palette, actions }: BubbleProps & { clu
         label: "Rename",
         icon: "pencil",
         flyoutKind: "wide",
-        flyout: () => (
+        flyout: (close) => (
           <FlyoutSection label="Name">
             <CommitField
               value={data.title}
               placeholder="Cluster name"
               onCommit={(value) => actions.renameCluster(id, value)}
+              onDone={close}
             />
           </FlyoutSection>
         ),
