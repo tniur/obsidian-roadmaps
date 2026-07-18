@@ -1,4 +1,5 @@
 import { Notice, TextFileView, TFile, type Menu, type TAbstractFile, type WorkspaceLeaf } from "obsidian";
+import { nanoid } from "nanoid";
 import { ReactFlowProvider } from "@xyflow/react";
 import { StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -17,7 +18,7 @@ import { formatFileSize, isSafeUrl, normalizeHttpUrl } from "../domain/paths";
 import { sourceFile } from "../domain/source";
 import { facingSide } from "../domain/edges";
 import type { EdgeSide, RoadmapCluster, RoadmapEdge, RoadmapNode, RoadmapViewport } from "../domain/types";
-import { availableVaultPath, draggedFiles, nodeForFile } from "../services/vaultFiles";
+import { availableVaultPath, draggedFiles, nodeForFile, writeClipboardFile } from "../services/vaultFiles";
 import type { RoadmapFlowInstance } from "./flow";
 import { StateVersionError } from "../state/codec";
 import { loadDocument, rebuildDocument, type DocumentWarning, type LoadedDocument } from "../state/reconcile";
@@ -64,7 +65,9 @@ export interface RoadmapViewHost {
  * roadmap paste into another. Loose nodes and cluster frames carry absolute coordinates;
  * members of a copied cluster keep their cluster-relative layout and `clusterId`.
  * `boardId` tells a same-board paste (fans out next to the originals) from a cross-board
- * one (recentered on the target viewport).
+ * one (recentered on the target viewport). `token` is mirrored to the OS clipboard on copy
+ * so paste can tell recency: a node copy overwrites the OS clipboard, so it wins over an
+ * older image, and a newer image (or text) wins over an older node copy.
  */
 export interface BoardClipboard {
   boardId: string;
@@ -72,6 +75,7 @@ export interface BoardClipboard {
   edges: RoadmapEdge[];
   clusters: RoadmapCluster[];
   pasteOffset: number;
+  token: string;
 }
 
 /** Offset applied per element when pasting or dropping several at once, so copies fan out. */
@@ -429,9 +433,92 @@ export class RoadmapView extends TextFileView {
     } else if (key === "c") {
       this.copySelection();
     } else if (key === "v") {
-      this.pasteClipboard();
+      event.preventDefault();
+      event.stopPropagation();
+      void this.handleClipboardPaste();
     }
   };
+
+  /**
+   * Paste onto the board. Reads the OS clipboard directly (the ⌘V default is prevented, so
+   * no second paste event fires): a clipboard image is written into the roadmap's own folder
+   * and dropped as a node at the viewport center; otherwise the in-app board clipboard is
+   * pasted, gated by the copy token so the most recently copied thing wins.
+   */
+  private async handleClipboardPaste(): Promise<void> {
+    if (this.session === null || this.locked) {
+      return;
+    }
+
+    let imageFile: File | null = null;
+    let text = "";
+
+    try {
+      for (const item of await navigator.clipboard.read()) {
+        const imageType = item.types.find((type) => type.startsWith("image/"));
+
+        if (imageType !== undefined) {
+          imageFile = new File([await item.getType(imageType)], "", { type: imageType });
+          break;
+        }
+      }
+
+      if (imageFile === null) {
+        text = await navigator.clipboard.readText();
+      }
+    } catch {
+      text = "";
+    }
+
+    if (imageFile !== null) {
+      await this.pasteFiles([imageFile]);
+
+      return;
+    }
+
+    const clipboard = this.host.getClipboard();
+
+    if (clipboard === null || (clipboard.nodes.length === 0 && clipboard.clusters.length === 0)) {
+      return;
+    }
+
+    if (text === clipboard.token || text === "") {
+      this.pasteClipboard();
+    }
+  }
+
+  private async pasteFiles(files: readonly File[]): Promise<void> {
+    const center = this.canvasCenter();
+
+    if (this.session === null || center === null) {
+      return;
+    }
+
+    const folder = this.noteFolder();
+    const created: RoadmapNode[] = [];
+
+    for (const [index, file] of files.entries()) {
+      try {
+        const written = await writeClipboardFile(this.app.vault, folder, file);
+
+        if (written !== null) {
+          const offset = index * CASCADE_OFFSET;
+
+          created.push(nodeForFile(written, centeredPlacement({ x: center.x + offset, y: center.y + offset })));
+        }
+      } catch (error) {
+        new Notice(`Could not paste file: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
+
+    if (this.session === null || created.length === 0) {
+      return;
+    }
+
+    this.session.addNodes(created);
+    this.focusNodes(created.map((node) => node.id));
+    this.commit();
+  }
 
   /** Undo counts as an edit, so the board lock blocks it together with mutations. */
   readonly undoEdit = (): void => {
@@ -645,6 +732,7 @@ export class RoadmapView extends TextFileView {
 
     if (nodes.length > 0 || clusters.length > 0) {
       const ids = new Set([...nodes.map((node) => node.id), ...clusters.map((cluster) => cluster.id)]);
+      const token = `roadmap-clipboard:${nanoid()}`;
 
       this.host.setClipboard({
         boardId: state.id,
@@ -652,7 +740,9 @@ export class RoadmapView extends TextFileView {
         clusters,
         edges: Object.values(state.edges).filter((edge) => ids.has(edge.from.id) && ids.has(edge.to.id)),
         pasteOffset: 0,
+        token,
       });
+      void navigator.clipboard.writeText(token).catch(() => undefined);
     }
   }
 

@@ -28,6 +28,44 @@ export function availableVaultPath(vault: Vault, folder: string | undefined, bas
   return `${stem} ${index}.${extension}`;
 }
 
+function clipboardStamp(): string {
+  const now = new Date();
+  const pad = (value: number): string => String(value).padStart(2, "0");
+
+  return `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+}
+
+function clipboardFileInfo(file: File): { base: string; extension: string } {
+  const name = file.name.trim();
+  const dot = name.lastIndexOf(".");
+
+  if (dot > 0) {
+    return { base: name.slice(0, dot), extension: name.slice(dot + 1).toLowerCase() };
+  }
+
+  const subtype = file.type.split("/")[1] ?? "";
+  const extension = subtype === "jpeg" ? "jpg" : subtype.replace(/[^a-z0-9]/gi, "").toLowerCase() || "bin";
+  const kind = file.type.startsWith("image/") ? "image" : "file";
+
+  return { base: `Pasted ${kind} ${clipboardStamp()}`, extension };
+}
+
+/**
+ * Writes a clipboard file into `folder` (vault root when undefined) under a free name and
+ * returns the created file. Keeps the clipboard filename and extension when present, else
+ * mints `Pasted image|file <timestamp>` from the MIME type.
+ */
+export async function writeClipboardFile(vault: Vault, folder: string | undefined, file: File): Promise<TFile | null> {
+  const { base, extension } = clipboardFileInfo(file);
+  const path = availableVaultPath(vault, folder, base, extension);
+
+  await vault.createBinary(path, await file.arrayBuffer());
+
+  const created = vault.getAbstractFileByPath(path);
+
+  return created instanceof TFile ? created : null;
+}
+
 export function imageFiles(vault: Vault): TFile[] {
   return vault.getFiles().filter((file) => IMAGE_EXTENSIONS.has(file.extension.toLowerCase()));
 }
