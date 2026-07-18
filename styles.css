@@ -1119,6 +1119,29 @@ button.rm-toolbar__button:active:not(:disabled) {
   pointer-events: none;
 }
 
+/* Pointer affordances: a plain arrow at rest, a closed fist while dragging (rubber-band
+   select or pan), and a pointing finger over interactive elements. selectionOnDrag keeps
+   `.selection` on the pane the whole time, so a live rubber-band is told apart by the
+   selection rect being in the DOM rather than by that class. */
+.rm-canvas .react-flow__pane,
+.rm-canvas .react-flow__pane.selection {
+  cursor: default;
+}
+
+.rm-canvas .react-flow__pane.dragging,
+.rm-canvas .react-flow__pane:has(.react-flow__selection) {
+  cursor: grabbing;
+}
+
+.rm-canvas .react-flow__node.draggable,
+.rm-canvas .react-flow__nodesselection-rect {
+  cursor: pointer;
+}
+
+.rm-canvas .react-flow__node.draggable.dragging {
+  cursor: grabbing;
+}
+
 .rm-helper-lines {
   position: absolute;
   inset: 0;
