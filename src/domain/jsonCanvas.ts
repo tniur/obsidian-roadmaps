@@ -274,7 +274,6 @@ interface CanvasNodes {
   idMap: Map<string, string>;
   clusters: Record<string, RoadmapCluster>;
   groups: GroupRect[];
-  /** Nodes awaiting geometric membership, with their absolute (pre-rebase) position. */
   pending: { node: RoadmapNode; absolute: { x: number; y: number } }[];
 }
 

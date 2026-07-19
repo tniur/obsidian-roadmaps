@@ -54,17 +54,11 @@ type ViewMode = typeof MARKDOWN_VIEW_TYPE | typeof VIEW_TYPE_ROADMAP;
 interface RoadmapSettings {
   showBackgroundDots: boolean;
   showMiniMap: boolean;
-  /** Show the bottom add-node bar. */
   showAddBar: boolean;
-  /** Show the node-count chip in the board corner. */
   showNodeCount: boolean;
-  /** Collapse the view-controls strip to just the settings gear. */
   compactControls: boolean;
-  /** Folder new roadmaps are created in; empty means the vault root. */
   newRoadmapFolder: string;
-  /** Colors offered in the node, cluster and edge color menus. */
   palette: string[];
-  /** Preview panel width in px, adjusted by dragging the panel's left edge. */
   previewWidth: number;
 }
 
@@ -469,14 +463,11 @@ export default class RoadmapPlugin extends Plugin {
   }
 
   /**
-   * Roadmap boards are plain Markdown files, and Obsidian routes every `.md` file to the
-   * core Markdown view; there is no public API to reroute view resolution by frontmatter.
-   * Patching `WorkspaceLeaf.prototype.setViewState` — the approach established by
-   * community plugins built on the same file-as-board pattern — redirects roadmap files
-   * to the roadmap view in the same leaf. `fileModes` remembers leaves the user
-   * explicitly switched to Markdown; `detach` drops that memory with the leaf, and the
-   * guarded restore in `register` reverts both patches on unload unless another plugin
-   * has patched over them since.
+   * Roadmap boards are plain Markdown files, and Obsidian routes every `.md` file to the core
+   * Markdown view with no public API to reroute by frontmatter. Patching
+   * `WorkspaceLeaf.prototype.setViewState` — the approach established by community plugins built
+   * on the same file-as-board pattern — redirects roadmap files to the roadmap view, while
+   * respecting leaves the user explicitly switched to Markdown. Reverted on unload.
    */
   private patchLeafViewState(): void {
     const { fileModes } = this;
@@ -564,7 +555,6 @@ export default class RoadmapPlugin extends Plugin {
     }
   }
 
-  /** Creates a roadmap file, opens it as a board in a new leaf and reveals it. */
   private async createAndOpenRoadmap(path: string, content: string): Promise<void> {
     const file = await this.app.vault.create(path, content);
     const leaf = this.app.workspace.getLeaf(true);

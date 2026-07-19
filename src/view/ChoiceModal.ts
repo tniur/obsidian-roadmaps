@@ -3,7 +3,6 @@ import { addCancelButton, createModalFooter, RoadmapModal } from "./modalUi";
 
 interface Choice {
   label: string;
-  /** Explainer line rendered under the label. */
   detail?: string;
   warning?: boolean;
   onPick: () => void;
@@ -11,7 +10,6 @@ interface Choice {
 
 interface ChoiceOptions {
   title: string;
-  /** Lucide icon shown as a danger-tinted tile before the title. */
   icon?: string;
   message?: string;
   choices: Choice[];

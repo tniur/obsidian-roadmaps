@@ -194,8 +194,12 @@ export interface CanvasBoardActions {
 }
 
 /**
- * Callbacks are grouped by concern so the canvas surface stays narrow; the view keeps
- * each group as a stable object, and hooks below depend on the destructured functions.
+ * Props of the canvas. Callbacks are grouped by concern into stable objects (`nodeActions`,
+ * `edgeActions`, etc.) so the surface stays narrow. The `*Nonce` fields are bump-to-trigger
+ * signals: `openSearchNonce` and `openFilterNonce` open the find and filter bars; `focusNonce`
+ * re-selects exactly `focusIds` (paste, duplicate). Focus applies a tick later — right after an
+ * alt-drag drop the committed duplicates have not reached the store yet, and the gesture's
+ * trailing events hand selection back to the source.
  */
 interface RoadmapCanvasProps {
   state: RoadmapState;
@@ -207,14 +211,8 @@ interface RoadmapCanvasProps {
   initialAddBarVisible: boolean;
   initialNodeCountVisible: boolean;
   initialCompactControls: boolean;
-  /** Bumping `openSearchNonce` opens the find bar (palette command entry point). */
   openSearchNonce: number;
-  /** Bumping `openFilterNonce` opens the filter bar (palette command entry point). */
   openFilterNonce: number;
-  /** Bumping `focusNonce` re-selects exactly `focusIds` (paste and duplicate flows).
-   * Applied through the store a tick later: right after an alt-drag drop the committed
-   * duplicates have not reached the store yet, and the gesture's trailing events hand
-   * selection back to the source. */
   focusIds: string[];
   focusNonce: number;
   isNodeMissing: NodeMissingPredicate;
@@ -302,7 +300,6 @@ export function RoadmapCanvas({
     stateToFlowNodes(state, isNodeMissing, resolveImageSrc, resolveFileInfo),
   );
   const [edges, setEdges] = useState<RoadmapFlowEdge[]>(() => stateToFlowEdges(state));
-  /** Counted from the domain state, so transient alt-drag copies never inflate the chip. */
   const nodeCount = Object.keys(state.nodes).length;
   const [dragging, setDragging] = useState(false);
   const [cardMenu, setCardMenu] = useState<

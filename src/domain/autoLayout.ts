@@ -2,16 +2,15 @@ import { CLUSTER_NODE_GAP, CLUSTER_PADDING, COLLAPSED_CLUSTER_HEIGHT } from "../
 import { arrangeClusterGrid, type ClusterArrangement } from "./clusterLayout";
 import type { RoadmapEndpoint, RoadmapNode, RoadmapState } from "./types";
 
-/** Horizontal gap between layers (columns) and vertical gap between siblings in a column. */
 const LAYER_GAP = 120;
 
 const SIBLING_GAP = 48;
 
+/**
+ * Result of an auto-layout pass. `nodePositions` are in each node's own layout space — absolute
+ * for free nodes, cluster-relative for members (as `layout` already stores them).
+ */
 export interface AutoLayout {
-  /**
-   * New value for each node's `layout.x/y`, in that node's own layout space — absolute for
-   * free nodes, cluster-relative for members (as `layout` already stores them).
-   */
   nodePositions: Record<string, { x: number; y: number }>;
   clusters: Record<string, { x: number; y: number; width: number; height: number }>;
 }
@@ -23,14 +22,12 @@ interface Size {
 
 interface Block extends Size {
   id: string;
-  /** Original y, used only to keep intra-column order stable. */
-  order: number;
+  originalY: number;
 }
 
 /**
- * Longest-path layering over a directed graph: each node's layer is one past its deepest
- * predecessor. Cyclic nodes (never reaching in-degree zero) fall back to layer 0. Edges are
- * assumed already deduplicated and self-loop-free.
+ * Layer index for each entity, one past its deepest predecessor; cyclic nodes fall back to
+ * layer 0. Edges are assumed deduplicated and self-loop-free.
  */
 function layerize(entityIds: readonly string[], edges: readonly { from: string; to: string }[]): Map<string, number> {
   const adjacency = new Map<string, string[]>();
@@ -97,16 +94,14 @@ function arrangeCompact(members: readonly RoadmapNode[]): ClusterArrangement | n
 }
 
 interface ClusterFootprints {
-  /** Positioning size per cluster: a collapsed cluster measures at its compact height. */
   sizes: Map<string, Size>;
-  /** New cluster-relative positions for the members of expanded clusters. */
   memberPositions: Record<string, { x: number; y: number }>;
 }
 
 /**
- * Lays each expanded cluster's members into a compact grid and measures every cluster's
- * block footprint. A collapsed cluster keeps its members and stored size; only its
- * positioning height shrinks to the collapsed pill.
+ * Footprint of every cluster and cluster-relative grid positions for the members of expanded
+ * ones. A collapsed cluster keeps its members and stored size; only its positioning height
+ * shrinks to the pill.
  */
 function clusterFootprints(state: RoadmapState): ClusterFootprints {
   const sizes = new Map<string, Size>();
@@ -139,14 +134,14 @@ function topLevelBlocks(state: RoadmapState, footprints: Map<string, Size>): Blo
 
   for (const node of Object.values(state.nodes)) {
     if (node.clusterId == null) {
-      blocks.push({ id: node.id, width: node.layout.width, height: node.layout.height, order: node.layout.y });
+      blocks.push({ id: node.id, width: node.layout.width, height: node.layout.height, originalY: node.layout.y });
     }
   }
 
   for (const cluster of Object.values(state.clusters)) {
     const size = footprints.get(cluster.id) ?? { width: cluster.layout.width, height: cluster.layout.height };
 
-    blocks.push({ id: cluster.id, width: size.width, height: size.height, order: cluster.layout.y });
+    blocks.push({ id: cluster.id, width: size.width, height: size.height, originalY: cluster.layout.y });
   }
 
   return blocks;
@@ -216,7 +211,7 @@ function placeByLayer(
   let columnX = 0;
 
   for (const index of [...byLayer.keys()].sort((a, b) => a - b)) {
-    const column = (byLayer.get(index) ?? []).sort((a, b) => a.order - b.order || (a.id < b.id ? -1 : 1));
+    const column = (byLayer.get(index) ?? []).sort((a, b) => a.originalY - b.originalY || (a.id < b.id ? -1 : 1));
     const columnWidth = Math.max(...column.map((block) => block.width));
     let y = 0;
 
@@ -245,11 +240,9 @@ function placeByLayer(
 }
 
 /**
- * Tidies the whole board with a left-to-right layered layout driven by directed edges.
- * Clusters are laid out as single blocks: an expanded cluster's members are packed into a
- * compact grid and the container resized to fit; a collapsed cluster keeps its size and
- * members. Only `forward` edges shape the hierarchy — undirected and bidirectional links
- * connect without ordering. Layout only; membership and content are untouched.
+ * Tidies the whole board with a left-to-right layered layout: only `forward` edges shape the
+ * hierarchy (undirected and bidirectional links connect without ordering), and each cluster is
+ * laid out as one block. Layout only; membership and content are untouched.
  */
 export function computeAutoLayout(state: RoadmapState): AutoLayout {
   const { sizes, memberPositions } = clusterFootprints(state);

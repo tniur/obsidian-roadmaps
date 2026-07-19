@@ -119,11 +119,9 @@ function buildStateBlock(state: RoadmapState): string {
 }
 
 /**
- * Replaces the hidden state block, or appends one at EOF when no well-formed block
- * exists. A lingering bare `%% roadmap:state` opener (corrupt or partially written
- * block) and everything after it is dropped first, so the rewrite never leaves two
- * state markers; only the last opener counts, leaving an earlier hand-written mention
- * in the body alone.
+ * Replaces the hidden state block, or appends one at EOF when no well-formed block exists.
+ * A lingering bare `%% roadmap:state` opener (corrupt or partially written block) is dropped
+ * first, so the rewrite never leaves two state markers.
  */
 export function writeState(content: string, state: RoadmapState): string {
   const block = buildStateBlock(state);

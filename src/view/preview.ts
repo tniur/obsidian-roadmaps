@@ -31,15 +31,12 @@ function renderLinkCard(node: RoadmapNode, url: string, el: HTMLElement): void {
 }
 
 /**
- * Renders a node's source into `el` with one view per content type: markdown through
- * the Obsidian renderer, images full-bleed, attachments as an embed (so PDF/audio/video
- * get the native viewer), URLs as a local link card and text nodes as large plain text.
- * The resolved view is exposed on the element as `data-preview-kind` for styling. Task
- * checkboxes in rendered markdown persist back to the source note; checkboxes inside
- * embeds belong to other files and stay inert, and a toggle the file refused is
- * reverted visually with a Notice. The rest stays read-only. Calls `onRendered` once
- * content is in place (lets the panel restore its scroll position across refreshes).
- * Returns the cleanup releasing the render component.
+ * Renders a node's source into `el`, one view per content type (markdown, full-bleed image,
+ * native embed for attachments, a local link card for URLs, plain text for text nodes), exposed
+ * as `data-preview-kind` for styling. Markdown task checkboxes persist back to the source note;
+ * those inside embeds stay inert, and a refused toggle is reverted with a Notice. Everything
+ * else is read-only. Calls `onRendered` when content is in place and returns the cleanup that
+ * releases the render component.
  */
 export function mountPreviewContent(app: App, node: RoadmapNode, el: HTMLElement, onRendered?: () => void): () => void {
   const component = new Component();

@@ -1702,8 +1702,6 @@ button.rm-cluster__action:active {
   stroke-linecap: round;
 }
 
-/* The label lives inside the edge's own svg group, so it always paints above its line
-   regardless of how React Flow elevates edges attached to cluster members. */
 /* Rendered in the edge-label layer (above nodes) so a nearby node never hides it;
  * the line itself stays in the edge layer below nodes. */
 .rm-canvas .rm-edge-label {

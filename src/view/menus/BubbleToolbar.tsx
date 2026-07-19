@@ -1,16 +1,17 @@
 import { Fragment, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from "react";
 import { Icon } from "../Icon";
 
+/**
+ * One button of a bubble toolbar: either a direct `run` action or a `flyout` (mutually
+ * exclusive); `dot` renders it as a color swatch instead of an icon.
+ */
 export interface BubbleItem {
   id: string;
   label: string;
   icon?: string;
-  /** Renders the button as a color dot instead of an icon; `color` may be unset. */
   dot?: { color?: string };
   disabled?: boolean;
-  /** Direct action; mutually exclusive with `flyout`. */
   run?: () => void;
-  /** `close` dismisses the flyout, e.g. after an input commits on Enter. */
   flyout?: (close: () => void) => ReactNode;
   flyoutKind?: "card" | "tight" | "wide";
 }

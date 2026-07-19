@@ -167,10 +167,9 @@ export class RoadmapSession {
   }
 
   /**
-   * Edges and clusters (paste/duplicate flows pass copies wired between the new nodes)
-   * land in the same commit, so one undo removes the whole batch. Cluster titles get a
-   * numeric suffix when taken; member nodes must reference the passed clusters and carry
-   * cluster-relative layouts — their body blocks move under the new heading.
+   * Adds nodes with optional edges and clusters in one undo step. Taken cluster titles get a
+   * numeric suffix; member nodes must reference the passed clusters and use cluster-relative
+   * layouts.
    */
   addNodes(
     nodes: readonly RoadmapNode[],
@@ -221,10 +220,8 @@ export class RoadmapSession {
   }
 
   /**
-   * Wraps the given top-level nodes into a new cluster sized to their bounding box. Member
-   * layouts are rebased to be relative to the cluster origin; the body moves their blocks
-   * under the cluster heading so membership stays canonical there. Returns the final
-   * cluster title — a taken one gets a numeric suffix — or null when nothing was created.
+   * Wraps top-level nodes into a new cluster sized to their bounding box. Returns the final
+   * title (a taken one gets a numeric suffix), or null when nothing was created.
    */
   createClusterFromNodes(nodeIds: readonly string[], title: string): string | null {
     const safeTitle = sanitizeAlias(title);
@@ -326,9 +323,8 @@ export class RoadmapSession {
   }
 
   /**
-   * Reassigns nodes to a cluster (or to the root, `clusterId === null`) by their absolute drop
-   * position, rebasing layout to/from cluster-relative coordinates and moving the body block
-   * under/out of the cluster heading. Used for spatial drag in/out of a cluster.
+   * Reassigns nodes to a cluster (or the root, `clusterId === null`) by their absolute drop
+   * position, for spatial drag in and out of a cluster.
    */
   setNodesCluster(items: ReadonlyArray<{ id: string; clusterId: string | null; x: number; y: number }>): void {
     const changes = items.filter((item) => {
@@ -464,8 +460,8 @@ export class RoadmapSession {
     this.commit({ ...this.stateValue, clusters: { ...this.stateValue.clusters, [id]: next } });
   }
 
-  /** Lays out the cluster's member nodes in a tidy grid (reading order), resizing the cluster
-   * exactly to fit. Layout-only; membership and the body are unchanged. */
+  /** Arranges the cluster's member nodes in a grid and resizes the cluster to fit. Layout only;
+   * membership and body unchanged. */
   arrangeCluster(id: string): void {
     const cluster = this.stateValue.clusters[id];
 
@@ -546,24 +542,20 @@ export class RoadmapSession {
       .map((node) => node.id);
   }
 
-  /** Deletes the cluster but keeps its nodes, rebasing their layouts to absolute and moving
-   * their body blocks out to the unclustered region so they survive as top-level. */
+  /** Deletes the cluster but keeps its member nodes, which survive as top-level (unclustered). */
   dissolveCluster(id: string): void {
     this.deleteSelection([], [], [id], "keep-nodes");
   }
 
-  /** Deletes the cluster and removes its member nodes from the roadmap. Source files are not
-   * touched: removing entities from the roadmap must never delete vault files. */
+  /** Deletes the cluster and removes its member nodes from the roadmap. */
   deleteClusterAndNodes(id: string): void {
     this.deleteSelection([], [], [id], "with-nodes");
   }
 
   /**
-   * Removes a mixed selection in one history step. Free nodes and explicitly selected
-   * edges always go; clusters follow `clusterMode` — their nodes either survive as
-   * top-level (layout rebased to absolute, body blocks moved to the unclustered region)
-   * or leave the roadmap with them. Vault files are never touched. Edges losing an
-   * endpoint are dropped.
+   * Removes a mixed selection in one history step. Free nodes and selected edges always go;
+   * clusters follow `clusterMode` — members either survive as top-level or leave with the
+   * cluster. Vault files are never touched. Edges losing an endpoint are dropped.
    */
   deleteSelection(
     nodeIds: readonly string[],
@@ -981,12 +973,10 @@ export class RoadmapSession {
   }
 
   /**
-   * Re-points one or both ends of an edge to the given connection, keeping direction, label and
-   * style. Both endpoints are rebuilt from the connection, so the untouched end stays as it was;
-   * a null handle means that end floats. No-ops on a self-loop, a forbidden intra-cluster link,
-   * or an exact duplicate of another edge; landing on the mirror of another edge merges into
-   * it — the reconnected edge is dropped and the mirror becomes bidirectional, matching how
-   * drawing a reverse edge behaves.
+   * Re-points one or both ends of an edge, keeping direction, label and style; a null handle
+   * floats that end. No-ops on a self-loop, a forbidden intra-cluster link, or an exact
+   * duplicate; landing on the mirror of another edge merges into it (that edge becomes
+   * bidirectional, this one drops), as drawing a reverse edge does.
    */
   reconnectEdge(id: string, connection: RoadmapConnection): void {
     const edge = this.stateValue.edges[id];

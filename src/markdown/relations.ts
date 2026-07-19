@@ -88,8 +88,8 @@ export interface ParsedRelationEndpoint {
   text?: string;
 }
 
+/** A parsed `## Relations` line; `id` is absent for a hand-written line with no hidden edge marker yet. */
 export interface ParsedRelationLine {
-  /** Absent for a hand-written line that has no hidden edge marker yet. */
   id?: string;
   from: ParsedRelationEndpoint;
   to: ParsedRelationEndpoint;

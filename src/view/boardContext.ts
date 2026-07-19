@@ -10,6 +10,5 @@ export interface BoardContext {
   app: App;
   session: RoadmapSession;
   commit: () => void;
-  /** Colors offered in color menus; read from settings when the context is built. */
   palette: readonly string[];
 }

@@ -4,9 +4,10 @@ import type { RoadmapPriority, RoadmapStatus } from "../domain/types";
 /** True when a node with this status/priority should be dimmed by the active filter. */
 export type NodeDimPredicate = (status: RoadmapStatus | undefined, priority: RoadmapPriority | undefined) => boolean;
 
+/** Active filter consumed by the canvas: `active` is true while any chip is on. Clusters always
+ * dim wholesale — they are not filterable. */
 export interface NodeFilterState {
   dimmed: NodeDimPredicate;
-  /** True while any filter chip is on; clusters dim wholesale — they are not filterable. */
   active: boolean;
 }
 

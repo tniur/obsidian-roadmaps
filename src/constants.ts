@@ -36,7 +36,6 @@ export const COLLAPSED_CLUSTER_HEIGHT = 40;
  * tighter than the horizontal padding, matching the gap between arranged nodes. */
 export const CLUSTER_PADDING_Y = 16;
 
-/** Top inset of cluster content: the header band plus the vertical content gap. */
 export const CLUSTER_CONTENT_INSET_TOP = COLLAPSED_CLUSTER_HEIGHT + CLUSTER_PADDING_Y;
 
 export const CLUSTER_NODE_GAP = 24;
@@ -64,7 +63,6 @@ export const PREVIEW_MIN_WIDTH = 320;
 
 export const PREVIEW_MAX_WIDTH = 760;
 
-/** Keeps a persisted or dragged preview-panel width inside its designed bounds. */
 export function clampPreviewWidth(value: number): number {
   if (!Number.isFinite(value)) {
     return PREVIEW_DEFAULT_WIDTH;

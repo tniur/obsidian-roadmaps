@@ -20,12 +20,13 @@ export const ROADMAP_CLUSTER_TYPE = "roadmapCluster";
 
 export const ROADMAP_EDGE_TYPE = "floating";
 
+/**
+ * Render data for a node card. `displayTitle` is the custom title when set, else derived from the
+ * source; `customTitle` is the explicit user title only; `secondary` is the source hint under it.
+ */
 export type RoadmapNodeData = {
-  /** Resolved card title: the custom title when set, else derived from the source. */
   displayTitle: string;
-  /** Explicit user-set title only; image cards caption exclusively on it. */
   customTitle?: string;
-  /** Source hint under a custom title: the address (scheme stripped) for URLs, size and type for attachments. */
   secondary?: string;
   description?: string;
   kind: RoadmapNodeKind;
@@ -35,15 +36,14 @@ export type RoadmapNodeData = {
   align?: TextAlign;
   missing?: boolean;
   imageSrc?: string;
-  /** Raw address of a url node; feeds the URL field of the node bubble. */
   url?: string;
 };
 
+/** Render data for a cluster container; `count` of 0 renders the empty placeholder. */
 export type RoadmapClusterData = {
   title: string;
   color?: string;
   collapsed: boolean;
-  /** Member count shown in the header chip; 0 renders the empty placeholder. */
   count: number;
 };
 

@@ -38,10 +38,9 @@ interface Candidate {
 }
 
 /**
- * Computes alignment guides for a node being dragged. Compares the dragged node's
- * left/right/center against every other node on the X axis (vertical guides) and its
- * top/bottom/center on the Y axis (horizontal guides), keeping the closest match within
- * `distance`. Returns the guide coordinate to render and the snapped top-left position.
+ * Alignment guides for a node being dragged: matches its sides and center against the other
+ * nodes within `distance`. Returns the guide coordinates to render and the snapped top-left
+ * position.
  */
 export function getHelperLines(change: NodePositionChange, nodes: Node[], distance = 5): HelperLineResult {
   const result: HelperLineResult = {};

@@ -174,7 +174,6 @@ export interface ChipOption<T extends string> {
   value: T;
   label: string;
   icon?: string;
-  /** CSS color the active chip tints itself with. */
   color: string;
 }
 
@@ -223,13 +222,11 @@ export function CommitField({
   onCommit,
   onDone,
 }: {
-  /** Field caption; omit in single-field flyouts, where the section label already names it. */
   label?: string;
   value: string;
   placeholder?: string;
   multiline?: boolean;
   onCommit: (value: string) => void;
-  /** Invoked after an Enter commit, e.g. to close the containing flyout. */
   onDone?: () => void;
 }) {
   const ref = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);

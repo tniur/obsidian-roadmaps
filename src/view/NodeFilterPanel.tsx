@@ -10,7 +10,6 @@ type ChipKind = "status" | "priority";
 interface Chip {
   value: string;
   label: string;
-  /** Design token for this value's colour, or undefined for the `none` chip. */
   color?: string;
 }
 

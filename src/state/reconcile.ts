@@ -63,10 +63,10 @@ interface ParsedBody {
 }
 
 /**
- * Walks the readable body once, deriving cluster declarations (from `##` headings carrying a
- * cluster marker) and node membership (each node belongs to the cluster section it sits in).
- * Reserved headings (`## Relations`, `## Archive`) are section breaks, not clusters. Body is
- * canonical for membership; state caches it.
+ * Cluster declarations (`##` headings carrying a cluster marker) and node membership (each
+ * node belongs to the cluster section it sits in), derived from the readable body. Reserved
+ * headings (`## Relations`, `## Archive`) are section breaks, not clusters. Body is canonical
+ * for membership; state caches it.
  */
 function parseBody(content: string): ParsedBody {
   const clusters = new Map<string, ClusterInfo>();
@@ -117,7 +117,6 @@ function defaultCluster(id: string, info: ClusterInfo): RoadmapCluster {
   return cluster;
 }
 
-/** Compares sources through their canonical compact encoding from the codec. */
 function sourcesEqual(a: RoadmapNodeSource, b: RoadmapNodeSource): boolean {
   return encodeSource(a).join("\0") === encodeSource(b).join("\0");
 }
@@ -163,10 +162,8 @@ function sameNodeContent(a: RoadmapNode, b: RoadmapNode): boolean {
 }
 
 /**
- * Lays out clusters that first appeared in the body (hand-written headings): the cluster
- * anchors at its members' bounding box and the members snap into the same tidy grid the
- * "Arrange nodes" action produces, with the cluster sized exactly to fit. Clusters
- * already known to state keep their layout.
+ * Positions clusters that first appeared in the body (hand-written headings) around their
+ * members. Clusters already known to state keep their layout.
  */
 function fitNewClusters(
   state: RoadmapState,
@@ -494,10 +491,9 @@ export function adoptNodeMarkers(
 }
 
 /**
- * Best-effort recovery when the hidden state block is missing: nodes are rebuilt from
- * body markers (source, title, description, tags parsed back from each block's readable
- * representation), clusters from marked headings, and edges from `## Relations` lines.
- * Layout cannot be recovered, so nodes fall back to a grid.
+ * Best-effort recovery when the hidden state block is missing: nodes are rebuilt from body
+ * markers, clusters from marked headings, edges from `## Relations` lines. Layout cannot be
+ * recovered, so nodes fall back to a grid.
  */
 export function rebuildState(content: string, resolveTarget?: LinkTargetResolver): RoadmapState {
   const state = emptyState();
@@ -649,8 +645,6 @@ export function ensureClusterMarkers(content: string): string {
 /**
  * Suffixes hand-written duplicate cluster titles ("Q3" → "Q3 2") so `[[#Title]]` links in
  * Relations stay unambiguous; session mutations keep UI-made titles unique on their own.
- * The hidden marker and its attrs are preserved verbatim, with the new title spliced
- * right before the marker; state picks the title up through the body-canonical reconcile.
  */
 export function ensureUniqueClusterTitles(content: string): string {
   const bounds = bodyBounds(content);
@@ -710,13 +704,11 @@ export interface LoadedDocument {
 }
 
 /**
- * Full open pipeline: hand-written headings gain cluster markers, a missing state block
- * is rebuilt from the body, an existing one is reconciled against it (including adoption
- * of hand-written relation lines), nodes whose body blocks are gone (a truncated or
- * half-synced file) get them restored instead of being dropped, and hand-edited blocks
- * whose content was adopted are rewritten to their canonical form. Content differing
- * from `data` must be persisted by the caller. Throws on a corrupted or newer-version
- * state block (see `readState`), leaving the file untouched.
+ * Full open pipeline: reconciles (or rebuilds, when the state block is missing) the state
+ * against the readable body, adopting hand-written headings, wikilinks and relation lines and
+ * restoring node blocks missing from a truncated file. Content differing from `data` must be
+ * persisted by the caller. Throws on a corrupted or newer-version state block (see
+ * `readState`), leaving the file untouched.
  */
 export function loadDocument(data: string, resolveTarget?: LinkTargetResolver): LoadedDocument {
   const warnings: DocumentWarning[] = [];

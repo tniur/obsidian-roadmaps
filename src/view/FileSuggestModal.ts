@@ -38,9 +38,8 @@ export class FileSuggestModal extends FuzzySuggestModal<TFile> {
 
   /**
    * Two-line row: type icon, file name with the fuzzy match highlighted, folder path
-   * underneath. Matching runs over the full path (so folder terms still narrow the
-   * list), but only the name line renders highlights — match ranges are shifted onto
-   * it and ranges outside the name are dropped.
+   * underneath. Matching runs over the full path (so folder terms still narrow the list),
+   * but only the name line shows highlights.
    */
   renderSuggestion(match: FuzzyMatch<TFile>, el: HTMLElement): void {
     const file = match.item;

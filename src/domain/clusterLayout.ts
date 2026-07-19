@@ -29,10 +29,9 @@ export function membersBoundingBox(members: ReadonlyArray<Pick<RoadmapNode, "lay
 }
 
 /**
- * Grid layout for cluster members: reading order (by current y, then x), cell sized by
- * the largest member, full rows centered and each node centered within its cell. Returns
- * member positions relative to the cluster origin and the exact cluster size wrapping
- * the grid. `baseWidth` bounds how many columns fit; the result may shrink below it.
+ * Grid layout for cluster members: their positions relative to the cluster origin and the
+ * exact cluster size wrapping the grid. `baseWidth` bounds how many columns fit; the result
+ * may shrink below it.
  */
 export function arrangeClusterGrid(members: readonly RoadmapNode[], baseWidth: number): ClusterArrangement | null {
   if (members.length === 0) {

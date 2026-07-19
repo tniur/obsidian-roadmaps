@@ -24,14 +24,11 @@ interface NodePreviewPanelProps {
 }
 
 /**
- * Right-docked panel that renders a node's source content inside the canvas. The actual
- * rendering is delegated to mount, which owns the Obsidian lifecycle and returns a
- * cleanup run on unmount or when the previewed node changes. A refresh re-mounts the
- * content from scratch; the scroll offset carries across, so the reading position
- * survives source-file changes (e.g. after toggling a task checkbox). The edit action
- * is optional: board-owned content loses it under lock. The panel resizes by dragging
- * its left edge (double-click resets); the width persists through onWidthChange only
- * when the gesture ends.
+ * Right-docked panel that renders a node's source content inside the canvas. A refresh
+ * re-mounts the content but carries the scroll offset across, so the reading position survives
+ * source-file changes (e.g. a toggled task checkbox). The edit action is optional — board-owned
+ * content loses it under lock. The panel resizes by dragging its left edge (double-click
+ * resets); the width persists only when the gesture ends.
  */
 export function NodePreviewPanel({
   node,

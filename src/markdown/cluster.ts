@@ -20,7 +20,6 @@ export interface ParsedClusterHeading {
   color?: string;
 }
 
-/** Parses a `## ...` line into a cluster heading, or null if it is not a `##` heading. */
 export function parseClusterHeading(line: string): ParsedClusterHeading | null {
   const heading = HEADING_RE.exec(line);
 
