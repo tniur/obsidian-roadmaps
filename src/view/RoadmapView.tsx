@@ -3,7 +3,7 @@ import { nanoid } from "nanoid";
 import { ReactFlowProvider } from "@xyflow/react";
 import { StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { VIEW_TYPE_ROADMAP } from "../constants";
+import { FIT_VIEW_PADDING, VIEW_TYPE_ROADMAP } from "../constants";
 import {
   centeredPlacement,
   centerNodesShift,
@@ -550,7 +550,7 @@ export class RoadmapView extends TextFileView {
   }
 
   fitToNodes(): void {
-    void this.flow?.fitView();
+    void this.flow?.fitView({ padding: FIT_VIEW_PADDING });
   }
 
   openSearch(): void {
@@ -571,7 +571,7 @@ export class RoadmapView extends TextFileView {
 
     this.session.autoLayout();
     this.commit();
-    void this.flow?.fitView();
+    void this.flow?.fitView({ padding: FIT_VIEW_PADDING });
   };
 
   readonly toggleLock = (): void => {

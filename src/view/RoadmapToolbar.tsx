@@ -1,5 +1,5 @@
 import { Panel, useReactFlow, useStore } from "@xyflow/react";
-import { BACKGROUND_DOTS_ICON_ID } from "../constants";
+import { BACKGROUND_DOTS_ICON_ID, FIT_VIEW_PADDING } from "../constants";
 import { showBoardMenu } from "./menus/boardMenu";
 import { ToolbarButton } from "./ToolbarButton";
 
@@ -116,7 +116,11 @@ export function RoadmapToolbar({
           <ToolbarButton icon="zoom-in" label="Zoom in" onClick={() => void zoomIn()} />
           <ZoomLabel />
           <ToolbarButton icon="zoom-out" label="Zoom out" onClick={() => void zoomOut()} />
-          <ToolbarButton icon="frame" label="Fit to nodes" onClick={() => void fitView()} />
+          <ToolbarButton
+            icon="frame"
+            label="Fit to nodes"
+            onClick={() => void fitView({ padding: FIT_VIEW_PADDING })}
+          />
           <div className="rm-toolbar__divider" />
           <ToolbarButton icon="search" label="Search nodes" pressed={searchOpen} onClick={onToggleSearch} />
           <ToolbarButton

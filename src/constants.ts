@@ -43,6 +43,15 @@ export const CLUSTER_NODE_GAP = 24;
 
 export const EDGE_INTERACTION_WIDTH = 24;
 
+/** Lower zoom bound; well below the React Flow default of 0.5 so large boards can be
+ * zoomed out and framed by fit-view without clipping. */
+export const MIN_ZOOM = 0.15;
+
+export const MAX_ZOOM = 2;
+
+/** Fraction of the viewport kept as breathing room around content when framing the camera. */
+export const FIT_VIEW_PADDING = 0.15;
+
 export const BACKGROUND_DOT_GAP = 16;
 
 /** Passed to the React Flow dot background; renders as a dot of half this size at zoom 1. */

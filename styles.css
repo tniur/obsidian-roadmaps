@@ -177,9 +177,9 @@
   /* mini-map */
   --rm-minimap-width: 148px;
   --rm-minimap-height: 96px;
-  --rm-minimap-opacity: 0.75;
-  --rm-minimap-node: color-mix(in srgb, var(--rm-text-faint) 50%, transparent);
-  --rm-minimap-mask: color-mix(in srgb, var(--rm-surface) 68%, transparent);
+  --rm-minimap-opacity: 0.85;
+  --rm-minimap-node: color-mix(in srgb, var(--rm-text-faint) 62%, transparent);
+  --rm-minimap-mask: color-mix(in srgb, #000 30%, transparent);
 
   /* status / priority */
   --rm-status-draft: var(--text-muted);

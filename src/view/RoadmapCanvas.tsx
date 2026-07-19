@@ -31,7 +31,7 @@ import {
   useState,
 } from "react";
 import { nanoid } from "nanoid";
-import { BACKGROUND_DOT_GAP, BACKGROUND_DOT_SIZE } from "../constants";
+import { BACKGROUND_DOT_GAP, BACKGROUND_DOT_SIZE, FIT_VIEW_PADDING, MAX_ZOOM, MIN_ZOOM } from "../constants";
 import { asSide, type NodePlacement } from "../domain/create";
 import { filterIsActive, nodeMatchesFilter, type NodeFilter } from "../domain/filter";
 import type { RoadmapState, RoadmapViewport } from "../domain/types";
@@ -1062,6 +1062,9 @@ export function RoadmapCanvas({
             panOnScroll
             zoomOnDoubleClick={false}
             proOptions={{ hideAttribution: true }}
+            minZoom={MIN_ZOOM}
+            maxZoom={MAX_ZOOM}
+            fitViewOptions={{ padding: FIT_VIEW_PADDING }}
             defaultViewport={initialViewportRef.current}
             fitView={initialViewportRef.current === undefined}
           >
