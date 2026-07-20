@@ -402,10 +402,6 @@ export class RoadmapView extends TextFileView {
   };
 
   private readonly handleKeyDown = (event: KeyboardEvent): void => {
-    if (!(event.metaKey || event.ctrlKey)) {
-      return;
-    }
-
     if (this.app.workspace.getActiveViewOfType(RoadmapView) !== this) {
       return;
     }
@@ -417,6 +413,20 @@ export class RoadmapView extends TextFileView {
       target instanceof HTMLTextAreaElement ||
       (target instanceof HTMLElement && target.isContentEditable)
     ) {
+      return;
+    }
+
+    if (event.key === "Escape") {
+      if (this.previewNodeId !== null) {
+        event.preventDefault();
+        event.stopPropagation();
+        this.handleClosePreview();
+      }
+
+      return;
+    }
+
+    if (!(event.metaKey || event.ctrlKey)) {
       return;
     }
 
