@@ -48,6 +48,12 @@ export function normalizeHttpUrl(value: string): string {
   return isSafeUrl(value) ? value : `https://${value}`;
 }
 
+/** Pasted text is treated as a link only when it is a single whitespace-free token with an
+ * accepted scheme, so ordinary text (paths, prose) is not mistaken for a URL. */
+export function looksLikeUrl(value: string): boolean {
+  return value.length > 0 && !/\s/.test(value) && isSafeUrl(value);
+}
+
 /** Hostname as the default title of URL nodes; malformed URLs fall back to the raw text. */
 export function urlHostname(url: string): string {
   try {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatFileSize, isSafeUrl, normalizeHttpUrl } from "../src/domain/paths";
+import { formatFileSize, isSafeUrl, looksLikeUrl, normalizeHttpUrl } from "../src/domain/paths";
 
 describe("url safety", () => {
   it("accepts http, https and obsidian schemes only", () => {
@@ -15,6 +15,16 @@ describe("url safety", () => {
     expect(normalizeHttpUrl("example.com/docs")).toBe("https://example.com/docs");
     expect(normalizeHttpUrl("https://example.com")).toBe("https://example.com");
     expect(normalizeHttpUrl("HTTP://example.com")).toBe("HTTP://example.com");
+  });
+
+  it("recognizes pasted links only as a lone scheme-qualified token", () => {
+    expect(looksLikeUrl("https://example.com/docs")).toBe(true);
+    expect(looksLikeUrl("obsidian://open?vault=v")).toBe(true);
+    expect(looksLikeUrl("example.com")).toBe(false);
+    expect(looksLikeUrl("see https://example.com")).toBe(false);
+    expect(looksLikeUrl("https://example.com extra")).toBe(false);
+    expect(looksLikeUrl("just some text")).toBe(false);
+    expect(looksLikeUrl("")).toBe(false);
   });
 });
 

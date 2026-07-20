@@ -10,11 +10,13 @@ import {
   copiedEdges,
   copyCluster,
   copyNode,
+  createTextNode,
+  createUrlNode,
   type NodePlacement,
 } from "../domain/create";
 import { roadmapToCanvas, serializeCanvas } from "../domain/jsonCanvas";
 import { nodeOpenTarget } from "../domain/openTarget";
-import { formatFileSize, isSafeUrl, normalizeHttpUrl } from "../domain/paths";
+import { formatFileSize, isSafeUrl, looksLikeUrl, normalizeHttpUrl } from "../domain/paths";
 import { sourceFile } from "../domain/source";
 import { facingSide } from "../domain/edges";
 import type { EdgeSide, RoadmapCluster, RoadmapEdge, RoadmapNode, RoadmapViewport } from "../domain/types";
@@ -80,6 +82,9 @@ export interface BoardClipboard {
 
 /** Offset applied per element when pasting or dropping several at once, so copies fan out. */
 const CASCADE_OFFSET = 24;
+
+/** Marks the OS clipboard as holding an in-app board copy rather than pasteable text. */
+const CLIPBOARD_TOKEN_PREFIX = "roadmap-clipboard:";
 
 const VIEWPORT_SAVE_DELAY = 600;
 
@@ -442,8 +447,9 @@ export class RoadmapView extends TextFileView {
   /**
    * Paste onto the board. Reads the OS clipboard directly (the ⌘V default is prevented, so
    * no second paste event fires): a clipboard image is written into the roadmap's own folder
-   * and dropped as a node at the viewport center; otherwise the in-app board clipboard is
-   * pasted, gated by the copy token so the most recently copied thing wins.
+   * and dropped as a node at the viewport center; an in-app board copy (tagged with the copy
+   * token) pastes its nodes; a plain link drops as a URL node and any other text as a text
+   * node. The most recently copied thing wins.
    */
   private async handleClipboardPaste(): Promise<void> {
     if (this.session === null || this.locked) {
@@ -477,14 +483,38 @@ export class RoadmapView extends TextFileView {
     }
 
     const clipboard = this.host.getClipboard();
+    const boardCopy =
+      clipboard !== null && (clipboard.nodes.length > 0 || clipboard.clusters.length > 0) ? clipboard : null;
 
-    if (clipboard === null || (clipboard.nodes.length === 0 && clipboard.clusters.length === 0)) {
+    if (boardCopy !== null && (text === boardCopy.token || text === "")) {
+      this.pasteClipboard();
+
       return;
     }
 
-    if (text === clipboard.token || text === "") {
-      this.pasteClipboard();
+    const trimmed = text.trim();
+
+    if (trimmed.length === 0 || text.startsWith(CLIPBOARD_TOKEN_PREFIX)) {
+      return;
     }
+
+    this.pasteCreatedNode((placement) =>
+      looksLikeUrl(trimmed) ? createUrlNode(trimmed, placement) : createTextNode(text, placement),
+    );
+  }
+
+  private pasteCreatedNode(create: (placement: NodePlacement) => RoadmapNode): void {
+    const center = this.canvasCenter();
+
+    if (this.session === null || center === null) {
+      return;
+    }
+
+    const node = create(centeredPlacement(center));
+
+    this.session.addNodes([node]);
+    this.focusNodes([node.id]);
+    this.commit();
   }
 
   private async pasteFiles(files: readonly File[]): Promise<void> {
@@ -732,7 +762,7 @@ export class RoadmapView extends TextFileView {
 
     if (nodes.length > 0 || clusters.length > 0) {
       const ids = new Set([...nodes.map((node) => node.id), ...clusters.map((cluster) => cluster.id)]);
-      const token = `roadmap-clipboard:${nanoid()}`;
+      const token = `${CLIPBOARD_TOKEN_PREFIX}${nanoid()}`;
 
       this.host.setClipboard({
         boardId: state.id,
