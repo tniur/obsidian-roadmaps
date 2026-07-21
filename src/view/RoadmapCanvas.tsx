@@ -781,11 +781,27 @@ export function RoadmapCanvas({
     (event: ReactMouseEvent, node: RoadmapFlowNode) => {
       event.preventDefault();
 
-      if (!locked) {
-        selectOnly(node.id, "node");
+      if (locked) {
+        return;
       }
+
+      const selectedIds = getNodes()
+        .filter((candidate) => candidate.selected === true)
+        .map((candidate) => candidate.id);
+
+      if (selectedIds.length > 1 && selectedIds.includes(node.id)) {
+        setCardMenu({
+          kind: "selection",
+          ids: selectedIds,
+          flow: screenToFlowPosition({ x: event.clientX, y: event.clientY }),
+        });
+
+        return;
+      }
+
+      selectOnly(node.id, "node");
     },
-    [locked, selectOnly],
+    [locked, selectOnly, getNodes, screenToFlowPosition],
   );
 
   const onSelectionContextMenuInternal = useCallback(
