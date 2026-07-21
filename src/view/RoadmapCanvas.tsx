@@ -196,7 +196,7 @@ export interface CanvasBoardActions {
 /**
  * Props of the canvas. Callbacks are grouped by concern into stable objects (`nodeActions`,
  * `edgeActions`, …) so the surface stays narrow. The `*Nonce` fields are bump-to-trigger
- * signals: open the find/filter bars, or re-select `focusIds` after paste and duplicate.
+ * signals: open the find/filter bars, clear the selection, or re-select `focusIds` after paste.
  */
 interface RoadmapCanvasProps {
   state: RoadmapState;
@@ -210,6 +210,7 @@ interface RoadmapCanvasProps {
   initialCompactControls: boolean;
   openSearchNonce: number;
   openFilterNonce: number;
+  clearSelectionNonce: number;
   focusIds: string[];
   focusNonce: number;
   isNodeMissing: NodeMissingPredicate;
@@ -235,6 +236,7 @@ export function RoadmapCanvas({
   initialCompactControls,
   openSearchNonce,
   openFilterNonce,
+  clearSelectionNonce,
   focusIds,
   focusNonce,
   isNodeMissing,
@@ -366,6 +368,15 @@ export function RoadmapCanvas({
 
     return () => window.clearTimeout(timer);
   }, [focusNonce, focusIds, storeApi]);
+
+  useEffect(() => {
+    if (clearSelectionNonce === 0) {
+      return;
+    }
+
+    setNodes((current) => current.map((node) => (node.selected === true ? { ...node, selected: false } : node)));
+    setEdges((current) => current.map((edge) => (edge.selected === true ? { ...edge, selected: false } : edge)));
+  }, [clearSelectionNonce]);
 
   /** Remove changes are suppressed here and in `onEdgesChange`: deletion goes through
    * the session and may await a confirmation dialog, so React Flow's optimistic

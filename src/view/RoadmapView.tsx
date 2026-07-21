@@ -99,6 +99,7 @@ export class RoadmapView extends TextFileView {
   private previewRefreshNonce = 0;
   private searchOpenNonce = 0;
   private filterOpenNonce = 0;
+  private clearSelectionNonce = 0;
   private loadError: string | null = null;
   private loadErrorRecoverable = false;
   private locked = false;
@@ -416,6 +417,10 @@ export class RoadmapView extends TextFileView {
         event.preventDefault();
         event.stopPropagation();
         this.handleClosePreview();
+      } else if (this.selectedNodeIds.length > 0) {
+        event.preventDefault();
+        event.stopPropagation();
+        this.clearSelection();
       }
 
       return;
@@ -854,6 +859,11 @@ export class RoadmapView extends TextFileView {
   private readonly handleSelectionChange = (ids: string[]): void => {
     this.selectedNodeIds = ids;
   };
+
+  private clearSelection(): void {
+    this.clearSelectionNonce += 1;
+    this.renderApp();
+  }
 
   private readonly isNodeMissing = (node: RoadmapNode): boolean => {
     const path = sourceFile(node.source);
@@ -1314,6 +1324,7 @@ export class RoadmapView extends TextFileView {
               initialCompactControls={this.host.getCompactControls()}
               openSearchNonce={this.searchOpenNonce}
               openFilterNonce={this.filterOpenNonce}
+              clearSelectionNonce={this.clearSelectionNonce}
               focusIds={this.focusIds}
               focusNonce={this.focusNonce}
               isNodeMissing={this.isNodeMissing}
