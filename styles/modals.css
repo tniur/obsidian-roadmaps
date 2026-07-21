@@ -1,0 +1,257 @@
+/* Settings tab lives outside .rm-view, so the swatch hosts its own tokens over theme vars. */
+.rm-palette-swatch {
+  --rm-swatch-size: 22px;
+  --rm-swatch-border-width: 1px;
+  display: inline-block;
+  width: var(--rm-swatch-size);
+  height: var(--rm-swatch-size);
+  border-radius: var(--radius-s);
+  border: var(--rm-swatch-border-width) solid var(--background-modifier-border);
+  background: var(--rm-swatch-color, transparent);
+}
+
+.modal.rm-modal {
+  --dialog-width: 320px;
+
+  padding: 18px;
+  border: var(--rm-border-width) solid var(--rm-border);
+  border-radius: var(--rm-radius-modal);
+  box-shadow: var(--rm-shadow-modal);
+}
+
+/* The `.modal.`-level compound keeps these ahead of theme rules of equal weight. */
+.modal.rm-modal .modal-title {
+  margin: 0;
+  padding: 0;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+}
+
+.modal.rm-modal .modal-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.rm-modal__title-icon {
+  --icon-size: var(--rm-icon-size);
+
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  margin-right: 10px;
+  vertical-align: middle;
+  color: var(--rm-danger);
+  background: var(--rm-danger-tint-strong);
+  border-radius: var(--rm-radius-m);
+}
+
+.rm-modal__body {
+  margin: 0;
+  color: var(--rm-text-muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.rm-modal .rm-modal__input {
+  width: 100%;
+  height: 40px;
+  padding: 0 12px;
+  background: var(--rm-surface);
+  border: var(--rm-border-width-thick) solid var(--rm-border);
+  border-radius: var(--rm-radius-tile);
+  color: var(--rm-text);
+  font-size: 14px;
+}
+
+.rm-modal .rm-modal__input:focus {
+  border-color: var(--rm-accent);
+  box-shadow: var(--rm-focus-halo);
+}
+
+.rm-modal__hint {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--rm-text-faint);
+  font-size: var(--rm-node-secondary-size);
+}
+
+.rm-modal__kbd {
+  padding: 1px 6px;
+  background: var(--rm-hover);
+  border: var(--rm-border-width) solid var(--rm-border);
+  border-radius: 5px;
+  color: var(--rm-text-muted);
+  font-family: inherit;
+  font-size: var(--rm-chip-size-caps);
+  font-weight: 600;
+}
+
+.rm-modal__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--rm-space-2);
+  margin-top: 2px;
+}
+
+.rm-modal__footer--column {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+button.rm-modal__btn {
+  height: var(--rm-control-lg);
+  padding: 0 15px;
+  background-color: transparent;
+  border: none;
+  border-radius: var(--rm-radius-m);
+  box-shadow: none;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background-color var(--rm-transition-fast),
+    filter var(--rm-transition-fast);
+}
+
+button.rm-modal__btn:focus-visible {
+  outline: var(--rm-focus-outline);
+}
+
+button.rm-modal__btn--ghost {
+  color: var(--rm-text-muted);
+}
+
+button.rm-modal__btn--ghost:hover {
+  background-color: var(--rm-hover);
+}
+
+button.rm-modal__btn--primary {
+  background-color: var(--rm-accent);
+  box-shadow: var(--rm-shadow-cta);
+  color: var(--text-on-accent);
+}
+
+button.rm-modal__btn--primary:hover {
+  background-color: var(--rm-accent);
+  filter: brightness(1.07);
+}
+
+button.rm-modal__btn--choice,
+button.rm-modal__btn--choice-danger {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  height: auto;
+  padding: 9px 13px;
+  background-color: var(--rm-surface);
+  border: var(--rm-border-width) solid var(--rm-border);
+  border-radius: var(--rm-radius-tile);
+  box-shadow: none;
+  color: var(--rm-text);
+  font-size: var(--rm-label-size);
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--rm-transition-fast);
+}
+
+button.rm-modal__btn--choice:hover {
+  background-color: var(--rm-hover);
+}
+
+button.rm-modal__btn--choice-danger {
+  background-color: var(--rm-danger-tint);
+  border-color: var(--rm-danger-border);
+  color: var(--rm-danger);
+}
+
+button.rm-modal__btn--choice-danger:hover {
+  background-color: var(--rm-danger-tint-strong);
+}
+
+button.rm-modal__btn--choice:focus-visible,
+button.rm-modal__btn--choice-danger:focus-visible {
+  outline: var(--rm-focus-outline);
+}
+
+.rm-modal__btn-sub {
+  color: var(--rm-text-faint);
+  font-size: var(--rm-node-secondary-size);
+  font-weight: 400;
+}
+
+button.rm-modal__btn--choice-danger .rm-modal__btn-sub {
+  color: color-mix(in srgb, var(--rm-danger) 75%, transparent);
+}
+
+.prompt.rm-modal-suggest {
+  border: var(--rm-border-width) solid var(--rm-border);
+  border-radius: var(--rm-radius-modal);
+  box-shadow: var(--rm-shadow-modal);
+}
+
+.rm-modal-suggest .prompt-results {
+  padding: 4px;
+}
+
+.rm-modal-suggest .suggestion-item.rm-suggest {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 9px 12px;
+  border-radius: var(--rm-radius-m);
+}
+
+.rm-modal-suggest .suggestion-item.is-selected {
+  background: var(--rm-accent-tint);
+}
+
+.rm-suggest__icon {
+  --icon-size: var(--rm-icon-size);
+
+  display: inline-flex;
+  flex: 0 0 auto;
+  color: var(--rm-text-muted);
+}
+
+.rm-modal-suggest .suggestion-item.is-selected .rm-suggest__icon {
+  color: var(--rm-accent);
+}
+
+.rm-suggest__text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.rm-suggest__name {
+  overflow: hidden;
+  color: var(--rm-text);
+  font-size: var(--rm-label-size);
+  font-weight: 500;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.rm-suggest__folder {
+  overflow: hidden;
+  color: var(--rm-text-faint);
+  font-size: var(--rm-node-secondary-size);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.rm-modal-suggest .suggestion-highlight {
+  color: var(--rm-accent);
+  font-weight: 700;
+}

@@ -1,0 +1,99 @@
+/* Obsidian pads .view-content by default; the board claims the full tab area edge to edge. */
+.view-content.rm-view-content {
+  padding: 0;
+}
+
+/* Chip text centers optically on the glyphs (cap height to baseline), not the font's line box.
+   text-box only affects block containers, so flex chips wrap their text in this block element; it is
+   left off ellipsized text, where a trimmed line box clips descenders. Ignored where unsupported. */
+.rm-view .rm-chip-text {
+  display: block;
+  text-box: trim-both cap alphabetic;
+}
+
+.rm-view .rm-toolbar__zoom {
+  text-box: trim-both cap alphabetic;
+}
+
+.rm-canvas {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.rm-empty {
+  position: absolute;
+  inset: 0;
+  z-index: var(--rm-z-empty);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--rm-space-2);
+  color: var(--rm-text-faint);
+  text-align: center;
+  pointer-events: none;
+}
+
+.rm-empty__icon {
+  --icon-size: var(--rm-empty-icon);
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  background: var(--rm-hover);
+  border-radius: var(--rm-radius-cluster);
+}
+
+.rm-empty__title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--rm-text);
+}
+
+.rm-empty__hint {
+  max-width: 280px;
+  font-size: var(--rm-label-size);
+  line-height: 1.45;
+}
+
+.rm-load-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--rm-space-3);
+  height: 100%;
+  padding: var(--rm-space-4);
+  text-align: center;
+}
+
+.rm-load-error__message {
+  max-width: var(--rm-preview-width);
+  margin: 0;
+  color: var(--rm-danger);
+}
+
+.rm-load-error__actions {
+  display: flex;
+  gap: var(--rm-space-2);
+}
+
+.rm-load-error__action {
+  padding: var(--rm-space-1) var(--rm-space-3);
+  color: var(--rm-text);
+  background: var(--rm-surface-alt);
+  border: var(--rm-border-width) solid var(--rm-border);
+  border-radius: var(--rm-radius-s);
+  cursor: pointer;
+  transition:
+    background var(--rm-transition-fast),
+    border-color var(--rm-transition-fast);
+}
+
+.rm-load-error__action:hover {
+  background: var(--rm-hover);
+  border-color: var(--rm-accent);
+}

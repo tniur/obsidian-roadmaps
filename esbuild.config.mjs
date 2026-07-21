@@ -16,14 +16,21 @@ fs.mkdirSync(outDir, { recursive: true });
 
 const flowCssPath = path.join(root, "node_modules/@xyflow/react/dist/style.css");
 
+// Obsidian loads a single styles.css per plugin; the source is split into partials for authoring.
+// Order is the CSS cascade order (tokens first). Partials are joined with a newline below, which
+// restores the blank line between sections. Keep in sync when adding or renaming a partial.
+const stylePartials = ["tokens", "base", "preview", "chrome", "nodes", "clusters", "edges", "modals", "menus"].map(
+  (name) => path.join(root, "styles", `${name}.css`),
+);
+
 const copyStatic = {
   name: "copy-static",
   setup(build) {
     build.onEnd(() => {
       fs.copyFileSync(path.join(root, "manifest.json"), path.join(outDir, "manifest.json"));
-      const tokens = fs.readFileSync(path.join(root, "styles.css"), "utf8");
+      const styles = stylePartials.map((file) => fs.readFileSync(file, "utf8")).join("\n");
       const flowCss = fs.readFileSync(flowCssPath, "utf8");
-      fs.writeFileSync(path.join(outDir, "styles.css"), `${flowCss}\n${tokens}\n`);
+      fs.writeFileSync(path.join(outDir, "styles.css"), `${flowCss}\n${styles}\n`);
     });
   },
 };

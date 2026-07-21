@@ -1,0 +1,235 @@
+/*
+ * Plugin design tokens layered over Obsidian theme variables so the look can be retargeted from
+ * a single place; components consume these instead of literals. Modals mount outside the view, so
+ * they carry the same tokens through their own scope classes.
+ */
+.rm-view,
+.rm-modal,
+.rm-modal-suggest {
+  /* spacing */
+  --rm-space-0: 2px;
+  --rm-space-1: 4px;
+  --rm-space-2: 8px;
+  --rm-space-3: 16px;
+  --rm-space-4: 24px;
+
+  /* shape */
+  --rm-radius-s: var(--radius-s, 4px);
+  --rm-radius-m: var(--radius-m, 8px);
+  --rm-radius-full: 999px;
+  --rm-radius-control: 7px;
+  --rm-radius-tile: 9px;
+  --rm-radius-node: 12px;
+  --rm-radius-cluster: 14px;
+  --rm-radius-chip: 6px;
+  --rm-border-width: 1px;
+  --rm-border-width-thick: 1.5px;
+
+  /* palette */
+  --rm-surface: var(--background-primary);
+  --rm-surface-alt: var(--background-secondary);
+  --rm-hover: var(--background-modifier-hover);
+  --rm-border: var(--background-modifier-border);
+  --rm-text: var(--text-normal);
+  --rm-text-muted: var(--text-muted);
+  --rm-text-faint: var(--text-faint);
+  --rm-accent: var(--interactive-accent);
+  --rm-danger: var(--text-error);
+  --rm-accent-tint: color-mix(in srgb, var(--rm-accent) 12%, transparent);
+  --rm-ring: color-mix(in srgb, var(--rm-accent) 35%, transparent);
+  --rm-ring-width: 2px;
+  --rm-focus-outline: var(--rm-ring-width) solid var(--rm-ring);
+  --rm-focus-halo: 0 0 0 3px color-mix(in srgb, var(--rm-accent) 14%, transparent);
+
+  /* elevation & motion: one shadow per surface role (card / panel) */
+  --rm-shadow-card: 0 1px 2px rgba(20, 22, 30, 0.06), 0 2px 6px rgba(20, 22, 30, 0.05);
+  --rm-shadow-card-hover: 0 4px 12px rgba(20, 22, 30, 0.13), 0 1px 3px rgba(20, 22, 30, 0.08);
+  --rm-shadow-card-drag: 0 6px 20px rgba(20, 22, 30, 0.14), 0 2px 6px rgba(20, 22, 30, 0.08);
+  --rm-shadow-panel: 0 4px 16px rgba(20, 22, 30, 0.1), 0 1px 3px rgba(20, 22, 30, 0.08);
+  --rm-shadow-overlay: -14px 0 34px rgba(20, 22, 30, 0.1);
+  --rm-shadow-cta: 0 1px 3px color-mix(in srgb, var(--rm-accent) 40%, transparent);
+  --rm-transition-fast: 120ms ease;
+  --rm-transition-med: 180ms ease;
+
+  /* layering */
+  --rm-z-empty: 4;
+  --rm-z-guides: 10;
+  --rm-z-overlay: 20;
+
+  /* board */
+  --rm-dot-color: color-mix(in srgb, var(--rm-text-faint) 45%, transparent);
+  --rm-guide-color: var(--rm-accent);
+  --rm-guide-width: 1px;
+  --rm-selection-fill: var(--rm-accent-tint);
+  --rm-selection-radius: var(--rm-radius-m);
+  --rm-selection-pad: 6px;
+  --rm-empty-icon: 36px;
+
+  /* node cards */
+  --rm-node-bg: var(--rm-surface);
+  --rm-node-border: var(--rm-border);
+  --rm-node-radius: var(--rm-radius-node);
+  --rm-node-pad-y: 11px;
+  --rm-node-pad-x: 13px;
+  --rm-node-tint: 9%;
+  --rm-dim-opacity: 0.15;
+  --rm-dim-grayscale: 0.6;
+
+  /* node typography */
+  --rm-node-title-size: 14px;
+  --rm-node-title-weight: 650;
+  --rm-node-text-size: 17px;
+  --rm-node-text-weight: 550;
+  --rm-node-desc-size: 12px;
+  --rm-node-secondary-size: 11.5px;
+
+  /* shared small type: section labels, compact labels, chip text */
+  --rm-label-size: 13.5px;
+  --rm-label-size-sm: 12.5px;
+  --rm-chip-size: 11px;
+  --rm-chip-size-caps: 10.5px;
+
+  /* menu type: flyout/card rows and inputs, control chips, caps field labels */
+  --rm-menu-row-size: 13px;
+  --rm-menu-chip-size: 12px;
+  --rm-menu-caps-size: 10px;
+
+  /* clusters */
+  --rm-cluster-border: var(--rm-border);
+  --rm-cluster-radius: var(--rm-radius-cluster);
+  --rm-cluster-fill: color-mix(in srgb, var(--rm-text-muted) 4%, transparent);
+  --rm-cluster-header: color-mix(in srgb, var(--rm-text-muted) 8%, transparent);
+  --rm-cluster-tint: 9%;
+  --rm-cluster-fill-tint: 5%;
+  --rm-cluster-line-tint: 18%;
+  --rm-cluster-border-tint: 55%;
+  /* Must stay equal to COLLAPSED_CLUSTER_HEIGHT in src/constants.ts, which uses the same
+     height for the collapsed footprint and the content inset of layout math. */
+  --rm-cluster-header-height: 40px;
+
+  /* edges */
+  --rm-edge-color: var(--rm-text-faint);
+  --rm-edge-width: 2px;
+  --rm-edge-width-hover: 2.8px;
+  --rm-edge-width-active: 3px;
+  --rm-edge-glow-width: calc(var(--rm-edge-width-hover) + 6px);
+  --rm-edge-glow-opacity: 0.22;
+  --rm-edge-dash: 7 6;
+  --rm-edge-dot: 2 7;
+  --rm-edge-dot-size: 2px;
+  --rm-connection-color: var(--rm-accent);
+
+  /* handles (connection ports) & resize */
+  --rm-handle-size: 9px;
+  --rm-handle-size-active: 11px;
+  --rm-handle-border: 1.5px;
+  --rm-handle-halo: 2px;
+  --rm-resize-handle: 16px;
+  --rm-resize-edge: 8px;
+
+  /* panels & controls */
+  --rm-control-size: 28px;
+  --rm-control-lg: 34px;
+  --rm-icon-size: 16px;
+  --rm-panel-bg: var(--rm-surface);
+  --rm-panel-radius: 12px;
+  --rm-panel-shadow: var(--rm-shadow-panel);
+  --rm-panel-pad: var(--rm-space-1);
+  /* Must stay equal to PREVIEW_DEFAULT_WIDTH in src/constants.ts, which resets and
+     clamps the user-dragged width. */
+  --rm-preview-width: 440px;
+  --rm-search-width: 240px;
+
+  /* preview panel */
+  --rm-preview-title-size: 14.5px;
+  --rm-preview-thumb: linear-gradient(
+    135deg,
+    var(--rm-accent),
+    color-mix(in srgb, var(--rm-accent) 55%, var(--rm-surface))
+  );
+  --rm-preview-scrollbar: color-mix(in srgb, var(--rm-text-faint) 45%, transparent);
+  --rm-preview-attachment-bg: color-mix(in srgb, var(--rm-text-muted) 5%, transparent);
+  --rm-preview-header-tint: 5%;
+  --rm-preview-header-bg: color-mix(in srgb, var(--rm-text-muted) var(--rm-preview-header-tint), transparent);
+
+  /* modals & menus */
+  --rm-radius-modal: 13px;
+  --rm-flyout-wide: 250px;
+  --rm-shadow-modal: 0 16px 44px rgba(15, 17, 24, 0.3), 0 3px 10px rgba(15, 17, 24, 0.18);
+  --rm-danger-tint: color-mix(in srgb, var(--rm-danger) 5%, transparent);
+  --rm-danger-tint-strong: color-mix(in srgb, var(--rm-danger) 12%, transparent);
+  --rm-danger-border: color-mix(in srgb, var(--rm-danger) 40%, transparent);
+
+  /* board chrome: add bar, view strip, count chip */
+  --rm-addbar-button: var(--rm-control-lg);
+  --rm-addbar-icon: 18px;
+  --rm-strip-button: 28px;
+  --rm-strip-icon: 15px;
+  --rm-strip-bg: color-mix(in srgb, var(--rm-surface) 85%, transparent);
+  --rm-strip-border: color-mix(in srgb, var(--rm-border) 60%, transparent);
+  --rm-strip-radius: 11px;
+  --rm-strip-shadow: 0 1px 3px rgba(20, 22, 30, 0.06);
+  --rm-strip-lift: 34px;
+  --rm-count-chip-bg: color-mix(in srgb, var(--rm-surface) 82%, transparent);
+  --rm-edge-label-shadow: drop-shadow(0 1px 2px rgba(20, 22, 30, 0.06));
+
+  /* mini-map */
+  --rm-minimap-width: 148px;
+  --rm-minimap-height: 96px;
+  --rm-minimap-opacity: 0.85;
+  --rm-minimap-node: color-mix(in srgb, var(--rm-text-faint) 62%, transparent);
+  --rm-minimap-mask: color-mix(in srgb, #000 30%, transparent);
+
+  /* status / priority */
+  --rm-status-draft: var(--text-muted);
+  --rm-status-in-progress: var(--color-yellow);
+  --rm-status-done: var(--color-green);
+  --rm-status-archived: var(--text-faint);
+  --rm-priority-low: var(--color-blue);
+  --rm-priority-medium: var(--color-yellow);
+  --rm-priority-high: var(--color-orange);
+  --rm-priority-critical: var(--color-red);
+  --rm-badge-tint: 13%;
+  --rm-badge-tint-priority: 15%;
+
+  /* React Flow theming bridge (inherited by the flow renderer). The selected-stroke
+     variable also covers the focus flash between mousedown and the selected class. */
+  --xy-background-pattern-color: var(--rm-dot-color);
+  --xy-connectionline-stroke: var(--rm-connection-color);
+  --xy-connectionline-stroke-width: var(--rm-edge-width);
+  --xy-edge-stroke-selected: var(--rm-accent);
+}
+
+.rm-view {
+  position: relative;
+  height: 100%;
+  background: var(--rm-surface);
+  color: var(--rm-text);
+  container-type: inline-size;
+}
+
+/* Dark-theme overrides: only values Obsidian variables cannot express — the shadow
+   ladder needs deeper blacks and the tints need higher opacity over dark surfaces. */
+.theme-dark .rm-view,
+.theme-dark .rm-modal,
+.theme-dark .rm-modal-suggest {
+  --rm-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 3px 10px rgba(0, 0, 0, 0.32);
+  --rm-shadow-card-hover: 0 5px 16px rgba(0, 0, 0, 0.52), 0 1px 3px rgba(0, 0, 0, 0.4);
+  --rm-shadow-card-drag: 0 7px 22px rgba(0, 0, 0, 0.56), 0 2px 6px rgba(0, 0, 0, 0.42);
+  --rm-shadow-panel: 0 4px 16px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(0, 0, 0, 0.4);
+  --rm-shadow-overlay: -14px 0 34px rgba(0, 0, 0, 0.45);
+  --rm-strip-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  --rm-edge-label-shadow: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
+  --rm-node-tint: 18%;
+  --rm-badge-tint: 24%;
+  --rm-badge-tint-priority: 26%;
+  --rm-cluster-tint: 16%;
+  --rm-cluster-fill-tint: 9%;
+  --rm-cluster-line-tint: 28%;
+  --rm-cluster-border-tint: 65%;
+  --rm-preview-header-tint: 9%;
+  --rm-shadow-modal: 0 16px 44px rgba(0, 0, 0, 0.6), 0 3px 10px rgba(0, 0, 0, 0.45);
+  --rm-danger-tint: color-mix(in srgb, var(--rm-danger) 9%, transparent);
+  --rm-danger-tint-strong: color-mix(in srgb, var(--rm-danger) 18%, transparent);
+  --rm-danger-border: color-mix(in srgb, var(--rm-danger) 50%, transparent);
+}

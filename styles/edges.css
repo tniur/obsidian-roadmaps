@@ -1,0 +1,137 @@
+.rm-handle.react-flow__handle {
+  width: var(--rm-handle-size);
+  height: var(--rm-handle-size);
+  min-width: 0;
+  min-height: 0;
+  background: var(--rm-surface);
+  border: var(--rm-handle-border) solid var(--rm-port-color, var(--rm-accent));
+  box-shadow: var(--rm-shadow-card);
+  opacity: 0;
+  transition:
+    opacity var(--rm-transition-fast),
+    width var(--rm-transition-fast),
+    height var(--rm-transition-fast),
+    background var(--rm-transition-fast),
+    box-shadow var(--rm-transition-fast);
+}
+
+.react-flow__node:hover .rm-handle.react-flow__handle,
+.react-flow__node.selected .rm-handle.react-flow__handle {
+  opacity: 1;
+}
+
+/* Board lock disables connecting; hide the inert anchors instead of teasing them. */
+.rm-handle.react-flow__handle:not(.connectable) {
+  display: none;
+}
+
+/* Locked boards keep edges fully inert: no hover highlight, no selection clicks. */
+.rm-canvas[data-locked="true"] .react-flow__edge {
+  pointer-events: none;
+}
+
+/* Invisible grab zone over a floating edge end (see FloatingEdge). */
+.rm-canvas .rm-edge-grip {
+  fill: transparent;
+  stroke: none;
+  pointer-events: all;
+  cursor: move;
+}
+
+/* Growth uses width/height, not `scale`: React Flow centers the port on the side with a
+   percentage translate that recomputes against the new size, so the center stays fixed.
+   A `scale` would multiply that translate instead and drift the port off the side. */
+.rm-handle.react-flow__handle:hover {
+  width: var(--rm-handle-size-active);
+  height: var(--rm-handle-size-active);
+  background: var(--rm-port-color, var(--rm-accent));
+  box-shadow:
+    0 0 0 var(--rm-handle-halo) color-mix(in srgb, var(--rm-port-color, var(--rm-accent)) 14%, transparent),
+    var(--rm-shadow-card);
+}
+
+.rm-canvas .react-flow__edge-path {
+  stroke: var(--rm-edge-color);
+  stroke-width: var(--rm-edge-width);
+  transition: stroke var(--rm-transition-fast);
+}
+
+.rm-canvas .rm-edge-arrow {
+  fill: var(--rm-edge-color);
+  stroke: none;
+  pointer-events: none;
+  transition: fill var(--rm-transition-fast);
+}
+
+/* Hover keeps the edge's own color: the line thickens and a soft same-color glow
+   underlay fades in; selection does the same in accent. */
+.rm-canvas .rm-edge-glow {
+  fill: none;
+  stroke: var(--rm-edge-color);
+  stroke-width: var(--rm-edge-glow-width);
+  stroke-linecap: round;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--rm-transition-fast);
+}
+
+.rm-canvas .react-flow__edge:hover .rm-edge-glow,
+.rm-canvas .react-flow__edge.selected .rm-edge-glow {
+  opacity: var(--rm-edge-glow-opacity);
+}
+
+.rm-canvas .react-flow__edge:hover .react-flow__edge-path {
+  stroke-width: var(--rm-edge-width-hover);
+}
+
+.rm-canvas .react-flow__edge.updating .react-flow__edge-path {
+  stroke: var(--rm-connection-color);
+}
+
+.rm-canvas .react-flow__edge.selected .rm-edge-glow {
+  stroke: var(--rm-accent);
+}
+
+.rm-canvas .react-flow__edge.selected .react-flow__edge-path {
+  stroke: var(--rm-accent);
+  stroke-width: var(--rm-edge-width-active);
+}
+
+.rm-canvas .react-flow__edge.selected .rm-edge-arrow {
+  fill: var(--rm-accent);
+}
+
+.rm-canvas .react-flow__connection-path {
+  stroke-dasharray: var(--rm-edge-dash);
+  stroke-linecap: round;
+}
+
+/* Rendered in the edge-label layer (above nodes) so a nearby node never hides it;
+ * the line itself stays in the edge layer below nodes. */
+.rm-canvas .rm-edge-label {
+  position: absolute;
+  z-index: 1001;
+  padding: 2.5px 8px;
+  background: var(--rm-panel-bg);
+  border: var(--rm-border-width) solid var(--rm-border);
+  border-radius: var(--rm-radius-chip);
+  color: var(--rm-text-muted);
+  font-size: var(--rm-chip-size);
+  font-weight: 500;
+  line-height: 1.3;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+  filter: var(--rm-edge-label-shadow);
+}
+
+/* A colored edge tints its label chip through the same inline edge-color variable. */
+.rm-canvas .rm-edge-label[data-colored="true"] {
+  background: color-mix(in srgb, var(--rm-edge-color) 9%, var(--rm-panel-bg));
+  border-color: color-mix(in srgb, var(--rm-edge-color) 40%, transparent);
+  color: var(--rm-edge-color);
+}
+
+.rm-canvas .rm-edge-label[data-dimmed="true"] {
+  opacity: var(--rm-dim-opacity);
+}

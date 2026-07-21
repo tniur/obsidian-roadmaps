@@ -1,0 +1,330 @@
+.rm-panel {
+  display: flex;
+  gap: var(--rm-space-0);
+  padding: var(--rm-panel-pad);
+  background: var(--rm-panel-bg);
+  border: var(--rm-border-width) solid var(--rm-border);
+  border-radius: var(--rm-panel-radius);
+  box-shadow: var(--rm-panel-shadow);
+}
+
+/* The view-controls strip is quieter than a regular panel: translucent, hairline border.
+   Lifted above Obsidian's status bar, which floats over the window's bottom-right corner. */
+.rm-toolbar {
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  margin-bottom: var(--rm-strip-lift);
+  background: var(--rm-strip-bg);
+  border-color: var(--rm-strip-border);
+  border-radius: var(--rm-strip-radius);
+  box-shadow: var(--rm-strip-shadow);
+  opacity: 0.9;
+}
+
+.rm-toolbar .rm-toolbar__button {
+  --icon-size: var(--rm-strip-icon);
+
+  width: var(--rm-strip-button);
+  height: var(--rm-strip-button);
+  border-radius: var(--rm-radius-control);
+  color: var(--rm-text-faint);
+}
+
+.rm-toolbar .rm-toolbar__button:hover:not(:disabled) {
+  color: var(--rm-text-muted);
+}
+
+.rm-toolbar__divider {
+  width: 18px;
+  height: var(--rm-border-width);
+  margin: 3px 0;
+  background: var(--rm-border);
+}
+
+/* The zoom readout doubles as a reset-to-100% button; the `button.` prefix outweighs
+   Obsidian's default button styling. */
+button.rm-toolbar__zoom {
+  width: var(--rm-strip-button);
+  height: auto;
+  padding: var(--rm-space-1) 0;
+  background-color: transparent;
+  border: none;
+  border-radius: var(--rm-radius-control);
+  box-shadow: none;
+  color: var(--rm-text-faint);
+  font-size: 10px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  text-align: center;
+  cursor: pointer;
+  transition:
+    background-color var(--rm-transition-fast),
+    color var(--rm-transition-fast);
+}
+
+button.rm-toolbar__zoom:hover,
+button.rm-toolbar__zoom:active {
+  color: var(--rm-text-muted);
+  background-color: var(--rm-hover);
+  box-shadow: none;
+}
+
+button.rm-toolbar__zoom:focus-visible {
+  outline: var(--rm-focus-outline);
+}
+
+/* The add bar: primary node-creation actions, docked bottom-center. */
+.rm-node-toolbar {
+  flex-direction: row;
+  padding: 5px;
+}
+
+.rm-node-toolbar .rm-toolbar__button {
+  --icon-size: var(--rm-addbar-icon);
+
+  width: var(--rm-addbar-button);
+  height: var(--rm-addbar-button);
+  border-radius: var(--rm-radius-tile);
+}
+
+.rm-canvas .react-flow__panel.rm-count-chip {
+  display: flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 10px;
+  margin: var(--rm-space-2);
+  background: var(--rm-count-chip-bg);
+  border: var(--rm-border-width) solid var(--rm-strip-border);
+  border-radius: var(--rm-radius-full);
+  box-shadow: var(--rm-strip-shadow);
+  color: var(--rm-text-faint);
+  font-size: var(--rm-label-size-sm);
+  opacity: 0.8;
+  pointer-events: none;
+}
+
+/* Narrow panes: drop the passive chrome first, then compact the add bar. */
+@container (max-width: 560px) {
+  .rm-canvas .react-flow__panel.rm-count-chip {
+    display: none;
+  }
+}
+
+@container (max-width: 460px) {
+  .rm-canvas .react-flow__panel.react-flow__minimap.rm-minimap {
+    display: none;
+  }
+
+  .rm-node-toolbar .rm-toolbar__button {
+    --icon-size: var(--rm-strip-icon);
+
+    width: var(--rm-strip-button);
+    height: var(--rm-strip-button);
+  }
+}
+
+.rm-panel.rm-search,
+.rm-panel.rm-filter {
+  border-radius: var(--rm-radius-modal);
+  box-shadow: var(--rm-shadow-modal);
+}
+
+.rm-search {
+  align-items: center;
+  gap: 9px;
+  height: 42px;
+  padding: 0 5px 0 12px;
+}
+
+.rm-search__icon {
+  --icon-size: var(--rm-icon-size);
+
+  display: inline-flex;
+  color: var(--rm-text-faint);
+}
+
+.rm-search__input {
+  width: var(--rm-search-width);
+  padding: var(--rm-space-1) 0;
+  color: var(--rm-text);
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 14px;
+}
+
+.rm-search__input::placeholder {
+  color: var(--rm-text-faint);
+}
+
+.rm-search__count {
+  padding: 0 var(--rm-space-1);
+  color: var(--rm-text-faint);
+  font-size: var(--rm-node-secondary-size);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.rm-search .rm-toolbar__button,
+.rm-filter .rm-toolbar__button {
+  border-radius: var(--rm-radius-control);
+}
+
+.rm-filter {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  padding: 14px 14px 10px;
+}
+
+.rm-filter__row {
+  display: flex;
+  align-items: center;
+  gap: var(--rm-space-2);
+}
+
+.rm-filter__label {
+  flex: 0 0 auto;
+  width: 56px;
+  color: var(--rm-text-muted);
+  font-size: var(--rm-label-size-sm);
+  font-weight: 600;
+}
+
+.rm-filter__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.rm-filter__chip {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 9px;
+  color: var(--rm-text-muted);
+  background: var(--rm-surface);
+  border: var(--rm-border-width) solid var(--rm-border);
+  border-radius: var(--rm-radius-chip);
+  font-size: var(--rm-label-size-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    color var(--rm-transition-fast),
+    background var(--rm-transition-fast),
+    border-color var(--rm-transition-fast);
+}
+
+.rm-filter__chip:hover {
+  color: var(--rm-text);
+  background: var(--rm-hover);
+}
+
+.rm-filter__chip:focus-visible {
+  outline: var(--rm-focus-outline);
+}
+
+.rm-filter__chip[data-active="true"] {
+  color: var(--rm-chip-color, var(--rm-accent));
+  background: color-mix(in srgb, var(--rm-chip-color, var(--rm-accent)) var(--rm-badge-tint), transparent);
+  border-color: color-mix(in srgb, var(--rm-chip-color, var(--rm-accent)) 45%, transparent);
+}
+
+.rm-filter__footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--rm-space-1);
+}
+
+.rm-filter__clear {
+  height: var(--rm-control-size);
+  padding: 0 10px;
+  color: var(--rm-text-muted);
+  background: transparent;
+  border: none;
+  border-radius: var(--rm-radius-control);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    color var(--rm-transition-fast),
+    background var(--rm-transition-fast);
+}
+
+.rm-filter__clear:hover:not(:disabled) {
+  color: var(--rm-text);
+  background: var(--rm-hover);
+}
+
+.rm-filter__clear:disabled {
+  color: var(--rm-text-faint);
+  cursor: default;
+}
+
+/* The `button.` prefix outweighs Obsidian's default button styling (background, shadow). */
+button.rm-toolbar__button {
+  --icon-size: var(--rm-icon-size);
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--rm-control-size);
+  height: var(--rm-control-size);
+  padding: 0;
+  background-color: transparent;
+  color: var(--rm-text-muted);
+  border: none;
+  border-radius: var(--rm-radius-s);
+  box-shadow: none;
+  cursor: pointer;
+  transition:
+    background-color var(--rm-transition-fast),
+    color var(--rm-transition-fast);
+}
+
+button.rm-toolbar__button:hover:not(:disabled),
+button.rm-toolbar__button:active:not(:disabled) {
+  background-color: var(--rm-hover);
+  color: var(--rm-text);
+  box-shadow: none;
+}
+
+.rm-toolbar__button:focus-visible {
+  outline: var(--rm-focus-outline);
+}
+
+.rm-toolbar__button:disabled {
+  color: var(--rm-text-faint);
+  cursor: default;
+}
+
+.rm-toolbar__button[aria-pressed="true"] {
+  color: var(--rm-accent);
+  background: var(--rm-accent-tint);
+}
+
+/* Muted overview docked bottom-left, out of the way of the add bar and the strip. */
+.rm-canvas .react-flow__panel.react-flow__minimap.rm-minimap {
+  width: var(--rm-minimap-width);
+  height: var(--rm-minimap-height);
+  margin: var(--rm-space-3);
+  background: var(--rm-panel-bg);
+  border: var(--rm-border-width) solid var(--rm-strip-border);
+  border-radius: var(--rm-radius-tile);
+  box-shadow: var(--rm-strip-shadow);
+  overflow: hidden;
+  opacity: var(--rm-minimap-opacity);
+}
+
+.rm-canvas .react-flow__minimap-node {
+  stroke: none;
+}
+
+.rm-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}

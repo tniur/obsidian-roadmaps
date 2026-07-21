@@ -28,8 +28,8 @@ export const MIN_CLUSTER_WIDTH = 160;
 
 export const MIN_CLUSTER_HEIGHT = 120;
 
-/** Footprint of a collapsed cluster and the header band of an expanded one; must stay
- * equal to the CSS token `--rm-cluster-header-height` in styles.css, which draws that band. */
+/** Footprint of a collapsed cluster and the header band of an expanded one; must stay equal
+ * to the CSS token `--rm-cluster-header-height` in styles/tokens.css, which draws that band. */
 export const COLLAPSED_CLUSTER_HEIGHT = 40;
 
 /** Vertical gap between cluster content and the header band above / bottom edge below;
@@ -56,7 +56,7 @@ export const BACKGROUND_DOT_GAP = 16;
 /** Passed to the React Flow dot background; renders as a dot of half this size at zoom 1. */
 export const BACKGROUND_DOT_SIZE = 1.6;
 
-/** Must stay equal to the CSS token `--rm-preview-width` in styles.css. */
+/** Must stay equal to the CSS token `--rm-preview-width` in styles/tokens.css. */
 export const PREVIEW_DEFAULT_WIDTH = 440;
 
 export const PREVIEW_MIN_WIDTH = 320;

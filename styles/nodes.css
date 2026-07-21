@@ -1,0 +1,343 @@
+/* No-box shell of a card node: only exists to cascade inline color variables down to the
+   sibling resizer and connection handles (see RoadmapNodeView). */
+.rm-node-shell {
+  display: contents;
+}
+
+.rm-node {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+  padding: var(--rm-node-pad-y) var(--rm-node-pad-x);
+  background: var(--rm-node-bg);
+  color: var(--rm-text);
+  border: var(--rm-border-width) solid var(--rm-node-border);
+  border-radius: var(--rm-node-radius);
+  box-shadow: var(--rm-shadow-card);
+  font-size: var(--font-ui-small);
+  transition:
+    border-color var(--rm-transition-fast),
+    background var(--rm-transition-fast),
+    box-shadow var(--rm-transition-fast),
+    opacity var(--rm-transition-med);
+}
+
+.rm-node[data-kind="image"] {
+  padding: 0;
+}
+
+/* Dimmed by the active status/priority filter; still interactive, just de-emphasised. */
+.rm-node[data-dimmed="true"] {
+  opacity: var(--rm-dim-opacity);
+  filter: grayscale(var(--rm-dim-grayscale));
+}
+
+/* Clusters are not filterable, so any active filter recedes them wholesale; matching
+   member nodes stay bright on top. */
+.rm-cluster[data-dimmed="true"] {
+  opacity: var(--rm-dim-opacity);
+  filter: grayscale(var(--rm-dim-grayscale));
+}
+
+/* An edge touching a filtered-out node is dimmed with it (see FloatingEdge). */
+.rm-canvas .rm-edge-dimmed {
+  opacity: var(--rm-dim-opacity);
+  transition: opacity var(--rm-transition-med);
+}
+
+.react-flow__node:hover .rm-node {
+  box-shadow: var(--rm-shadow-card-hover);
+}
+
+.react-flow__node.dragging .rm-node {
+  box-shadow: var(--rm-shadow-card-drag);
+}
+
+.rm-node[data-colored="true"] {
+  border-color: var(--rm-node-color);
+  background: color-mix(in srgb, var(--rm-node-color) var(--rm-node-tint), var(--rm-node-bg));
+}
+
+.rm-node[data-selected="true"] {
+  outline: var(--rm-ring-width) solid var(--rm-accent);
+  outline-offset: 1px;
+}
+
+.rm-node[data-missing="true"] {
+  border-style: dashed;
+  opacity: 0.6;
+}
+
+.rm-node[data-missing="true"][data-selected="true"] {
+  outline-color: var(--rm-danger);
+}
+
+.rm-node__broken {
+  --icon-size: 12px;
+
+  position: absolute;
+  top: var(--rm-space-2);
+  right: var(--rm-space-2);
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  color: var(--rm-danger);
+  background: var(--rm-surface);
+  border: var(--rm-border-width) solid color-mix(in srgb, var(--rm-danger) 50%, transparent);
+  border-radius: var(--rm-radius-full);
+  box-shadow: var(--rm-shadow-card);
+}
+
+/* The alignment matrix moves only the text block; the meta chips stay pinned below it. */
+.rm-node[data-align-h="left"] .rm-node__content {
+  align-items: flex-start;
+  text-align: left;
+}
+
+.rm-node[data-align-h="center"] .rm-node__content {
+  align-items: center;
+  text-align: center;
+}
+
+.rm-node[data-align-h="right"] .rm-node__content {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.rm-node[data-align-v="top"] .rm-node__content {
+  justify-content: flex-start;
+}
+
+.rm-node[data-align-v="middle"] .rm-node__content {
+  justify-content: center;
+}
+
+.rm-node[data-align-v="bottom"] .rm-node__content {
+  justify-content: flex-end;
+}
+
+.rm-canvas .react-flow__selection {
+  background: var(--rm-selection-fill);
+  border: none;
+  border-radius: var(--rm-selection-radius);
+}
+
+.rm-canvas .react-flow__nodesselection-rect {
+  background: transparent;
+  border: none;
+}
+
+.rm-canvas .react-flow__nodesselection-rect::after {
+  content: "";
+  position: absolute;
+  inset: calc(-1 * var(--rm-selection-pad));
+  background: var(--rm-selection-fill);
+  border-radius: var(--rm-selection-radius);
+  pointer-events: none;
+}
+
+/* Pointer affordances: a plain arrow at rest, a closed fist while dragging (rubber-band select or
+   pan), a pointing finger over interactive elements. selectionOnDrag keeps `.selection` on the pane
+   throughout, so a live rubber-band is told apart by the selection rect in the DOM, not by that class. */
+.rm-canvas .react-flow__pane,
+.rm-canvas .react-flow__pane.selection {
+  cursor: default;
+}
+
+.rm-canvas .react-flow__pane.dragging,
+.rm-canvas .react-flow__pane:has(.react-flow__selection) {
+  cursor: grabbing;
+}
+
+.rm-canvas .react-flow__node.draggable,
+.rm-canvas .react-flow__nodesselection-rect {
+  cursor: pointer;
+}
+
+.rm-canvas .react-flow__node.draggable.dragging {
+  cursor: grabbing;
+}
+
+.rm-helper-lines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: var(--rm-z-guides);
+  pointer-events: none;
+}
+
+/* Resize controls are oversized transparent hit areas with no visible affordance:
+   the cursor change and the selection outline are enough of a hint. */
+.rm-canvas .react-flow__resize-control.handle {
+  width: var(--rm-resize-handle);
+  height: var(--rm-resize-handle);
+  border: none;
+  background: transparent;
+}
+
+.rm-canvas .react-flow__resize-control.line {
+  border-color: transparent;
+}
+
+.rm-canvas .react-flow__resize-control.line.left,
+.rm-canvas .react-flow__resize-control.line.right {
+  width: var(--rm-resize-edge);
+}
+
+.rm-canvas .react-flow__resize-control.line.top,
+.rm-canvas .react-flow__resize-control.line.bottom {
+  height: var(--rm-resize-edge);
+}
+
+/* Text block of a card; fills the space above the pinned meta row. */
+.rm-node__content {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+
+.rm-node__title {
+  min-width: 0;
+  max-width: 100%;
+  font-size: var(--rm-node-title-size);
+  font-weight: var(--rm-node-title-weight);
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.rm-node__title-row {
+  display: flex;
+  align-items: center;
+  gap: var(--rm-space-2);
+  min-width: 0;
+  max-width: 100%;
+}
+
+.rm-node__title-row .rm-node__title {
+  display: block;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.rm-node__secondary {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--rm-text-faint);
+  font-size: var(--rm-node-secondary-size);
+  line-height: 1.35;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.rm-node__image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.rm-node__caption {
+  position: absolute;
+  inset: auto 0 0 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--rm-space-0);
+  padding: 9px 12px;
+  background: var(--rm-node-bg);
+  border-top: var(--rm-border-width) solid var(--rm-node-border);
+}
+
+.rm-node[data-colored="true"] .rm-node__caption {
+  background: color-mix(in srgb, var(--rm-node-color) calc(var(--rm-node-tint) + 6%), var(--rm-node-bg));
+  border-top-color: color-mix(in srgb, var(--rm-node-color) 50%, transparent);
+}
+
+.rm-node[data-align-h="center"] .rm-node__caption {
+  align-items: center;
+  text-align: center;
+}
+
+.rm-node[data-align-h="right"] .rm-node__caption {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.rm-node__caption-title {
+  max-width: 100%;
+  font-size: var(--rm-label-size-sm);
+  font-weight: 600;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.rm-node__caption-desc {
+  max-width: 100%;
+  color: var(--rm-text-muted);
+  font-size: var(--rm-node-secondary-size);
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.rm-node__image-fallback {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--rm-space-1);
+  min-height: 0;
+  padding: var(--rm-node-pad-y) var(--rm-node-pad-x);
+  text-align: center;
+}
+
+.rm-node__fallback-icon {
+  --icon-size: 26px;
+
+  display: inline-flex;
+  color: var(--rm-text-faint);
+}
+
+.rm-node__fallback-note {
+  color: var(--rm-text-faint);
+  font-size: var(--rm-chip-size);
+}
+
+.rm-node__text {
+  min-width: 0;
+  max-width: 100%;
+  font-size: var(--rm-node-text-size);
+  font-weight: var(--rm-node-text-weight);
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}

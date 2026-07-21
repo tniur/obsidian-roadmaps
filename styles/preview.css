@@ -1,0 +1,305 @@
+.rm-preview {
+  position: absolute;
+  inset: 0 0 0 auto;
+  z-index: var(--rm-z-overlay);
+  display: flex;
+  flex-direction: column;
+  width: var(--rm-preview-width);
+  max-width: 100%;
+  background: var(--rm-surface);
+  border-top: var(--rm-border-width) solid var(--rm-border);
+  border-left: var(--rm-border-width) solid var(--rm-border);
+  box-shadow: var(--rm-shadow-overlay);
+}
+
+/* Applied only while the panel is entering: hidden tabs go through display:none, which
+   would restart an always-on animation every time the board becomes visible again. */
+.rm-preview--entering {
+  animation: rm-preview-in var(--rm-transition-med);
+}
+
+@keyframes rm-preview-in {
+  from {
+    transform: translateX(var(--rm-space-4));
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rm-preview--entering {
+    animation: none;
+  }
+}
+
+/* Transparent resize strip on the panel's left edge: the cursor is the affordance,
+   matching the board's invisible resize hit zones. */
+.rm-preview__resizer {
+  position: absolute;
+  inset: 0 auto 0 0;
+  z-index: 1;
+  width: 6px;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.rm-preview__header {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 9px;
+  padding: 12px 12px 12px 14px;
+  background: var(--rm-preview-header-bg);
+  border-bottom: var(--rm-border-width) solid var(--rm-border);
+}
+
+.rm-preview__type {
+  --icon-size: 15px;
+
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
+  width: 30px;
+  min-height: 30px;
+  color: var(--rm-text-muted);
+  background: var(--rm-hover);
+  border-radius: var(--rm-radius-m);
+}
+
+.rm-preview__heading {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.rm-preview__title {
+  min-width: 0;
+  overflow: hidden;
+  font-size: var(--rm-preview-title-size);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.rm-preview__source {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--rm-text-faint);
+  font-size: var(--rm-node-secondary-size);
+  font-weight: 500;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.rm-preview .rm-toolbar__button {
+  border-radius: var(--rm-radius-control);
+}
+
+.rm-preview__desc {
+  flex: 0 0 auto;
+  padding: 10px 14px;
+  background: var(--rm-surface-alt);
+  border-bottom: var(--rm-border-width) solid var(--rm-border);
+  color: var(--rm-text-muted);
+  font-size: var(--rm-label-size-sm);
+  line-height: 1.5;
+}
+
+.rm-preview__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--rm-space-3) var(--rm-space-3) 20px;
+}
+
+.rm-preview__body::-webkit-scrollbar {
+  width: 9px;
+}
+
+.rm-preview__body::-webkit-scrollbar-thumb {
+  background-color: var(--rm-preview-scrollbar);
+  background-clip: content-box;
+  border: 2px solid transparent;
+  border-radius: var(--rm-radius-full);
+}
+
+.rm-preview__body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Markdown rhythm of the note view: the panel's own sizes over the theme's colors.
+   Checkboxes restyle through Obsidian's own checkbox variables. */
+.rm-preview__body[data-preview-kind="note"] {
+  --checkbox-size: 17px;
+  --checkbox-radius: 5px;
+
+  font-size: var(--rm-label-size);
+  line-height: 1.6;
+}
+
+.rm-preview__body[data-preview-kind="note"] :is(h1, h2, h3, h4, h5, h6) {
+  margin: var(--rm-space-3) 0 4px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.rm-preview__body[data-preview-kind="note"] :is(h1, h2, h3, h4, h5, h6):first-child {
+  margin-top: 0;
+}
+
+.rm-preview__body[data-preview-kind="note"] h1 {
+  font-size: 16px;
+}
+
+.rm-preview__body[data-preview-kind="note"] h2 {
+  font-size: var(--rm-preview-title-size);
+}
+
+.rm-preview__body[data-preview-kind="note"] :is(h3, h4, h5, h6) {
+  font-size: var(--rm-label-size);
+}
+
+.rm-preview__body[data-preview-kind="note"] p {
+  margin: 4px 0;
+}
+
+.rm-preview__body[data-preview-kind="note"] :is(ul, ol) {
+  margin: 3px 0;
+}
+
+.rm-preview__body[data-preview-kind="note"] li {
+  line-height: 1.55;
+}
+
+.rm-preview__body[data-preview-kind="note"] pre {
+  margin: 8px 0;
+  padding: 10px 12px;
+  border: var(--rm-border-width) solid var(--rm-border);
+  border-radius: var(--rm-radius-m);
+}
+
+.rm-preview__body[data-preview-kind="note"] :is(pre, code) {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.rm-preview__body[data-preview-kind="url"],
+.rm-preview__body[data-preview-kind="missing"] {
+  display: flex;
+  flex-direction: column;
+}
+
+.rm-preview__body[data-preview-kind="url"] {
+  padding: var(--rm-space-3);
+}
+
+.rm-preview__body[data-preview-kind="image"] {
+  padding: 0;
+}
+
+.rm-preview__body[data-preview-kind="attachment"] {
+  padding: var(--rm-space-3);
+  background: var(--rm-preview-attachment-bg);
+}
+
+.rm-preview__image {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.rm-preview__link-thumb {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  height: 150px;
+  border-radius: 11px;
+  background: var(--rm-preview-thumb);
+}
+
+.rm-preview__link-glyph {
+  --icon-size: 46px;
+
+  display: inline-flex;
+  color: var(--text-on-accent);
+  opacity: 0.92;
+}
+
+.rm-preview__link-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 2px 0;
+}
+
+.rm-preview__link-domain-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.rm-preview__link-favicon {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  background: var(--rm-text);
+  border-radius: 5px;
+  color: var(--rm-surface);
+  font-size: var(--rm-chip-size);
+  font-weight: 700;
+}
+
+.rm-preview__link-domain {
+  color: var(--rm-text-muted);
+  font-size: var(--rm-label-size-sm);
+  font-weight: 600;
+}
+
+.rm-preview__link-title {
+  margin-top: 2px;
+  font-size: 15.5px;
+  font-weight: 700;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.rm-view .rm-preview__link-url {
+  margin-top: 4px;
+  overflow: hidden;
+  color: var(--rm-accent);
+  font-size: 12px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.rm-preview__text {
+  font-size: 15px;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.rm-preview__missing {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--rm-space-2);
+  color: var(--rm-text-faint);
+  font-size: var(--rm-label-size);
+  text-align: center;
+}
+
+.rm-preview__missing-icon {
+  --icon-size: 26px;
+
+  display: inline-flex;
+}
