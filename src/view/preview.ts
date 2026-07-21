@@ -31,12 +31,9 @@ function renderLinkCard(node: RoadmapNode, url: string, el: HTMLElement): void {
 }
 
 /**
- * Renders a node's source into `el`, one view per content type (markdown, full-bleed image,
- * native embed for attachments, a local link card for URLs, plain text for text nodes), exposed
- * as `data-preview-kind` for styling. Markdown task checkboxes persist back to the source note;
- * those inside embeds stay inert, and a refused toggle is reverted with a Notice. Everything
- * else is read-only. Calls `onRendered` when content is in place and returns the cleanup that
- * releases the render component.
+ * Renders a node's source into `el`, one view per content type, tagged `data-preview-kind` for
+ * styling. Markdown task checkboxes persist back to the source note (those inside embeds stay
+ * inert); everything else is read-only. Returns the cleanup that releases the render component.
  */
 export function mountPreviewContent(app: App, node: RoadmapNode, el: HTMLElement, onRendered?: () => void): () => void {
   const component = new Component();

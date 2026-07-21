@@ -39,11 +39,9 @@ export function SegControl<T extends string>({
 }
 
 /**
- * Custom-color swatch hosting the native color input, so a click opens the system
- * picker directly. Every `input` tick applies live — the board previews the color as
- * the user drags — but only the first tick of a gesture records an undo snapshot
- * (`history: true`); the rest ride on top, so the whole pick stays one undo step.
- * Closing the picker (`change`) ends the gesture; reopening starts a new one.
+ * Custom-color swatch hosting the native color input, so a click opens the system picker. Every
+ * `input` tick applies live; only the first records an undo snapshot and the rest ride on top, so
+ * the whole pick stays one undo step. Closing (`change`) ends the gesture.
  */
 function CustomSwatch({
   current,
@@ -124,10 +122,9 @@ function CustomSwatch({
 }
 
 /**
- * Palette swatches with a leading "no color" slash swatch and a trailing custom-color
- * swatch that opens the system picker in place. `current` outside the palette renders
- * as the custom swatch's color. The picker's live ticks forward `history: false` after
- * the first, so a drag through colors lands as a single undo step.
+ * Palette swatches with a leading "no color" slash and a trailing custom-color swatch that opens the
+ * system picker in place; `current` outside the palette renders as the custom swatch's color. The
+ * picker's live ticks forward `history: false` after the first, so a drag lands as one undo step.
  */
 export function ColorSwatchRow({
   palette,

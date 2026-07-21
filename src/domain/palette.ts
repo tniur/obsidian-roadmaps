@@ -1,8 +1,7 @@
 /**
- * Entity colors are plain CSS color values: an Obsidian theme token (`var(--color-red)`),
- * which adapts to the active theme, or a fixed hex the user picked. The palette offered
- * in color menus is configurable in settings; entities keep the value they were assigned
- * even after it leaves the palette.
+ * Entity colors are plain CSS values: an Obsidian theme token (`var(--color-red)`) that adapts to
+ * the theme, or a fixed hex the user picked. The palette offered in color menus is configurable in
+ * settings; entities keep their assigned value even after it leaves the palette.
  */
 
 const THEME_COLOR_NAMES = ["red", "orange", "yellow", "green", "cyan", "blue", "purple", "pink"] as const;

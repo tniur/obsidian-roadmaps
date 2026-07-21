@@ -63,10 +63,9 @@ interface ParsedBody {
 }
 
 /**
- * Cluster declarations (`##` headings carrying a cluster marker) and node membership (each
- * node belongs to the cluster section it sits in), derived from the readable body. Reserved
- * headings (`## Relations`, `## Archive`) are section breaks, not clusters. Body is canonical
- * for membership; state caches it.
+ * Cluster declarations (`##` headings with a cluster marker) and node membership (each node belongs
+ * to the section it sits in), derived from the readable body. Reserved headings (`## Relations`,
+ * `## Archive`) are section breaks, not clusters; body is canonical for membership, state caches it.
  */
 function parseBody(content: string): ParsedBody {
   const clusters = new Map<string, ClusterInfo>();
@@ -122,10 +121,9 @@ function sourcesEqual(a: RoadmapNodeSource, b: RoadmapNodeSource): boolean {
 }
 
 /**
- * Applies a hand-edited body block back onto the state node (body is
- * canonical for readable content). Layout, alignment and color stay state-only. Inline
- * text nodes keep their original source (the block carries only the text) and their
- * state-only meta.
+ * Applies a hand-edited body block back onto the state node (body is canonical for readable
+ * content). Layout, alignment and color stay state-only; inline text nodes keep their original
+ * source (the block carries only the text) and their state-only meta.
  */
 function mergeParsedBlock(node: RoadmapNode, parsed: ParsedNodeBlock): RoadmapNode {
   const next: RoadmapNode = { ...node };
@@ -202,11 +200,9 @@ function fitNewClusters(
 }
 
 /**
- * Aligns the state with the readable body: membership, the cluster set and readable
- * content follow the body; layout and styles stay state-canonical. Marker attrs are
- * adopted only for clusters new to the state (hand-written headings). Edges lose their
- * entry when their marker line was removed or an endpoint is gone. Returns the original
- * state when nothing changed.
+ * Aligns state with the readable body: membership, the cluster set and readable content follow the
+ * body; layout and styles stay state-canonical. Edges lose their entry when their marker line was
+ * removed or an endpoint is gone. Returns the original state when nothing changed.
  */
 export function reconcileState(state: RoadmapState, content: string, resolveTarget?: LinkTargetResolver): RoadmapState {
   const { clusters: bodyClusters, membership } = parseBody(content);
@@ -452,10 +448,9 @@ function nodeFromMarker(
 }
 
 /**
- * Adopts body node markers unknown to the state as new nodes: a block pasted from
- * another roadmap or written by hand. Content is parsed from the block, membership from
- * the surrounding section; layout falls back to a grid slot, or a spot inside the
- * owning cluster.
+ * Adopts body node markers unknown to the state as new nodes — a block pasted from another roadmap
+ * or written by hand. Content is parsed from the block, membership from the surrounding section;
+ * layout falls back to a grid slot, or a spot inside the owning cluster.
  */
 export function adoptNodeMarkers(
   state: RoadmapState,
@@ -544,11 +539,9 @@ export function rebuildState(content: string, resolveTarget?: LinkTargetResolver
 const BARE_WIKILINK_LINE_RE = /^(?:-\s+(?:\[[ xX]\]\s+)?)?\[\[([^\][|#^]+)(?:\|([^\]]*))?\]\]\s*$/;
 
 /**
- * Turns standalone wikilink lines hand-written in the body into marked node blocks, so
- * a `[[note]]` dropped into a section becomes a node on load. Only lines that consist
- * of a single link (optionally as a list item) qualify. The `## Relations` / `## Archive`
- * sections and the representation line right after an existing node marker are left
- * alone; the node kind follows the target's extension.
+ * Turns standalone wikilink lines hand-written in the body into marked node blocks, so a `[[note]]`
+ * dropped into a section becomes a node on load. Only single-link lines (optionally a list item)
+ * qualify; reserved sections and representation lines are left alone, and kind follows the extension.
  */
 export function adoptBareWikilinks(content: string): string {
   const bounds = bodyBounds(content);
@@ -704,11 +697,9 @@ export interface LoadedDocument {
 }
 
 /**
- * Full open pipeline: reconciles (or rebuilds, when the state block is missing) the state
- * against the readable body, adopting hand-written headings, wikilinks and relation lines and
- * restoring node blocks missing from a truncated file. Content differing from `data` must be
- * persisted by the caller. Throws on a corrupted or newer-version state block (see
- * `readState`), leaving the file untouched.
+ * Full open pipeline: reconciles (or rebuilds, when the state block is missing) the state against
+ * the readable body, adopting hand-written headings, wikilinks and relation lines. Throws on a
+ * corrupted or newer-version state block, leaving the file untouched; the caller persists changes.
  */
 export function loadDocument(data: string, resolveTarget?: LinkTargetResolver): LoadedDocument {
   const warnings: DocumentWarning[] = [];
@@ -761,10 +752,9 @@ export function loadDocument(data: string, resolveTarget?: LinkTargetResolver): 
 }
 
 /**
- * Recovery entry for a file whose state block failed to parse: the broken block is
- * discarded and the roadmap is rebuilt from the readable body. Invoked explicitly by
- * the user from the load-error screen — layout is not recoverable, so this is never
- * done silently.
+ * Recovery entry for a file whose state block failed to parse: the broken block is discarded and
+ * the roadmap is rebuilt from the readable body. Invoked explicitly from the load-error screen —
+ * layout is not recoverable, so this is never done silently.
  */
 export function rebuildDocument(data: string, resolveTarget?: LinkTargetResolver): LoadedDocument {
   const marked = adoptBareWikilinks(ensureUniqueClusterTitles(ensureClusterMarkers(data)));

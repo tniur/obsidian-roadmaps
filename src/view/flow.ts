@@ -285,10 +285,9 @@ function flowDataEqual(a: RoadmapFlowNode, b: RoadmapFlowNode): boolean {
 }
 
 /**
- * Merges freshly derived flow nodes into the current list, preserving object identity
- * for nodes that did not change. React Flow re-renders per element by reference, so on
- * a large board an unrelated mutation leaves untouched cards alone instead of
- * re-rendering all of them.
+ * Merges freshly derived flow nodes into the current list, preserving object identity for nodes
+ * that did not change. React Flow re-renders per element by reference, so on a large board an
+ * unrelated mutation leaves untouched cards alone instead of re-rendering all of them.
  */
 export function reconcileFlowNodes(current: RoadmapFlowNode[], next: RoadmapFlowNode[]): RoadmapFlowNode[] {
   const currentById = new Map(current.map((node) => [node.id, node]));

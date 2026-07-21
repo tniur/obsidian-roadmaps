@@ -1,8 +1,7 @@
 /**
- * CSS classes React Flow stamps on its own DOM. They are internal to @xyflow/react, not a
- * public API, so any code selecting on them is coupled to the library version — revisit
- * this file when bumping @xyflow/react. The floating-edge grip, the pane double-click zoom
- * and the PDF snapshot all depend on these staying put.
+ * CSS classes React Flow stamps on its own DOM — internal to @xyflow/react, not a public API, so
+ * selecting on them couples code to the library version; revisit when bumping @xyflow/react. The
+ * floating-edge grip, the pane double-click zoom and the PDF snapshot all depend on these.
  */
 export const RF_PANE_CLASS = "react-flow__pane";
 

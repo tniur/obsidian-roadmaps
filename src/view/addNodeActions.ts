@@ -20,11 +20,9 @@ export interface AddNodeAction {
 }
 
 /**
- * Single source for the ways to put a node on the board. Palette commands, the canvas
- * context menu and the node toolbar all render from this list, so a new node type is
- * wired in one place. `folder` targets note creation next to the roadmap file; actions
- * picking an existing source ignore it. `sink` overrides what happens to the built node
- * (default: standalone insert).
+ * Single source for the ways to put a node on the board; palette commands, the canvas context menu
+ * and the node toolbar all render from this list, so a new node type is wired in one place.
+ * `folder` targets note creation; `sink` overrides what happens to the built node.
  */
 export const ADD_NODE_ACTIONS: readonly AddNodeAction[] = [
   {

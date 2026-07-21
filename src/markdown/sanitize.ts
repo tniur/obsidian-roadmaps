@@ -1,8 +1,7 @@
 /**
- * User-entered text is written into the roadmap file next to structural syntax (hidden
- * comment markers, the `%% roadmap:state %%` fence, wikilinks, headings). These helpers
- * keep such text from being parsed as structure. State stays canonical for meta fields,
- * so lossy replacements here only affect the readable mirror.
+ * User-entered text is written next to structural syntax (comment markers, the `%% roadmap:state %%`
+ * fence, wikilinks, headings); these helpers keep it from being parsed as structure. State stays
+ * canonical for meta fields, so the lossy replacements here only affect the readable mirror.
  */
 
 const STRUCTURAL_SEQUENCES = /<!--|-->|%%/g;
@@ -21,9 +20,8 @@ export function sanitizeAlias(value: string): string {
 }
 
 /**
- * Inline text node content is canonical in the body, so it must survive a write/read
- * round-trip. A leading `#` would turn the line into a heading (a cluster/section
- * boundary), so it is escaped with the standard Markdown backslash; marker and fence
+ * Inline text node content is canonical in the body, so it must survive a write/read round-trip. A
+ * leading `#` would turn the line into a heading, so it is backslash-escaped; marker and fence
  * sequences have no such escape and are stripped.
  */
 export function escapeTextContent(value: string): string {

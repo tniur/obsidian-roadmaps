@@ -1,8 +1,7 @@
 /**
- * Optional `key=value` attributes carried by hidden markers. They mirror presentation
- * fields whose canonical home is the state block (color, alignment, edge style), so a
- * rebuild from the readable body can restore them. Values must be single tokens — the
- * marker grammar splits on whitespace — and unknown or malformed entries are ignored.
+ * Optional `key=value` attributes carried by hidden markers, mirroring presentation fields whose
+ * canonical home is the state block (color, alignment, edge style) so a rebuild from the body can
+ * restore them. Values must be single tokens; unknown or malformed entries are ignored.
  */
 
 export type MarkerAttrs = Record<string, string>;

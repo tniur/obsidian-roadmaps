@@ -195,11 +195,8 @@ export interface CanvasBoardActions {
 
 /**
  * Props of the canvas. Callbacks are grouped by concern into stable objects (`nodeActions`,
- * `edgeActions`, etc.) so the surface stays narrow. The `*Nonce` fields are bump-to-trigger
- * signals: `openSearchNonce` and `openFilterNonce` open the find and filter bars; `focusNonce`
- * re-selects exactly `focusIds` (paste, duplicate). Focus applies a tick later — right after an
- * alt-drag drop the committed duplicates have not reached the store yet, and the gesture's
- * trailing events hand selection back to the source.
+ * `edgeActions`, …) so the surface stays narrow. The `*Nonce` fields are bump-to-trigger
+ * signals: open the find/filter bars, or re-select `focusIds` after paste and duplicate.
  */
 interface RoadmapCanvasProps {
   state: RoadmapState;
@@ -474,10 +471,9 @@ export function RoadmapCanvas({
     [onConnectNodes],
   );
 
-  /** Applies the new endpoints optimistically to avoid a one-frame flash of the old
-   * edge. A reconnect the session rejects (self-loop, duplicate, own-container link)
-   * commits no state and nothing would undo the optimistic change, so a deferred
-   * re-sync restores the edges from the latest state. */
+  /** Applies the new endpoints optimistically to avoid a one-frame flash of the old edge. A reconnect
+   * the session rejects commits no state, so nothing would undo the optimistic change; a deferred
+   * re-sync then restores the edges from the latest state. */
   const onReconnect = useCallback(
     (oldEdge: RoadmapFlowEdge, connection: Connection) => {
       if (connection.source === connection.target) {
@@ -599,11 +595,9 @@ export function RoadmapCanvas({
   }, []);
 
   /**
-   * Commits the alt-drag copies at their final positions and pins the originals back to
-   * their pre-drag spots; the temp copies stay until the committed state swaps them for
-   * the real duplicates. The freeze interceptor stays armed one more tick — selection
-   * drags can emit a trailing position change after the stop handler. Returns false
-   * when no alt-drag is active.
+   * Commits the alt-drag copies at their final positions and pins the originals back to their
+   * pre-drag spots; the temp copies stay until the committed state swaps them for the real
+   * duplicates. Returns false when no alt-drag is active.
    */
   const finalizeAltDuplicate = useCallback((): boolean => {
     const alt = altDragRef.current;

@@ -60,10 +60,9 @@ interface Snapshot {
 }
 
 /**
- * Side-effects of a mutation beyond the hidden state block. `body` transforms the
- * readable Markdown (node blocks, cluster headings); `relations` rewrites the
- * `## Relations` section; `history: false` skips the undo snapshot for changes that are
- * not edits (camera moves, external vault renames).
+ * Side-effects of a mutation beyond the hidden state block. `body` transforms the readable
+ * Markdown; `relations` rewrites the `## Relations` section; `history: false` skips the undo
+ * snapshot for non-edits (camera moves, external vault renames).
  */
 interface CommitOptions {
   body?: (content: string) => string;
@@ -74,12 +73,9 @@ interface CommitOptions {
 const HISTORY_LIMIT = 200;
 
 /**
- * In-memory roadmap state plus its serialized file content. Mutations produce new
- * immutable state snapshots and keep the content in sync so the view can persist the
- * latest text. Layout-only changes touch just the hidden state block; structural
- * changes also update the readable Markdown body (node markers and `## Relations`).
- * Every mutation funnels through `commit`, which owns that persist policy, and records
- * the prior snapshot so `undo`/`redo` can step through the edit history.
+ * In-memory roadmap state plus its serialized file content; mutations produce new immutable
+ * snapshots and keep the content in sync. Every mutation funnels through `commit`, which owns
+ * the persist policy and records the prior snapshot for `undo`/`redo`.
  */
 export class RoadmapSession {
   private stateValue: RoadmapState;
@@ -973,10 +969,9 @@ export class RoadmapSession {
   }
 
   /**
-   * Re-points one or both ends of an edge, keeping direction, label and style; a null handle
-   * floats that end. No-ops on a self-loop, a forbidden intra-cluster link, or an exact
-   * duplicate; landing on the mirror of another edge merges into it (that edge becomes
-   * bidirectional, this one drops), as drawing a reverse edge does.
+   * Re-points one or both ends of an edge, keeping direction, label and style; a null handle floats
+   * that end. No-ops on a self-loop, a forbidden intra-cluster link, or an exact duplicate; landing
+   * on the mirror of another edge merges into it (that edge becomes bidirectional, this one drops).
    */
   reconnectEdge(id: string, connection: RoadmapConnection): void {
     const edge = this.stateValue.edges[id];
@@ -1099,10 +1094,9 @@ function withAlignPatch(node: RoadmapNode, patch: { h?: TextAlignH; v?: TextAlig
 }
 
 /**
- * Drops edges that became a node↔own-container self-loop after membership changed
- * (a node dragged into a cluster it was linked to). Edges between nodes of one cluster
- * survive. Returns the original map when nothing changed, so callers can detect whether
- * Relations need a rewrite.
+ * Drops edges that became a node↔own-container self-loop after membership changed (a node dragged
+ * into a cluster it was linked to); edges between nodes of one cluster survive. Returns the original
+ * map when nothing changed, so callers can detect whether Relations need a rewrite.
  */
 function withoutInternalEdges(
   edges: Record<string, RoadmapEdge>,

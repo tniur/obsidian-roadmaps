@@ -275,10 +275,9 @@ export class StateVersionError extends Error {
 }
 
 /**
- * Pure migration steps keyed by the version they upgrade from; each returns the shape
- * of the next version. Empty while the schema is at its first released version — the
- * seam exists so post-release format bumps ship with a migration instead of
- * invalidating older files.
+ * Pure migration steps keyed by the version they upgrade from; each returns the next version's
+ * shape. Empty while the schema is at its first released version — the seam exists so post-release
+ * format bumps ship with a migration instead of invalidating older files.
  */
 const MIGRATIONS: Record<number, (raw: Record<string, unknown>) => Record<string, unknown>> = {};
 

@@ -63,13 +63,9 @@ export interface RoadmapViewHost {
 }
 
 /**
- * Copy buffer held by the plugin and shared by every board, so nodes copied on one
- * roadmap paste into another. Loose nodes and cluster frames carry absolute coordinates;
- * members of a copied cluster keep their cluster-relative layout and `clusterId`.
- * `boardId` tells a same-board paste (fans out next to the originals) from a cross-board
- * one (recentered on the target viewport). `token` is mirrored to the OS clipboard on copy
- * so paste can tell recency: a node copy overwrites the OS clipboard, so it wins over an
- * older image, and a newer image (or text) wins over an older node copy.
+ * Copy buffer shared by every board, so nodes copied on one roadmap paste into another.
+ * `boardId` separates a same-board paste from a cross-board one; `token` mirrors to the OS
+ * clipboard on copy so paste can resolve recency against a newer image or text.
  */
 export interface BoardClipboard {
   boardId: string;
@@ -314,10 +310,9 @@ export class RoadmapView extends TextFileView {
   }
 
   /**
-   * Session-dependent modules (menus, dialogs, add flows) get this narrow surface. The
-   * context pins the current session: an async dialog may resolve after the file
-   * reloaded into a fresh one, so a stale commit no-ops with a Notice instead of
-   * dropping the dialog's change silently.
+   * Session-dependent modules (menus, dialogs, add flows) get this narrow surface. It pins the
+   * current session: an async dialog may resolve after the file reloaded into a fresh one, so a
+   * stale commit no-ops with a Notice instead of dropping the change silently.
    */
   private boardContext(): BoardContext | null {
     const session = this.session;
@@ -455,11 +450,9 @@ export class RoadmapView extends TextFileView {
   };
 
   /**
-   * Paste onto the board. Reads the OS clipboard directly (the ⌘V default is prevented, so
-   * no second paste event fires): a clipboard image is written into the roadmap's own folder
-   * and dropped as a node at the viewport center; an in-app board copy (tagged with the copy
-   * token) pastes its nodes; a plain link drops as a URL node and any other text as a text
-   * node. The most recently copied thing wins.
+   * Paste onto the board, reading the OS clipboard directly (the ⌘V default is prevented). An image
+   * is saved into the roadmap's folder and dropped as a node; an in-app board copy pastes its nodes;
+   * a plain link drops as a URL node and any other text as a text node. Most recent copy wins.
    */
   private async handleClipboardPaste(): Promise<void> {
     if (this.session === null || this.locked) {
@@ -731,10 +724,9 @@ export class RoadmapView extends TextFileView {
   }
 
   /**
-   * Fills the shared clipboard from the selection. A selected cluster stands in for its
-   * members (the canvas drops them from the selection), so the whole group is copied
-   * with cluster-relative member layouts; loose nodes are stored with absolute
-   * coordinates.
+   * Fills the shared clipboard from the selection. A selected cluster stands in for its members, so
+   * the whole group is copied with cluster-relative member layouts; loose nodes are stored with
+   * absolute coordinates.
    */
   private copySelection(): void {
     if (this.session === null) {

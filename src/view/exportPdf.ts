@@ -3,10 +3,9 @@ import { PDFDocument } from "pdf-lib";
 import { nodeSize } from "./flow";
 
 /**
- * Board snapshot export: the flow viewport element is re-rendered at a fixed
- * transform that frames every visible node, rasterized to PNG and wrapped into a
- * single-page PDF sized to the image. Bitmap dimensions are capped because canvas
- * rasterization fails silently past engine limits on very large boards.
+ * Board snapshot export: the flow viewport is re-rendered at a fixed transform framing every visible
+ * node, rasterized to PNG and wrapped into a single-page PDF sized to the image. Bitmap dimensions
+ * are capped because canvas rasterization fails silently past engine limits on very large boards.
  */
 
 export const EXPORT_PADDING = 48;

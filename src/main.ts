@@ -463,11 +463,9 @@ export default class RoadmapPlugin extends Plugin {
   }
 
   /**
-   * Roadmap boards are plain Markdown files, and Obsidian routes every `.md` file to the core
-   * Markdown view with no public API to reroute by frontmatter. Patching
-   * `WorkspaceLeaf.prototype.setViewState` — the approach established by community plugins built
-   * on the same file-as-board pattern — redirects roadmap files to the roadmap view, while
-   * respecting leaves the user explicitly switched to Markdown. Reverted on unload.
+   * Obsidian routes every `.md` file to the core Markdown view with no public API to reroute by
+   * frontmatter, so `WorkspaceLeaf.prototype.setViewState` is patched to redirect roadmap files to
+   * the roadmap view — respecting leaves switched to Markdown, and reverted on unload.
    */
   private patchLeafViewState(): void {
     const { fileModes } = this;

@@ -14,10 +14,9 @@ import type {
 } from "./types";
 
 /**
- * Bridge to the JSON Canvas format (jsoncanvas.org), the native Obsidian Canvas file.
- * The mapping is intentionally lossy: it round-trips node kinds, layout, edges, groups and
- * a best-effort color, but roadmap-only meta (status, priority, description, text alignment,
- * edge line style) has no place in the standard and is dropped on export.
+ * Bridge to the JSON Canvas format (jsoncanvas.org), the native Obsidian Canvas file. The mapping
+ * is intentionally lossy: it round-trips node kinds, layout, edges, groups and a best-effort color,
+ * but roadmap-only meta (status, priority, description, alignment, line style) is dropped on export.
  */
 
 const canvasSide = z.enum(["top", "right", "bottom", "left"]);

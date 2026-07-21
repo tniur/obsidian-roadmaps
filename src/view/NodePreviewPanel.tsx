@@ -24,11 +24,9 @@ interface NodePreviewPanelProps {
 }
 
 /**
- * Right-docked panel that renders a node's source content inside the canvas. A refresh
- * re-mounts the content but carries the scroll offset across, so the reading position survives
- * source-file changes (e.g. a toggled task checkbox). The edit action is optional — board-owned
- * content loses it under lock. The panel resizes by dragging its left edge (double-click
- * resets); the width persists only when the gesture ends.
+ * Right-docked panel that renders a node's source content inside the canvas; a refresh re-mounts
+ * the content but carries the scroll offset across. The edit action is optional (board-owned
+ * content loses it under lock); dragging the left edge resizes, double-click resets.
  */
 export function NodePreviewPanel({
   node,

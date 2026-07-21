@@ -24,10 +24,9 @@ const ADD_ACTION_LABELS: Record<AddNodeActionId, string> = {
 };
 
 /**
- * Vertical card menu pinned to a board coordinate by its anchor wrapper, so it travels
- * with the canvas on pan and zoom. Opens down-right from the anchor and flips up/left
- * when that would overflow the board; the open direction is decided once on mount, so it
- * never jitters while panning. Closes on Escape or any press outside.
+ * Vertical card menu pinned to a board coordinate by its anchor wrapper, so it travels with the
+ * canvas on pan and zoom. Opens down-right, flipping up/left when that would overflow — decided once
+ * on mount so it never jitters. Closes on Escape or any press outside.
  */
 export function CardMenu({
   title,
