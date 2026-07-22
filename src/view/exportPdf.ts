@@ -4,8 +4,8 @@ import { nodeSize } from "./flow";
 
 /**
  * Board snapshot export: the flow viewport is re-rendered at a fixed transform framing every visible
- * node, rasterized to PNG and wrapped into a single-page PDF sized to the image. Bitmap dimensions
- * are capped because canvas rasterization fails silently past engine limits on very large boards.
+ * node and rasterized to PNG, returned as a bitmap or wrapped into a single-page PDF sized to the
+ * image. Bitmap dimensions are capped because canvas rasterization fails silently past engine limits.
  */
 
 export const EXPORT_PADDING = 48;
@@ -95,12 +95,30 @@ export async function wrapPngInPdf(png: string | Uint8Array, width: number, heig
   return doc.save();
 }
 
-/** Renders the flow viewport into a one-page PDF; null when nothing is visible. */
-export async function exportBoardPdf(
+/** Decodes a base64 `data:` URL into its raw bytes. */
+export function dataUrlToBytes(dataUrl: string): Uint8Array {
+  const base64 = dataUrl.slice(dataUrl.indexOf(",") + 1);
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+
+  for (let i = 0; i < binary.length; i += 1) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+
+  return bytes;
+}
+
+interface RenderedPng {
+  png: string;
+  width: number;
+  height: number;
+}
+
+async function renderBoardPng(
   viewport: HTMLElement,
   nodes: ExportNodeFrame[],
   backgroundColor: string,
-): Promise<Uint8Array | null> {
+): Promise<RenderedPng | null> {
   const bounds = visibleBounds(nodes);
 
   if (bounds === null) {
@@ -116,5 +134,35 @@ export async function exportBoardPdf(
     style: { width: `${width}px`, height: `${height}px`, transform },
   });
 
-  return wrapPngInPdf(png, width, height);
+  return { png, width, height };
+}
+
+/** Renders the flow viewport into a one-page PDF; null when nothing is visible. */
+export async function exportBoardPdf(
+  viewport: HTMLElement,
+  nodes: ExportNodeFrame[],
+  backgroundColor: string,
+): Promise<Uint8Array | null> {
+  const rendered = await renderBoardPng(viewport, nodes, backgroundColor);
+
+  if (rendered === null) {
+    return null;
+  }
+
+  return wrapPngInPdf(rendered.png, rendered.width, rendered.height);
+}
+
+/** Renders the flow viewport into a PNG bitmap; null when nothing is visible. */
+export async function exportBoardPng(
+  viewport: HTMLElement,
+  nodes: ExportNodeFrame[],
+  backgroundColor: string,
+): Promise<Uint8Array | null> {
+  const rendered = await renderBoardPng(viewport, nodes, backgroundColor);
+
+  if (rendered === null) {
+    return null;
+  }
+
+  return dataUrlToBytes(rendered.png);
 }

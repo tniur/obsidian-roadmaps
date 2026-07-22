@@ -179,6 +179,7 @@ export interface CanvasBoardActions {
   onToggleLock: () => void;
   onAutoLayout: () => void;
   onExportPdf: () => void;
+  onExportPng: () => void;
   onExportCanvas: () => void;
   onOpenSettings: () => void;
   onDotsVisibleChange: (value: boolean) => void;
@@ -266,6 +267,7 @@ export function RoadmapCanvas({
     onToggleLock,
     onAutoLayout,
     onExportPdf,
+    onExportPng,
     onExportCanvas,
     onOpenSettings,
     onDotsVisibleChange,
@@ -1163,6 +1165,7 @@ export function RoadmapCanvas({
               onRedo={onRedo}
               onAutoLayout={onAutoLayout}
               onExportPdf={onExportPdf}
+              onExportPng={onExportPng}
               onExportCanvas={onExportCanvas}
               onOpenSettings={onOpenSettings}
             />

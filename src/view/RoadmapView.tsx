@@ -29,7 +29,7 @@ import { runAddNodeAction, type AddNodeActionId } from "./addNodeActions";
 import type { BoardContext } from "./boardContext";
 import { ChoiceModal } from "./ChoiceModal";
 import { promptEditText, promptGroupIntoCluster, promptNodeUrl } from "./dialogs";
-import { exportBoardPdf } from "./exportPdf";
+import { exportBoardPdf, exportBoardPng } from "./exportPdf";
 import type { CanvasMenuActions } from "./menus/menuActions";
 import { NodePreviewPanel } from "./NodePreviewPanel";
 import { mountPreviewContent } from "./preview";
@@ -142,6 +142,7 @@ export class RoadmapView extends TextFileView {
       onToggleLock: this.toggleLock,
       onAutoLayout: this.autoLayout,
       onExportPdf: this.handleExportPdf,
+      onExportPng: this.handleExportPng,
       onExportCanvas: this.handleExportCanvas,
       onOpenSettings: host.openPluginSettings,
       onDotsVisibleChange: host.setShowBackgroundDots,
@@ -619,6 +620,15 @@ export class RoadmapView extends TextFileView {
 
   /** Snapshots visible nodes and edges into a PDF written next to the roadmap file. */
   async exportPdf(): Promise<void> {
+    await this.exportBoardImage(exportBoardPdf, "pdf", "PDF");
+  }
+
+  /** Snapshots visible nodes and edges into a PNG written next to the roadmap file. */
+  async exportPng(): Promise<void> {
+    await this.exportBoardImage(exportBoardPng, "png", "PNG");
+  }
+
+  private async exportBoardImage(render: typeof exportBoardPdf, extension: string, label: string): Promise<void> {
     const file = this.file;
     const viewport = this.contentEl.querySelector<HTMLElement>(`.${RF_VIEWPORT_CLASS}`);
     const boardEl = this.contentEl.querySelector<HTMLElement>(".rm-view");
@@ -629,20 +639,23 @@ export class RoadmapView extends TextFileView {
 
     try {
       const background = getComputedStyle(boardEl ?? this.contentEl).backgroundColor;
-      const pdf = await exportBoardPdf(viewport, this.flow.getNodes(), background);
+      const bytes = await render(viewport, this.flow.getNodes(), background);
 
-      if (pdf === null) {
+      if (bytes === null) {
         new Notice("Nothing to export: the board is empty.");
 
         return;
       }
 
-      const path = availableVaultPath(this.app.vault, file.parent?.path, file.basename, "pdf");
+      const path = availableVaultPath(this.app.vault, file.parent?.path, file.basename, extension);
 
-      await this.app.vault.createBinary(path, pdf.buffer.slice(pdf.byteOffset, pdf.byteOffset + pdf.byteLength));
-      new Notice(`Exported PDF: ${path}`);
+      await this.app.vault.createBinary(
+        path,
+        bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
+      );
+      new Notice(`Exported ${label}: ${path}`);
     } catch (error) {
-      new Notice(`Failed to export PDF: ${error instanceof Error ? error.message : String(error)}`);
+      new Notice(`Failed to export ${label}: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -703,6 +716,10 @@ export class RoadmapView extends TextFileView {
 
   private readonly handleExportPdf = (): void => {
     void this.exportPdf();
+  };
+
+  private readonly handleExportPng = (): void => {
+    void this.exportPng();
   };
 
   private readonly handleExportCanvas = (): void => {

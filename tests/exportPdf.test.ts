@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { PDFDocument } from "pdf-lib";
-import { EXPORT_MAX_SIDE, EXPORT_PADDING, exportLayout, visibleBounds, wrapPngInPdf } from "../src/view/exportPdf";
+import {
+  dataUrlToBytes,
+  EXPORT_MAX_SIDE,
+  EXPORT_PADDING,
+  exportLayout,
+  visibleBounds,
+  wrapPngInPdf,
+} from "../src/view/exportPdf";
 
 const PNG_1PX =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
@@ -54,6 +61,14 @@ describe("exportLayout", () => {
     expect(layout.width).toBe(EXPORT_MAX_SIDE);
     expect(layout.height).toBe(Math.round((1000 + EXPORT_PADDING * 2) * scale));
     expect(layout.transform).toContain(`scale(${scale})`);
+  });
+});
+
+describe("dataUrlToBytes", () => {
+  it("decodes a base64 data URL to bytes with the PNG signature", () => {
+    const bytes = dataUrlToBytes(PNG_1PX);
+
+    expect(Array.from(bytes.slice(0, 8))).toEqual([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
   });
 });
 

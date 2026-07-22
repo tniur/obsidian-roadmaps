@@ -12,6 +12,7 @@ export interface BoardMenuOptions {
   locked: boolean;
   onAutoLayout: () => void;
   onExportPdf: () => void;
+  onExportPng: () => void;
   onExportCanvas: () => void;
   onOpenSettings: () => void;
 }
@@ -50,6 +51,7 @@ export function showBoardMenu(options: BoardMenuOptions, event: MouseEvent): voi
   );
   menu.addSeparator();
   menu.addItem((item) => item.setTitle("Export as PDF").setIcon("file-down").onClick(options.onExportPdf));
+  menu.addItem((item) => item.setTitle("Export as PNG").setIcon("image-down").onClick(options.onExportPng));
   menu.addItem((item) => item.setTitle("Export as JSON Canvas").setIcon("file-json").onClick(options.onExportCanvas));
   menu.addSeparator();
   menu.addItem((item) => item.setTitle("Roadmap settings…").setIcon("settings").onClick(options.onOpenSettings));

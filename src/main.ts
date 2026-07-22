@@ -262,6 +262,15 @@ export default class RoadmapPlugin extends Plugin {
       },
     );
     this.addBoardCommand(
+      "export-png",
+      "Export as PNG",
+      "image-down",
+      (view) => view.isBoardLoaded(),
+      (view) => {
+        void view.exportPng();
+      },
+    );
+    this.addBoardCommand(
       "export-canvas",
       "Export as JSON Canvas",
       "file-json",

@@ -27,6 +27,7 @@ interface RoadmapToolbarProps {
   onRedo: () => void;
   onAutoLayout: () => void;
   onExportPdf: () => void;
+  onExportPng: () => void;
   onExportCanvas: () => void;
   onOpenSettings: () => void;
 }
@@ -74,6 +75,7 @@ export function RoadmapToolbar({
   onRedo,
   onAutoLayout,
   onExportPdf,
+  onExportPng,
   onExportCanvas,
   onOpenSettings,
 }: RoadmapToolbarProps) {
@@ -97,6 +99,7 @@ export function RoadmapToolbar({
             locked,
             onAutoLayout,
             onExportPdf,
+            onExportPng,
             onExportCanvas,
             onOpenSettings,
           },
