@@ -4,7 +4,7 @@ import { DEFAULT_TEXT_ALIGN } from "../domain/types";
 import { colorStyleVars } from "./colorStyle";
 import type { RoadmapCardNode } from "./flow";
 import { Icon } from "./Icon";
-import { useNodeCallbacks } from "./nodeCallbacks";
+import { canEditNode, useNodeCallbacks } from "./nodeCallbacks";
 import { useNodeDimmed } from "./nodeFilterContext";
 import { NodeHandles } from "./NodeHandles";
 import { getNodeRenderer } from "./nodeRegistry";
@@ -44,7 +44,7 @@ export function RoadmapNodeView({ id, data, selected, isConnectable }: NodeProps
       <NodeResizer
         minWidth={MIN_NODE_WIDTH}
         minHeight={MIN_NODE_HEIGHT}
-        isVisible={selected === true && callbacks?.locked !== true}
+        isVisible={selected === true && canEditNode(callbacks)}
         onResizeEnd={(_event, params) => {
           callbacks?.onResizeEnd(id, params.width, params.height, params.x, params.y);
         }}

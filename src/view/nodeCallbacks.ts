@@ -12,3 +12,8 @@ export const NodeCallbacksContext = createContext<NodeCallbacks | null>(null);
 export function useNodeCallbacks(): NodeCallbacks | null {
   return useContext(NodeCallbacksContext);
 }
+
+/** Node and cluster views hide their edit controls while the board is locked. */
+export function canEditNode(callbacks: NodeCallbacks | null): boolean {
+  return callbacks?.locked !== true;
+}

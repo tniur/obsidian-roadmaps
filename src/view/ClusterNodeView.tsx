@@ -4,7 +4,7 @@ import { MIN_CLUSTER_HEIGHT, MIN_CLUSTER_WIDTH } from "../constants";
 import { colorStyleVars } from "./colorStyle";
 import type { RoadmapClusterNode } from "./flow";
 import { Icon } from "./Icon";
-import { useNodeCallbacks } from "./nodeCallbacks";
+import { canEditNode, useNodeCallbacks } from "./nodeCallbacks";
 import { useFilterActive } from "./nodeFilterContext";
 import { NodeHandles } from "./NodeHandles";
 
@@ -22,7 +22,7 @@ export function ClusterNodeView({ id, data, selected, isConnectable }: NodeProps
   const dimmed = useFilterActive();
   const collapsed = cluster.collapsed;
   const colorStyle = colorStyleVars("--rm-cluster-color", cluster.color);
-  const showResize = selected === true && callbacks?.locked !== true && !collapsed;
+  const showResize = selected === true && canEditNode(callbacks) && !collapsed;
   const onResizeEnd = (_event: unknown, params: ResizeParams): void => {
     callbacks?.onResizeEnd(id, params.width, params.height, params.x, params.y);
   };
@@ -50,7 +50,7 @@ export function ClusterNodeView({ id, data, selected, isConnectable }: NodeProps
           </span>
           <span className="rm-cluster__title">{cluster.title}</span>
           <div className="rm-cluster__actions">
-            {!collapsed && callbacks?.locked !== true ? (
+            {!collapsed && canEditNode(callbacks) ? (
               <button
                 type="button"
                 className="rm-cluster__action nodrag"

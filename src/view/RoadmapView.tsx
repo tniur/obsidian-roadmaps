@@ -345,8 +345,15 @@ export class RoadmapView extends TextFileView {
     };
   }
 
+  /** Single lock gate for board edits: yields the live session only while the board is
+   * unlocked. View-originated mutations funnel through here; canvas gestures are gated by
+   * React Flow props instead. */
+  private editableSession(): RoadmapSession | null {
+    return this.locked ? null : this.session;
+  }
+
   private editableContext(): BoardContext | null {
-    return this.locked ? null : this.boardContext();
+    return this.editableSession() === null ? null : this.boardContext();
   }
 
   private noteFolder(): string | undefined {
@@ -467,7 +474,7 @@ export class RoadmapView extends TextFileView {
    * a plain link drops as a URL node and any other text as a text node. Most recent copy wins.
    */
   private async handleClipboardPaste(): Promise<void> {
-    if (this.session === null || this.locked) {
+    if (this.editableSession() === null) {
       return;
     }
 
@@ -567,23 +574,23 @@ export class RoadmapView extends TextFileView {
 
   /** Undo counts as an edit, so the board lock blocks it together with mutations. */
   readonly undoEdit = (): void => {
-    if (!this.locked && this.session?.undo() === true) {
+    if (this.editableSession()?.undo() === true) {
       this.commit();
     }
   };
 
   readonly redoEdit = (): void => {
-    if (!this.locked && this.session?.redo() === true) {
+    if (this.editableSession()?.redo() === true) {
       this.commit();
     }
   };
 
   canUndoEdit(): boolean {
-    return !this.locked && this.session?.canUndo === true;
+    return this.editableSession()?.canUndo === true;
   }
 
   canRedoEdit(): boolean {
-    return !this.locked && this.session?.canRedo === true;
+    return this.editableSession()?.canRedo === true;
   }
 
   isBoardLoaded(): boolean {
@@ -591,7 +598,7 @@ export class RoadmapView extends TextFileView {
   }
 
   isBoardEditable(): boolean {
-    return this.session !== null && !this.locked;
+    return this.editableSession() !== null;
   }
 
   fitToNodes(): void {
@@ -610,11 +617,13 @@ export class RoadmapView extends TextFileView {
 
   /** Tidies the whole board with a left-to-right layered layout, then frames the result. */
   readonly autoLayout = (): void => {
-    if (this.session === null || this.locked) {
+    const session = this.editableSession();
+
+    if (session === null) {
       return;
     }
 
-    this.session.autoLayout();
+    session.autoLayout();
     this.commit();
     void this.flow?.fitView({ padding: FIT_VIEW_PADDING });
   };
@@ -810,13 +819,9 @@ export class RoadmapView extends TextFileView {
    * frame; loose nodes carry absolute coordinates and take the paste shift themselves. */
   private pasteClipboard(): void {
     const clipboard = this.host.getClipboard();
+    const session = this.editableSession();
 
-    if (
-      this.session === null ||
-      this.locked ||
-      clipboard === null ||
-      (clipboard.nodes.length === 0 && clipboard.clusters.length === 0)
-    ) {
+    if (session === null || clipboard === null || (clipboard.nodes.length === 0 && clipboard.clusters.length === 0)) {
       return;
     }
 
@@ -848,7 +853,7 @@ export class RoadmapView extends TextFileView {
       return clone;
     });
 
-    this.session.addNodes(clones, copiedEdges(clipboard.edges, cloneIds), clusterClones);
+    session.addNodes(clones, copiedEdges(clipboard.edges, cloneIds), clusterClones);
     this.focusNodes([...clones.map((node) => node.id), ...clusterClones.map((cluster) => cluster.id)]);
     this.commit();
   }
@@ -1067,7 +1072,7 @@ export class RoadmapView extends TextFileView {
     const type = node.source.type;
 
     if (type === "text" || type === "url") {
-      if (this.locked) {
+      if (this.editableSession() === null) {
         return undefined;
       }
 
@@ -1262,7 +1267,9 @@ export class RoadmapView extends TextFileView {
   };
 
   private readonly handleDropFiles = (placement: NodePlacement, dataTransfer: DataTransfer | null): void => {
-    if (this.session === null || this.locked) {
+    const session = this.editableSession();
+
+    if (session === null) {
       return;
     }
 
@@ -1275,7 +1282,7 @@ export class RoadmapView extends TextFileView {
     files.forEach((file, index) => {
       const offset = index * CASCADE_OFFSET;
 
-      this.session?.addNode(nodeForFile(file, { x: placement.x + offset, y: placement.y + offset }));
+      session.addNode(nodeForFile(file, { x: placement.x + offset, y: placement.y + offset }));
     });
     this.commit();
   };

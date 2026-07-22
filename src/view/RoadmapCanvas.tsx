@@ -290,6 +290,7 @@ export function RoadmapCanvas({
     onDropFiles,
     onDeleteElements,
   } = boardActions;
+  const interactive = !locked;
   const reactFlow = useReactFlow<RoadmapFlowNode, RoadmapFlowEdge>();
   const { screenToFlowPosition, getNodes, getViewport, setViewport, setCenter } = reactFlow;
   const storeApi = useStoreApi<RoadmapFlowNode, RoadmapFlowEdge>();
@@ -784,18 +785,18 @@ export function RoadmapCanvas({
     (event: ReactMouseEvent, edge: RoadmapFlowEdge) => {
       event.preventDefault();
 
-      if (!locked) {
+      if (interactive) {
         selectOnly(edge.id, "edge");
       }
     },
-    [locked, selectOnly],
+    [interactive, selectOnly],
   );
 
   const onNodeContextMenuInternal = useCallback(
     (event: ReactMouseEvent, node: RoadmapFlowNode) => {
       event.preventDefault();
 
-      if (locked) {
+      if (!interactive) {
         return;
       }
 
@@ -815,14 +816,14 @@ export function RoadmapCanvas({
 
       selectOnly(node.id, "node");
     },
-    [locked, selectOnly, getNodes, screenToFlowPosition],
+    [interactive, selectOnly, getNodes, screenToFlowPosition],
   );
 
   const onSelectionContextMenuInternal = useCallback(
     (event: ReactMouseEvent, selected: RoadmapFlowNode[]) => {
       event.preventDefault();
 
-      if (!locked) {
+      if (interactive) {
         setCardMenu({
           kind: "selection",
           ids: selected.map((node) => node.id),
@@ -830,7 +831,7 @@ export function RoadmapCanvas({
         });
       }
     },
-    [locked, screenToFlowPosition],
+    [interactive, screenToFlowPosition],
   );
 
   const onPaneContextMenuInternal = useCallback(
@@ -838,11 +839,11 @@ export function RoadmapCanvas({
       event.preventDefault();
       const native = "nativeEvent" in event ? event.nativeEvent : event;
 
-      if (!locked) {
+      if (interactive) {
         setCardMenu({ kind: "pane", flow: screenToFlowPosition({ x: native.clientX, y: native.clientY }) });
       }
     },
-    [locked, screenToFlowPosition],
+    [interactive, screenToFlowPosition],
   );
 
   /** React Flow also enumerates edges connected to the deleted nodes — including edges
@@ -1061,7 +1062,7 @@ export function RoadmapCanvas({
   const selectedEdges = edges.filter((edge) => edge.selected === true);
   const soleNode = selectedNodes.length === 1 && selectedEdges.length === 0 ? selectedNodes[0] : null;
   const soleEdge = selectedEdges.length === 1 && selectedNodes.length === 0 ? selectedEdges[0] : null;
-  const bubblesVisible = !locked && !dragging && cardMenu === null;
+  const bubblesVisible = interactive && !dragging && cardMenu === null;
 
   return (
     <NodeCallbacksContext.Provider value={nodeCallbacks}>
@@ -1080,16 +1081,16 @@ export function RoadmapCanvas({
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             connectionMode={ConnectionMode.Loose}
-            nodesDraggable={!locked}
-            nodesConnectable={!locked}
+            nodesDraggable={interactive}
+            nodesConnectable={interactive}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
             onReconnect={onReconnect}
             onReconnectStart={onReconnectStart}
             onReconnectEnd={onReconnectEnd}
-            edgesReconnectable={!locked}
-            edgesFocusable={!locked}
+            edgesReconnectable={interactive}
+            edgesFocusable={interactive}
             onConnectEnd={onConnectEnd}
             onNodeDragStart={onNodeDragStart}
             onNodeDragStop={onNodeDragStop}
@@ -1103,7 +1104,7 @@ export function RoadmapCanvas({
             onPaneContextMenu={onPaneContextMenuInternal}
             onDelete={onDeleteInternal}
             onMoveEnd={onMoveEnd}
-            deleteKeyCode={locked ? null : ["Backspace", "Delete"]}
+            deleteKeyCode={interactive ? ["Backspace", "Delete"] : null}
             multiSelectionKeyCode="Shift"
             selectionKeyCode={null}
             selectionOnDrag
@@ -1162,7 +1163,7 @@ export function RoadmapCanvas({
                 <EdgeBubble edge={soleEdge} palette={palette} actions={menuActions} />
               </EdgeBubbleAnchor>
             ) : null}
-            {addBarVisible && !locked ? <NodeToolbar onAction={onAddAction} /> : null}
+            {addBarVisible && interactive ? <NodeToolbar onAction={onAddAction} /> : null}
             {searchOpen ? (
               <NodeSearchPanel state={state} onActivate={focusMatch} onClose={() => setSearchOpen(false)} />
             ) : null}
@@ -1208,7 +1209,7 @@ export function RoadmapCanvas({
               onOpenSettings={onOpenSettings}
             />
           </ReactFlow>
-          {cardMenu !== null && !locked ? (
+          {cardMenu !== null && interactive ? (
             <FlowAnchor point={cardMenu.flow}>
               <CardMenu
                 title={
@@ -1249,7 +1250,7 @@ export function RoadmapCanvas({
               </CardMenu>
             </FlowAnchor>
           ) : null}
-          {nodes.length === 0 && !locked ? (
+          {nodes.length === 0 && interactive ? (
             <div className="rm-empty">
               <span className="rm-empty__icon">
                 <Icon name="map" />
