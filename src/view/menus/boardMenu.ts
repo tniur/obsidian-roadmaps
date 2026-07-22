@@ -5,8 +5,12 @@ export interface BoardMenuOptions {
   onToggleMiniMap: () => void;
   addBarVisible: boolean;
   onToggleAddBar: () => void;
-  nodeCountVisible: boolean;
-  onToggleNodeCount: () => void;
+  progressVisible: boolean;
+  onToggleProgress: () => void;
+  progressInCorner: boolean;
+  onToggleProgressCorner: () => void;
+  progressCompact: boolean;
+  onToggleProgressCompact: () => void;
   compact: boolean;
   onToggleCompact: () => void;
   locked: boolean;
@@ -33,10 +37,26 @@ export function showBoardMenu(options: BoardMenuOptions, event: MouseEvent): voi
   );
   menu.addItem((item) =>
     item
-      .setTitle("Show node count")
-      .setIcon("hash")
-      .setChecked(options.nodeCountVisible)
-      .onClick(options.onToggleNodeCount),
+      .setTitle("Show progress")
+      .setIcon("bar-chart-2")
+      .setChecked(options.progressVisible)
+      .onClick(options.onToggleProgress),
+  );
+  menu.addItem((item) =>
+    item
+      .setTitle("Progress in corner")
+      .setIcon("corner-up-right")
+      .setChecked(options.progressInCorner)
+      .setDisabled(!options.progressVisible)
+      .onClick(options.onToggleProgressCorner),
+  );
+  menu.addItem((item) =>
+    item
+      .setTitle("Compact progress")
+      .setIcon("align-justify")
+      .setChecked(options.progressCompact)
+      .setDisabled(!options.progressVisible)
+      .onClick(options.onToggleProgressCompact),
   );
   menu.addItem((item) =>
     item

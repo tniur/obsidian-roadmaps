@@ -12,8 +12,12 @@ interface RoadmapToolbarProps {
   onToggleMiniMap: () => void;
   addBarVisible: boolean;
   onToggleAddBar: () => void;
-  nodeCountVisible: boolean;
-  onToggleNodeCount: () => void;
+  progressVisible: boolean;
+  onToggleProgress: () => void;
+  progressInCorner: boolean;
+  onToggleProgressCorner: () => void;
+  progressCompact: boolean;
+  onToggleProgressCompact: () => void;
   searchOpen: boolean;
   onToggleSearch: () => void;
   filterOpen: boolean;
@@ -60,8 +64,12 @@ export function RoadmapToolbar({
   onToggleMiniMap,
   addBarVisible,
   onToggleAddBar,
-  nodeCountVisible,
-  onToggleNodeCount,
+  progressVisible,
+  onToggleProgress,
+  progressInCorner,
+  onToggleProgressCorner,
+  progressCompact,
+  onToggleProgressCompact,
   searchOpen,
   onToggleSearch,
   filterOpen,
@@ -92,8 +100,12 @@ export function RoadmapToolbar({
             onToggleMiniMap,
             addBarVisible,
             onToggleAddBar,
-            nodeCountVisible,
-            onToggleNodeCount,
+            progressVisible,
+            onToggleProgress,
+            progressInCorner,
+            onToggleProgressCorner,
+            progressCompact,
+            onToggleProgressCompact,
             compact,
             onToggleCompact,
             locked,

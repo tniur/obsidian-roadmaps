@@ -6,7 +6,6 @@ import {
   ConnectionMode,
   MiniMap,
   NodeToolbar as FlowNodeToolbar,
-  Panel,
   Position,
   ReactFlow,
   SelectionMode,
@@ -34,6 +33,7 @@ import { nanoid } from "nanoid";
 import { BACKGROUND_DOT_GAP, BACKGROUND_DOT_SIZE, FIT_VIEW_PADDING, MAX_ZOOM, MIN_ZOOM } from "../constants";
 import { asSide, type NodePlacement } from "../domain/create";
 import { filterIsActive, nodeMatchesFilter, type NodeFilter } from "../domain/filter";
+import { boardProgress } from "../domain/progress";
 import type { RoadmapState, RoadmapViewport } from "../domain/types";
 import type { AddNodeActionId } from "./addNodeActions";
 import { ClusterNodeView } from "./ClusterNodeView";
@@ -72,6 +72,7 @@ import { Icon } from "./Icon";
 import { NodeFilterPanel } from "./NodeFilterPanel";
 import { NodeSearchPanel } from "./NodeSearchPanel";
 import { NodeToolbar } from "./NodeToolbar";
+import { ProgressIsland } from "./ProgressIsland";
 import { RF_EDGE_CLASS, RF_NODE_CLASS, RF_PANE_CLASS, RF_PANEL_CLASS } from "./reactFlowInternals";
 import { RoadmapNodeView } from "./RoadmapNodeView";
 import { RoadmapToolbar } from "./RoadmapToolbar";
@@ -185,7 +186,9 @@ export interface CanvasBoardActions {
   onDotsVisibleChange: (value: boolean) => void;
   onMiniMapVisibleChange: (value: boolean) => void;
   onAddBarVisibleChange: (value: boolean) => void;
-  onNodeCountVisibleChange: (value: boolean) => void;
+  onProgressVisibleChange: (value: boolean) => void;
+  onProgressCornerChange: (value: boolean) => void;
+  onProgressCompactChange: (value: boolean) => void;
   onCompactControlsChange: (value: boolean) => void;
   onViewportChange: (viewport: RoadmapViewport) => void;
   onFlowInit: (instance: RoadmapFlowInstance | null) => void;
@@ -207,7 +210,9 @@ interface RoadmapCanvasProps {
   initialDotsVisible: boolean;
   initialMiniMapVisible: boolean;
   initialAddBarVisible: boolean;
-  initialNodeCountVisible: boolean;
+  initialProgressVisible: boolean;
+  initialProgressInCorner: boolean;
+  initialProgressCompact: boolean;
   initialCompactControls: boolean;
   openSearchNonce: number;
   openFilterNonce: number;
@@ -233,7 +238,9 @@ export function RoadmapCanvas({
   initialDotsVisible,
   initialMiniMapVisible,
   initialAddBarVisible,
-  initialNodeCountVisible,
+  initialProgressVisible,
+  initialProgressInCorner,
+  initialProgressCompact,
   initialCompactControls,
   openSearchNonce,
   openFilterNonce,
@@ -273,7 +280,9 @@ export function RoadmapCanvas({
     onDotsVisibleChange,
     onMiniMapVisibleChange,
     onAddBarVisibleChange,
-    onNodeCountVisibleChange,
+    onProgressVisibleChange,
+    onProgressCornerChange,
+    onProgressCompactChange,
     onCompactControlsChange,
     onViewportChange,
     onFlowInit,
@@ -290,7 +299,10 @@ export function RoadmapCanvas({
   const [dotsVisible, setDotsVisible] = useState(initialDotsVisible);
   const [miniMapVisible, setMiniMapVisible] = useState(initialMiniMapVisible);
   const [addBarVisible, setAddBarVisible] = useState(initialAddBarVisible);
-  const [nodeCountVisible, setNodeCountVisible] = useState(initialNodeCountVisible);
+  const [progressVisible, setProgressVisible] = useState(initialProgressVisible);
+  const [progressInCorner, setProgressInCorner] = useState(initialProgressInCorner);
+  const [progressCompact, setProgressCompact] = useState(initialProgressCompact);
+  const [progressExpanded, setProgressExpanded] = useState(false);
   const [compactControls, setCompactControls] = useState(initialCompactControls);
   const [searchOpen, setSearchOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
@@ -301,7 +313,7 @@ export function RoadmapCanvas({
     stateToFlowNodes(state, isNodeMissing, resolveImageSrc, resolveFileInfo),
   );
   const [edges, setEdges] = useState<RoadmapFlowEdge[]>(() => stateToFlowEdges(state));
-  const nodeCount = Object.keys(state.nodes).length;
+  const progress = boardProgress(state);
   const [dragging, setDragging] = useState(false);
   const [cardMenu, setCardMenu] = useState<
     | ({ flow: NodePlacement } & (
@@ -916,12 +928,30 @@ export function RoadmapCanvas({
     onAddBarVisibleChange(next);
   }, [addBarVisible, onAddBarVisibleChange]);
 
-  const toggleNodeCount = useCallback(() => {
-    const next = !nodeCountVisible;
+  const toggleProgress = useCallback(() => {
+    const next = !progressVisible;
 
-    setNodeCountVisible(next);
-    onNodeCountVisibleChange(next);
-  }, [nodeCountVisible, onNodeCountVisibleChange]);
+    setProgressVisible(next);
+    onProgressVisibleChange(next);
+  }, [progressVisible, onProgressVisibleChange]);
+
+  const toggleProgressExpanded = useCallback(() => {
+    setProgressExpanded((value) => !value);
+  }, []);
+
+  const toggleProgressCorner = useCallback(() => {
+    const next = !progressInCorner;
+
+    setProgressInCorner(next);
+    onProgressCornerChange(next);
+  }, [progressInCorner, onProgressCornerChange]);
+
+  const toggleProgressCompact = useCallback(() => {
+    const next = !progressCompact;
+
+    setProgressCompact(next);
+    onProgressCompactChange(next);
+  }, [progressCompact, onProgressCompactChange]);
 
   const toggleCompactControls = useCallback(() => {
     const next = !compactControls;
@@ -1103,10 +1133,14 @@ export function RoadmapCanvas({
                 maskColor="var(--rm-minimap-mask)"
               />
             ) : null}
-            {nodeCountVisible ? (
-              <Panel position="top-right" className="rm-count-chip">
-                <span className="rm-chip-text">{nodeCount === 1 ? "1 node" : `${nodeCount} nodes`}</span>
-              </Panel>
+            {progressVisible && !(!progressInCorner && (searchOpen || filterOpen)) ? (
+              <ProgressIsland
+                progress={progress}
+                inCorner={progressInCorner}
+                compact={progressCompact}
+                expanded={progressExpanded}
+                onToggleExpanded={toggleProgressExpanded}
+              />
             ) : null}
             <HelperLines horizontal={helperLines.horizontal} vertical={helperLines.vertical} />
             {bubblesVisible && soleNode !== null ? (
@@ -1150,8 +1184,12 @@ export function RoadmapCanvas({
               onToggleMiniMap={toggleMiniMap}
               addBarVisible={addBarVisible}
               onToggleAddBar={toggleAddBar}
-              nodeCountVisible={nodeCountVisible}
-              onToggleNodeCount={toggleNodeCount}
+              progressVisible={progressVisible}
+              onToggleProgress={toggleProgress}
+              progressInCorner={progressInCorner}
+              onToggleProgressCorner={toggleProgressCorner}
+              progressCompact={progressCompact}
+              onToggleProgressCompact={toggleProgressCompact}
               searchOpen={searchOpen}
               onToggleSearch={toggleSearch}
               filterOpen={filterOpen}

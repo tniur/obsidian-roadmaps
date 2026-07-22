@@ -170,7 +170,6 @@
   --rm-strip-radius: 11px;
   --rm-strip-shadow: 0 1px 3px rgba(20, 22, 30, 0.06);
   --rm-strip-lift: 34px;
-  --rm-count-chip-bg: color-mix(in srgb, var(--rm-surface) 82%, transparent);
   --rm-edge-label-shadow: drop-shadow(0 1px 2px rgba(20, 22, 30, 0.06));
 
   /* mini-map */
@@ -185,6 +184,7 @@
   --rm-status-in-progress: var(--color-yellow);
   --rm-status-done: var(--color-green);
   --rm-status-archived: var(--text-faint);
+  --rm-status-none: var(--background-modifier-border);
   --rm-priority-low: var(--color-blue);
   --rm-priority-medium: var(--color-yellow);
   --rm-priority-high: var(--color-orange);

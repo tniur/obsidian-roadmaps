@@ -50,8 +50,12 @@ export interface RoadmapViewHost {
   setShowMiniMap: (value: boolean) => void;
   getShowAddBar: () => boolean;
   setShowAddBar: (value: boolean) => void;
-  getShowNodeCount: () => boolean;
-  setShowNodeCount: (value: boolean) => void;
+  getShowProgress: () => boolean;
+  setShowProgress: (value: boolean) => void;
+  getProgressInCorner: () => boolean;
+  setProgressInCorner: (value: boolean) => void;
+  getProgressCompact: () => boolean;
+  setProgressCompact: (value: boolean) => void;
   getCompactControls: () => boolean;
   setCompactControls: (value: boolean) => void;
   getPalette: () => readonly string[];
@@ -148,7 +152,9 @@ export class RoadmapView extends TextFileView {
       onDotsVisibleChange: host.setShowBackgroundDots,
       onMiniMapVisibleChange: host.setShowMiniMap,
       onAddBarVisibleChange: host.setShowAddBar,
-      onNodeCountVisibleChange: host.setShowNodeCount,
+      onProgressVisibleChange: host.setShowProgress,
+      onProgressCornerChange: host.setProgressInCorner,
+      onProgressCompactChange: host.setProgressCompact,
       onCompactControlsChange: host.setCompactControls,
       onViewportChange: this.handleViewportChange,
       onFlowInit: this.handleFlowInit,
@@ -1337,7 +1343,9 @@ export class RoadmapView extends TextFileView {
               initialDotsVisible={this.host.getShowBackgroundDots()}
               initialMiniMapVisible={this.host.getShowMiniMap()}
               initialAddBarVisible={this.host.getShowAddBar()}
-              initialNodeCountVisible={this.host.getShowNodeCount()}
+              initialProgressVisible={this.host.getShowProgress()}
+              initialProgressInCorner={this.host.getProgressInCorner()}
+              initialProgressCompact={this.host.getProgressCompact()}
               initialCompactControls={this.host.getCompactControls()}
               openSearchNonce={this.searchOpenNonce}
               openFilterNonce={this.filterOpenNonce}

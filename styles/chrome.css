@@ -89,25 +89,111 @@ button.rm-toolbar__zoom:focus-visible {
   border-radius: var(--rm-radius-tile);
 }
 
-.rm-canvas .react-flow__panel.rm-count-chip {
+/* Passive completion island; sits above the board and never intercepts pointer events. */
+.rm-canvas .react-flow__panel.rm-progress {
+  flex-direction: column;
+  gap: var(--rm-space-2);
+  width: 240px;
+  margin: var(--rm-space-2);
+  padding: 10px 12px;
+  pointer-events: none;
+}
+
+.rm-canvas .react-flow__panel.rm-progress--compact {
+  padding: 7px 10px;
+}
+
+.rm-progress__head {
   display: flex;
   align-items: center;
-  height: 24px;
-  padding: 0 10px;
-  margin: var(--rm-space-2);
-  background: var(--rm-count-chip-bg);
-  border: var(--rm-border-width) solid var(--rm-strip-border);
-  border-radius: var(--rm-radius-full);
-  box-shadow: var(--rm-strip-shadow);
+  gap: var(--rm-space-2);
+}
+
+.rm-progress__percent {
+  color: var(--rm-status-done);
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.rm-progress__fraction {
+  margin-right: auto;
   color: var(--rm-text-faint);
   font-size: var(--rm-label-size-sm);
-  opacity: 0.8;
-  pointer-events: none;
+}
+
+/* Scoped to beat Obsidian's default button reset on padding, height and background. */
+.rm-view .rm-progress__toggle {
+  --icon-size: 15px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: var(--rm-radius-control);
+  background: transparent;
+  box-shadow: none;
+  color: var(--rm-text-faint);
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.rm-view .rm-progress__toggle:hover {
+  background: var(--rm-hover);
+  color: var(--rm-text-muted);
+}
+
+.rm-progress__bar {
+  display: flex;
+  gap: 2px;
+  height: 6px;
+  overflow: hidden;
+  border-radius: var(--rm-radius-full);
+}
+
+.rm-progress__segment {
+  flex-grow: var(--rm-progress-grow);
+  flex-basis: 0;
+  min-width: 3px;
+  background: var(--rm-progress-color);
+  border-radius: var(--rm-radius-full);
+}
+
+.rm-progress__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+}
+
+.rm-progress__stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--rm-chip-size);
+}
+
+.rm-progress__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--rm-radius-full);
+  background: var(--rm-progress-color);
+}
+
+.rm-progress__count {
+  color: var(--rm-text-muted);
+  font-weight: 600;
+}
+
+.rm-progress__name {
+  color: var(--rm-text-faint);
 }
 
 /* Narrow panes: drop the passive chrome first, then compact the add bar. */
 @container (max-width: 560px) {
-  .rm-canvas .react-flow__panel.rm-count-chip {
+  .rm-canvas .react-flow__panel.rm-progress {
     display: none;
   }
 }

@@ -55,7 +55,9 @@ interface RoadmapSettings {
   showBackgroundDots: boolean;
   showMiniMap: boolean;
   showAddBar: boolean;
-  showNodeCount: boolean;
+  showProgress: boolean;
+  progressInCorner: boolean;
+  progressCompact: boolean;
   compactControls: boolean;
   newRoadmapFolder: string;
   palette: string[];
@@ -66,7 +68,9 @@ const DEFAULT_SETTINGS: RoadmapSettings = {
   showBackgroundDots: true,
   showMiniMap: true,
   showAddBar: true,
-  showNodeCount: true,
+  showProgress: true,
+  progressInCorner: false,
+  progressCompact: false,
   compactControls: false,
   newRoadmapFolder: "",
   palette: [...DEFAULT_PALETTE],
@@ -336,12 +340,30 @@ export default class RoadmapPlugin extends Plugin {
     void this.saveSettings();
   }
 
-  getShowNodeCount(): boolean {
-    return this.displaySettings.showNodeCount;
+  getShowProgress(): boolean {
+    return this.displaySettings.showProgress;
   }
 
-  setShowNodeCount(value: boolean): void {
-    this.displaySettings.showNodeCount = value;
+  setShowProgress(value: boolean): void {
+    this.displaySettings.showProgress = value;
+    void this.saveSettings();
+  }
+
+  getProgressInCorner(): boolean {
+    return this.displaySettings.progressInCorner;
+  }
+
+  setProgressInCorner(value: boolean): void {
+    this.displaySettings.progressInCorner = value;
+    void this.saveSettings();
+  }
+
+  getProgressCompact(): boolean {
+    return this.displaySettings.progressCompact;
+  }
+
+  setProgressCompact(value: boolean): void {
+    this.displaySettings.progressCompact = value;
     void this.saveSettings();
   }
 
@@ -396,9 +418,17 @@ export default class RoadmapPlugin extends Plugin {
       setShowAddBar: (value) => {
         this.setShowAddBar(value);
       },
-      getShowNodeCount: () => this.getShowNodeCount(),
-      setShowNodeCount: (value) => {
-        this.setShowNodeCount(value);
+      getShowProgress: () => this.getShowProgress(),
+      setShowProgress: (value) => {
+        this.setShowProgress(value);
+      },
+      getProgressInCorner: () => this.getProgressInCorner(),
+      setProgressInCorner: (value) => {
+        this.setProgressInCorner(value);
+      },
+      getProgressCompact: () => this.getProgressCompact(),
+      setProgressCompact: (value) => {
+        this.setProgressCompact(value);
       },
       getCompactControls: () => this.getCompactControls(),
       setCompactControls: (value) => {
@@ -651,11 +681,29 @@ class RoadmapSettingTab extends PluginSettingTab {
       );
 
     new Setting(this.containerEl)
-      .setName("Show node count")
-      .setDesc("Show the node-count chip in the board corner. Newly opened boards pick up the change.")
+      .setName("Show progress")
+      .setDesc("Show the completion island at the top of the board. Newly opened boards pick up the change.")
       .addToggle((toggle) =>
-        toggle.setValue(this.plugin.getShowNodeCount()).onChange((value) => {
-          this.plugin.setShowNodeCount(value);
+        toggle.setValue(this.plugin.getShowProgress()).onChange((value) => {
+          this.plugin.setShowProgress(value);
+        }),
+      );
+
+    new Setting(this.containerEl)
+      .setName("Progress in corner")
+      .setDesc("Pin the progress island to the top-right corner instead of the top centre.")
+      .addToggle((toggle) =>
+        toggle.setValue(this.plugin.getProgressInCorner()).onChange((value) => {
+          this.plugin.setProgressInCorner(value);
+        }),
+      );
+
+    new Setting(this.containerEl)
+      .setName("Compact progress")
+      .setDesc("Show only the progress bar, without the percentage and counts.")
+      .addToggle((toggle) =>
+        toggle.setValue(this.plugin.getProgressCompact()).onChange((value) => {
+          this.plugin.setProgressCompact(value);
         }),
       );
 
