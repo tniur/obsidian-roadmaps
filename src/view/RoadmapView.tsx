@@ -110,6 +110,7 @@ export class RoadmapView extends TextFileView {
   private viewportSaveTimer: number | null = null;
   private diskData: string | null = null;
   private flow: RoadmapFlowInstance | null = null;
+  private readonly imageSrcCache = new Map<string, { mtime: number; src: string }>();
   private readonly nodeActions: CanvasNodeActions;
   private readonly edgeActions: CanvasEdgeActions;
   private readonly clusterActions: CanvasClusterActions;
@@ -176,9 +177,22 @@ export class RoadmapView extends TextFileView {
     return this.data;
   }
 
+  /** Resolves a link target (Obsidian may write it in shortest form) to its vault file
+   * through the metadata cache, so file-backed nodes keep resolving after the file moves. */
+  private readonly resolveLinkFile = (target: string): TFile | null =>
+    this.app.metadataCache.getFirstLinkpathDest(target, this.file?.path ?? "");
+
+  /** Resolves a node's stored file path: an exact match first (unambiguous, and stable across
+   * unrelated vault changes), falling back to link resolution only when the path is stale so a
+   * moved file is still found by name. Link resolution alone is fuzzy among similar file names. */
+  private readonly resolveNodeFile = (path: string): TFile | null => {
+    const exact = this.app.vault.getAbstractFileByPath(path);
+
+    return exact instanceof TFile ? exact : this.resolveLinkFile(path);
+  };
+
   /** Canonicalizes wikilink targets (Obsidian may write them in shortest form). */
-  private readonly resolveLinkTarget = (target: string): string | null =>
-    this.app.metadataCache.getFirstLinkpathDest(target, this.file?.path ?? "")?.path ?? null;
+  private readonly resolveLinkTarget = (target: string): string | null => this.resolveLinkFile(target)?.path ?? null;
 
   /**
    * Runs the document open pipeline (`loadDocument`) into a session. A corrupted or
@@ -896,17 +910,34 @@ export class RoadmapView extends TextFileView {
   private readonly isNodeMissing = (node: RoadmapNode): boolean => {
     const path = sourceFile(node.source);
 
-    return path !== null && this.app.vault.getAbstractFileByPath(path) === null;
+    return path !== null && this.resolveNodeFile(path) === null;
   };
 
+  /** Resource path for an image node, cached per file and modification time. `getResourcePath`
+   * appends a volatile cache-busting suffix, so recomputing it on every board rebuild would give
+   * untouched image cards a new src and reload them; a stable string keeps them from re-rendering. */
   private readonly resolveImageSrc = (node: RoadmapNode): string | null => {
     if (node.source.type !== "image") {
       return null;
     }
 
-    const file = this.app.vault.getAbstractFileByPath(node.source.file);
+    const file = this.resolveNodeFile(node.source.file);
 
-    return file instanceof TFile ? this.app.vault.getResourcePath(file) : null;
+    if (file === null) {
+      return null;
+    }
+
+    const cached = this.imageSrcCache.get(file.path);
+
+    if (cached !== undefined && cached.mtime === file.stat.mtime) {
+      return cached.src;
+    }
+
+    const src = this.app.vault.getResourcePath(file);
+
+    this.imageSrcCache.set(file.path, { mtime: file.stat.mtime, src });
+
+    return src;
   };
 
   private readonly resolveFileInfo = (node: RoadmapNode): string | undefined => {
@@ -914,9 +945,9 @@ export class RoadmapView extends TextFileView {
       return undefined;
     }
 
-    const file = this.app.vault.getAbstractFileByPath(node.source.file);
+    const file = this.resolveNodeFile(node.source.file);
 
-    return file instanceof TFile ? `${formatFileSize(file.stat.size)} · ${file.extension.toUpperCase()}` : undefined;
+    return file !== null ? `${formatFileSize(file.stat.size)} · ${file.extension.toUpperCase()}` : undefined;
   };
 
   private readonly handleNodesDuplicated = (items: ReadonlyArray<{ id: string; x: number; y: number }>): void => {

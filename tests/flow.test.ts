@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { createAttachmentNode, createNoteNode, createUrlNode } from "../src/domain/create";
+import { createAttachmentNode, createImageNode, createNoteNode, createUrlNode } from "../src/domain/create";
+import type { RoadmapNode } from "../src/domain/types";
 import { RoadmapSession } from "../src/state/session";
 import { newSession } from "./helpers";
 import {
@@ -187,5 +188,43 @@ describe("identity-preserving flow reconcile", () => {
 
     nodesAfter.forEach((node, index) => expect(node).toBe(nodes[index]));
     edgesAfter.forEach((edge, index) => expect(edge).toBe(edges[index]));
+  });
+});
+
+describe("image card render stability", () => {
+  function twoImages(): { session: RoadmapSession; a: string; b: string } {
+    const session = newSession();
+    const a = createImageNode("assets/a.png", { x: 0, y: 0 });
+    const b = createImageNode("assets/b.png", { x: 300, y: 0 });
+
+    session.addNodes([a, b]);
+
+    return { session, a: a.id, b: b.id };
+  }
+
+  it("keeps an untouched image card by reference when another node moves, given a stable src", () => {
+    const { session, a, b } = twoImages();
+    const srcByFile: Record<string, string> = { "assets/a.png": "app://x/a?1", "assets/b.png": "app://x/b?1" };
+    const stableSrc = (node: RoadmapNode): string | null =>
+      node.source.type === "image" ? srcByFile[node.source.file] : null;
+    const before = stateToFlowNodes(session.state, undefined, stableSrc);
+
+    session.moveNode(b, 50, 60);
+    const after = reconcileFlowNodes(before, stateToFlowNodes(session.state, undefined, stableSrc));
+
+    expect(after.find((node) => node.id === a)).toBe(before.find((node) => node.id === a));
+  });
+
+  it("re-creates the untouched card when the resolver hands back a fresh src each call", () => {
+    const { session, a, b } = twoImages();
+    let tick = 0;
+    const volatileSrc = (node: RoadmapNode): string | null =>
+      node.source.type === "image" ? `app://x/${node.source.file}?${tick++}` : null;
+    const before = stateToFlowNodes(session.state, undefined, volatileSrc);
+
+    session.moveNode(b, 50, 60);
+    const after = reconcileFlowNodes(before, stateToFlowNodes(session.state, undefined, volatileSrc));
+
+    expect(after.find((node) => node.id === a)).not.toBe(before.find((node) => node.id === a));
   });
 });
