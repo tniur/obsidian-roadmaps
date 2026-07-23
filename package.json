@@ -1,7 +1,7 @@
 {
   "name": "obsidian-roadmaps",
   "version": "0.0.1",
-  "description": "Turn your notes into interactive visual roadmaps — with connections, clusters, statuses, and priorities.",
+  "description": "Turn your notes into interactive visual roadmaps with connections, clusters, statuses, and priorities.",
   "main": "main.js",
   "type": "module",
   "scripts": {

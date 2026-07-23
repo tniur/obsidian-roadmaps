@@ -1,6 +1,7 @@
 import {
   addIcon,
   MarkdownView,
+  normalizePath,
   Notice,
   Plugin,
   PluginSettingTab,
@@ -635,11 +636,13 @@ export default class RoadmapPlugin extends Plugin {
       return undefined;
     }
 
-    if (this.app.vault.getAbstractFileByPath(folder) === null) {
-      await this.app.vault.createFolder(folder);
+    const normalized = normalizePath(folder);
+
+    if (this.app.vault.getAbstractFileByPath(normalized) === null) {
+      await this.app.vault.createFolder(normalized);
     }
 
-    return folder;
+    return normalized;
   }
 }
 

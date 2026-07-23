@@ -3,7 +3,7 @@
   "name": "Roadmaps",
   "version": "0.0.1",
   "minAppVersion": "1.5.0",
-  "description": "Turn your notes into interactive visual roadmaps — with connections, clusters, statuses, and priorities.",
+  "description": "Turn your notes into interactive visual roadmaps with connections, clusters, statuses, and priorities.",
   "author": "tniur",
   "isDesktopOnly": true
 }
