@@ -10,7 +10,7 @@ describe("plugin manifest", () => {
   it("declares the plugin id the plugin folder must match", () => {
     const manifest = readJson("manifest.json");
 
-    expect(manifest.id).toBe("obsidian-roadmaps");
+    expect(manifest.id).toBe("roadmaps");
   });
 
   it("keeps manifest and package versions in sync", () => {
