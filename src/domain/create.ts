@@ -39,17 +39,16 @@ export function createCluster(title: string, layout: RoadmapLayout): RoadmapClus
   return { id: nanoid(), title, layout };
 }
 
+function defaultLayout(placement: NodePlacement): RoadmapLayout {
+  return { x: placement.x, y: placement.y, width: DEFAULT_NODE_WIDTH, height: DEFAULT_NODE_HEIGHT };
+}
+
 export function createNoteNode(filePath: string, placement: NodePlacement): RoadmapNode {
   return {
     id: nanoid(),
     kind: "note",
     source: { type: "note", file: filePath },
-    layout: {
-      x: placement.x,
-      y: placement.y,
-      width: DEFAULT_NODE_WIDTH,
-      height: DEFAULT_NODE_HEIGHT,
-    },
+    layout: defaultLayout(placement),
   };
 }
 
@@ -58,12 +57,7 @@ export function createUrlNode(url: string, placement: NodePlacement): RoadmapNod
     id: nanoid(),
     kind: "url",
     source: { type: "url", url },
-    layout: {
-      x: placement.x,
-      y: placement.y,
-      width: DEFAULT_NODE_WIDTH,
-      height: DEFAULT_NODE_HEIGHT,
-    },
+    layout: defaultLayout(placement),
   };
 }
 
@@ -72,12 +66,7 @@ export function createImageNode(filePath: string, placement: NodePlacement): Roa
     id: nanoid(),
     kind: "image",
     source: { type: "image", file: filePath },
-    layout: {
-      x: placement.x,
-      y: placement.y,
-      width: DEFAULT_NODE_WIDTH,
-      height: DEFAULT_NODE_HEIGHT,
-    },
+    layout: defaultLayout(placement),
   };
 }
 
@@ -86,12 +75,7 @@ export function createAttachmentNode(filePath: string, placement: NodePlacement)
     id: nanoid(),
     kind: "attachment",
     source: { type: "attachment", file: filePath },
-    layout: {
-      x: placement.x,
-      y: placement.y,
-      width: DEFAULT_NODE_WIDTH,
-      height: DEFAULT_NODE_HEIGHT,
-    },
+    layout: defaultLayout(placement),
   };
 }
 
@@ -101,12 +85,7 @@ export function createTextNode(text: string, placement: NodePlacement): RoadmapN
     kind: "text",
     source: { type: "text" },
     title: text,
-    layout: {
-      x: placement.x,
-      y: placement.y,
-      width: DEFAULT_NODE_WIDTH,
-      height: DEFAULT_NODE_HEIGHT,
-    },
+    layout: defaultLayout(placement),
   };
 }
 
@@ -182,13 +161,8 @@ export function createEdge(
     direction: "forward",
   };
 
-  if (fromSide !== undefined) {
-    edge.fromSide = fromSide;
-  }
-
-  if (toSide !== undefined) {
-    edge.toSide = toSide;
-  }
+  if (fromSide !== undefined) edge.fromSide = fromSide;
+  if (toSide !== undefined) edge.toSide = toSide;
 
   return edge;
 }

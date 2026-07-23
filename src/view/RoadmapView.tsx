@@ -742,7 +742,7 @@ export class RoadmapView extends TextFileView {
   };
 
   /** Clipboard entries carry absolute coordinates: cluster members store cluster-relative
-   * layout, but pasted copies land unclustered ([[copyNode]]), so their frame is absolute. */
+   * layout, but pasted copies land unclustered (`copyNode`), so their frame is absolute. */
   private withAbsoluteLayout(node: RoadmapNode): RoadmapNode {
     if (node.clusterId == null) {
       return node;
