@@ -1,19 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { canvasToState, parseCanvas, roadmapToCanvas, serializeCanvas } from "../src/domain/jsonCanvas";
 import { createNoteNode, createTextNode, createUrlNode } from "../src/domain/create";
-import { createRoadmapDocument, readState } from "../src/state/document";
-import { RoadmapSession } from "../src/state/session";
-
-function newSession(): RoadmapSession {
-  const content = createRoadmapDocument("Board");
-  const state = readState(content);
-
-  if (state === null) {
-    throw new Error("expected a state block");
-  }
-
-  return new RoadmapSession(state, content);
-}
+import { newSession } from "./helpers";
 
 describe("roadmapToCanvas", () => {
   it("maps node kinds to canvas node types and edges to arrows", () => {

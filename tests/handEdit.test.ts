@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { CLUSTER_PADDING } from "../src/constants";
 import { createNoteNode, createUrlNode } from "../src/domain/create";
 import { parseNodeBlock } from "../src/markdown/nodeBlock";
-import { createRoadmapDocument, readState } from "../src/state/document";
+import { readState } from "../src/state/document";
 import {
   adoptNodeMarkers,
   adoptRelationEdges,
@@ -10,18 +10,7 @@ import {
   loadDocument,
   reconcileState,
 } from "../src/state/reconcile";
-import { RoadmapSession } from "../src/state/session";
-
-function freshSession(): RoadmapSession {
-  const content = createRoadmapDocument("Board");
-  const state = readState(content);
-
-  if (state === null) {
-    throw new Error("expected a state block");
-  }
-
-  return new RoadmapSession(state, content);
-}
+import { newSession } from "./helpers";
 
 function sourceHasFile(source: { type: string }, file: string): boolean {
   return "file" in source && (source as { file: string }).file === file;
@@ -29,7 +18,7 @@ function sourceHasFile(source: { type: string }, file: string): boolean {
 
 describe("hand edits reconciled back into state", () => {
   it("resolves shortest-form wikilinks through the injected resolver after a vault rename", () => {
-    const session = freshSession();
+    const session = newSession();
     const node = createNoteNode("notes/react.md", { x: 0, y: 0 });
 
     session.addNode(node);
@@ -42,7 +31,7 @@ describe("hand edits reconciled back into state", () => {
   });
 
   it("is idempotent on content the plugin wrote itself", () => {
-    const session = freshSession();
+    const session = newSession();
     const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
     const b = createNoteNode("notes/b.md", { x: 300, y: 0 });
 
@@ -62,7 +51,7 @@ describe("hand edits reconciled back into state", () => {
   });
 
   it("applies an edited wikilink target, alias and tags to the node", () => {
-    const session = freshSession();
+    const session = newSession();
     const node = createNoteNode("notes/a.md", { x: 0, y: 0 });
 
     session.addNode(node);
@@ -77,7 +66,7 @@ describe("hand edits reconciled back into state", () => {
   });
 
   it("clears status when its tag is removed by hand", () => {
-    const session = freshSession();
+    const session = newSession();
     const node = createNoteNode("notes/a.md", { x: 0, y: 0 });
 
     session.addNode(node);
@@ -89,7 +78,7 @@ describe("hand edits reconciled back into state", () => {
   });
 
   it("adds a description line written under a node block", () => {
-    const session = freshSession();
+    const session = newSession();
     const node = createNoteNode("notes/a.md", { x: 0, y: 0 });
 
     session.addNode(node);
@@ -122,7 +111,7 @@ describe("hand-written cluster headings", () => {
   });
 
   it("turns a hand-written heading into a cluster arranged around its nodes", () => {
-    const session = freshSession();
+    const session = newSession();
     const a = createNoteNode("notes/a.md", { x: 500, y: 400 });
     const b = createNoteNode("notes/b.md", { x: 900, y: 700 });
 
@@ -156,7 +145,7 @@ describe("hand-written cluster headings", () => {
 
 describe("hand-written node blocks with a marker", () => {
   it("adopts a pasted marked block as a new node with parsed content", () => {
-    const session = freshSession();
+    const session = newSession();
     const existing = createNoteNode("notes/a.md", { x: 0, y: 0 });
 
     session.addNode(existing);
@@ -178,7 +167,7 @@ describe("hand-written node blocks with a marker", () => {
   });
 
   it("adopts a marked block under a cluster heading as a member", () => {
-    const session = freshSession();
+    const session = newSession();
     const member = createNoteNode("notes/a.md", { x: 0, y: 0 });
 
     session.addNode(member);
@@ -199,7 +188,7 @@ describe("hand-written node blocks with a marker", () => {
   });
 
   it("ignores markers with an unknown kind", () => {
-    const session = freshSession();
+    const session = newSession();
     const pasted = `<!-- roadmap-node:id=pasted-node-3 type=banana -->\n- [ ] [[notes/x|X]]`;
     const edited = session.content.replace("# Board", `# Board\n\n${pasted}`);
     const state = readState(edited) ?? session.state;
@@ -211,7 +200,7 @@ describe("hand-written node blocks with a marker", () => {
 
 describe("bare wikilinks written in the body", () => {
   it("adopts a standalone [[wikilink]] line as a note node", () => {
-    const session = freshSession();
+    const session = newSession();
     const existing = createNoteNode("notes/a.md", { x: 0, y: 0 });
 
     session.addNode(existing);
@@ -227,7 +216,7 @@ describe("bare wikilinks written in the body", () => {
   });
 
   it("adopts a bare link under a cluster heading as a member", () => {
-    const session = freshSession();
+    const session = newSession();
     const member = createNoteNode("notes/a.md", { x: 0, y: 0 });
 
     session.addNode(member);
@@ -247,7 +236,7 @@ describe("bare wikilinks written in the body", () => {
   });
 
   it("classifies the adopted node by the target extension", () => {
-    const session = freshSession();
+    const session = newSession();
     const edited = session.content.replace("# Board", "# Board\n\n[[img/pic.png]]\n\n[[files/doc.pdf]]");
     const loaded = loadDocument(edited);
     const kinds = Object.values(loaded.state.nodes).map((node) => node.kind);
@@ -257,7 +246,7 @@ describe("bare wikilinks written in the body", () => {
   });
 
   it("does not re-adopt the representation line of an existing node", () => {
-    const session = freshSession();
+    const session = newSession();
     const existing = createNoteNode("notes/a.md", { x: 0, y: 0 });
 
     session.addNode(existing);
@@ -268,7 +257,7 @@ describe("bare wikilinks written in the body", () => {
   });
 
   it("leaves relation lines and the reserved sections alone", () => {
-    const session = freshSession();
+    const session = newSession();
     const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
     const b = createNoteNode("notes/b.md", { x: 300, y: 0 });
 
@@ -283,7 +272,7 @@ describe("bare wikilinks written in the body", () => {
 
 describe("hand-written relation lines", () => {
   it("adopts a markerless line as a new edge", () => {
-    const session = freshSession();
+    const session = newSession();
     const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
     const b = createUrlNode("https://example.com", { x: 300, y: 0 });
 
@@ -301,7 +290,7 @@ describe("hand-written relation lines", () => {
   });
 
   it("does not duplicate an edge that already exists", () => {
-    const session = freshSession();
+    const session = newSession();
     const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
     const b = createNoteNode("notes/b.md", { x: 300, y: 0 });
 

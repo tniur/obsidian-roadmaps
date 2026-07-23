@@ -1,70 +1,26 @@
 import { describe, expect, it } from "vitest";
 import { createCluster, createNoteNode } from "../src/domain/create";
-import type { RoadmapCluster, RoadmapNode } from "../src/domain/types";
+import type { RoadmapCluster } from "../src/domain/types";
 import { parseClusterHeading } from "../src/markdown/cluster";
-import {
-  createRoadmapDocument,
-  emptyState,
-  insertNodeBlock,
-  readState,
-  writeClusterSection,
-  writeState,
-} from "../src/state/document";
+import { emptyState, readState, writeClusterSection, writeState } from "../src/state/document";
 import { ensureUniqueClusterTitles, loadDocument, reconcileState } from "../src/state/reconcile";
 import { RoadmapSession } from "../src/state/session";
 import { stateToFlowEdges } from "../src/view/flow";
+import { makeNode, sessionWith } from "./helpers";
 
 function sessionWithTwoNodes(): RoadmapSession {
-  const doc = createRoadmapDocument("R");
-  const base = readState(doc);
-
-  if (base === null) {
-    throw new Error("expected a state block");
-  }
-
-  const n1: RoadmapNode = {
-    id: "n1",
-    kind: "note",
-    source: { type: "note", file: "notes/a.md" },
-    layout: { x: 100, y: 100, width: 200, height: 80 },
-  };
-  const n2: RoadmapNode = {
-    id: "n2",
-    kind: "note",
-    source: { type: "note", file: "notes/b.md" },
-    layout: { x: 400, y: 300, width: 200, height: 80 },
-  };
-  const content = writeState(insertNodeBlock(insertNodeBlock(doc, n1), n2), {
-    ...base,
-    nodes: { n1, n2 },
-  });
-
-  return new RoadmapSession(readState(content) ?? emptyState(), content);
+  return sessionWith([
+    makeNode({ id: "n1", layout: { x: 100, y: 100 } }),
+    makeNode({ id: "n2", source: { type: "note", file: "notes/b.md" }, layout: { x: 400, y: 300 } }),
+  ]);
 }
 
-const nodeA: RoadmapNode = {
-  id: "a",
-  kind: "note",
-  source: { type: "note", file: "notes/a.md" },
-  layout: { x: 0, y: 0, width: 200, height: 80 },
-};
+const nodeA = makeNode({ id: "a" });
 
-const nodeB: RoadmapNode = {
-  id: "b",
-  kind: "note",
-  source: { type: "note", file: "notes/b.md" },
-  layout: { x: 0, y: 0, width: 200, height: 80 },
-};
+const nodeB = makeNode({ id: "b", source: { type: "note", file: "notes/b.md" } });
 
 function docWithNodes(): string {
-  const doc = insertNodeBlock(insertNodeBlock(createRoadmapDocument("R"), nodeA), nodeB);
-  const base = readState(doc);
-
-  if (base === null) {
-    throw new Error("expected a state block");
-  }
-
-  return writeState(doc, { ...base, nodes: { a: nodeA, b: nodeB } });
+  return sessionWith([nodeA, nodeB]).content;
 }
 
 describe("clusters storage", () => {
@@ -117,29 +73,7 @@ describe("clusters storage", () => {
   });
 
   it("groups nodes into a cluster with bounding box and relative member layouts", () => {
-    const doc = createRoadmapDocument("R");
-    const base = readState(doc);
-
-    if (base === null) {
-      throw new Error("expected a state block");
-    }
-
-    const n1: RoadmapNode = {
-      id: "n1",
-      kind: "note",
-      source: { type: "note", file: "notes/a.md" },
-      layout: { x: 100, y: 100, width: 200, height: 80 },
-    };
-    const n2: RoadmapNode = {
-      id: "n2",
-      kind: "note",
-      source: { type: "note", file: "notes/b.md" },
-      layout: { x: 400, y: 300, width: 200, height: 80 },
-    };
-    let content = insertNodeBlock(insertNodeBlock(doc, n1), n2);
-
-    content = writeState(content, { ...base, nodes: { n1, n2 } });
-    const session = new RoadmapSession(readState(content) ?? emptyState(), content);
+    const session = sessionWithTwoNodes();
 
     session.createClusterFromNodes(["n1", "n2"], "Group");
 
@@ -163,23 +97,7 @@ describe("clusters storage", () => {
   });
 
   it("moves and resizes a cluster, persisting only its layout", () => {
-    const doc = createRoadmapDocument("R");
-    const base = readState(doc);
-
-    if (base === null) {
-      throw new Error("expected a state block");
-    }
-
-    const n1: RoadmapNode = {
-      id: "n1",
-      kind: "note",
-      source: { type: "note", file: "notes/a.md" },
-      layout: { x: 100, y: 100, width: 200, height: 80 },
-    };
-    let content = insertNodeBlock(doc, n1);
-
-    content = writeState(content, { ...base, nodes: { n1 } });
-    const session = new RoadmapSession(readState(content) ?? emptyState(), content);
+    const session = sessionWith([makeNode({ id: "n1", layout: { x: 100, y: 100 } })]);
 
     session.createClusterFromNodes(["n1"], "Group");
     const clusterId = Object.keys(session.state.clusters)[0];
@@ -201,23 +119,7 @@ describe("clusters storage", () => {
   });
 
   it("toggles cluster collapsed in state and round-trips through the codec", () => {
-    const doc = createRoadmapDocument("R");
-    const base = readState(doc);
-
-    if (base === null) {
-      throw new Error("expected a state block");
-    }
-
-    const n1: RoadmapNode = {
-      id: "n1",
-      kind: "note",
-      source: { type: "note", file: "notes/a.md" },
-      layout: { x: 0, y: 0, width: 200, height: 80 },
-    };
-    let content = insertNodeBlock(doc, n1);
-
-    content = writeState(content, { ...base, nodes: { n1 } });
-    const session = new RoadmapSession(readState(content) ?? emptyState(), content);
+    const session = sessionWith([makeNode({ id: "n1" })]);
 
     session.createClusterFromNodes(["n1"], "Group");
     const clusterId = Object.keys(session.state.clusters)[0];
@@ -410,27 +312,11 @@ describe("clusters storage", () => {
   });
 
   it("centers an incomplete last row when arranging", () => {
-    const doc = createRoadmapDocument("R");
-    const base = readState(doc);
-
-    if (base === null) {
-      throw new Error("expected a state block");
-    }
-
-    const mk = (id: string, x: number, y: number): RoadmapNode => ({
-      id,
-      kind: "note",
-      source: { type: "note", file: `notes/${id}.md` },
-      layout: { x, y, width: 200, height: 80 },
-    });
-    const n1 = mk("n1", 100, 100);
-    const n2 = mk("n2", 400, 100);
-    const n3 = mk("n3", 100, 300);
-    const content = writeState(insertNodeBlock(insertNodeBlock(insertNodeBlock(doc, n1), n2), n3), {
-      ...base,
-      nodes: { n1, n2, n3 },
-    });
-    const session = new RoadmapSession(readState(content) ?? emptyState(), content);
+    const session = sessionWith([
+      makeNode({ id: "n1", layout: { x: 100, y: 100 } }),
+      makeNode({ id: "n2", layout: { x: 400, y: 100 } }),
+      makeNode({ id: "n3", layout: { x: 100, y: 300 } }),
+    ]);
 
     session.createClusterFromNodes(["n1", "n2", "n3"], "Group");
     const clusterId = Object.keys(session.state.clusters)[0];
@@ -443,30 +329,10 @@ describe("clusters storage", () => {
   });
 
   it("centers a smaller node within its grid cell when arranging", () => {
-    const doc = createRoadmapDocument("R");
-    const base = readState(doc);
-
-    if (base === null) {
-      throw new Error("expected a state block");
-    }
-
-    const big: RoadmapNode = {
-      id: "big",
-      kind: "note",
-      source: { type: "note", file: "notes/big.md" },
-      layout: { x: 0, y: 0, width: 200, height: 80 },
-    };
-    const small: RoadmapNode = {
-      id: "small",
-      kind: "note",
-      source: { type: "note", file: "notes/small.md" },
-      layout: { x: 0, y: 200, width: 100, height: 40 },
-    };
-    const content = writeState(insertNodeBlock(insertNodeBlock(doc, big), small), {
-      ...base,
-      nodes: { big, small },
-    });
-    const session = new RoadmapSession(readState(content) ?? emptyState(), content);
+    const session = sessionWith([
+      makeNode({ id: "big" }),
+      makeNode({ id: "small", layout: { y: 200, width: 100, height: 40 } }),
+    ]);
 
     session.createClusterFromNodes(["big", "small"], "Group");
     const clusterId = Object.keys(session.state.clusters)[0];

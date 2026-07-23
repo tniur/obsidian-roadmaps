@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createAttachmentNode, createNoteNode, createUrlNode } from "../src/domain/create";
-import { createRoadmapDocument, readState } from "../src/state/document";
 import { RoadmapSession } from "../src/state/session";
+import { newSession } from "./helpers";
 import {
   absoluteNodePosition,
   isCardNode,
@@ -14,14 +14,7 @@ import {
 } from "../src/view/flow";
 
 function sessionWithNodes(): { session: RoadmapSession; ids: string[] } {
-  const content = createRoadmapDocument("Board");
-  const state = readState(content);
-
-  if (state === null) {
-    throw new Error("expected a state block");
-  }
-
-  const session = new RoadmapSession(state, content);
+  const session = newSession();
   const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
   const b = createNoteNode("notes/b.md", { x: 300, y: 0 });
 

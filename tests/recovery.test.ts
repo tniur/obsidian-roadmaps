@@ -2,17 +2,10 @@ import { describe, expect, it } from "vitest";
 import { createImageNode, createNoteNode, createTextNode, createUrlNode } from "../src/domain/create";
 import { createRoadmapDocument, readState } from "../src/state/document";
 import { loadDocument, rebuildDocument, rebuildState } from "../src/state/reconcile";
-import { RoadmapSession } from "../src/state/session";
+import { newSession } from "./helpers";
 
 function populatedContent(): { content: string; ids: Record<string, string> } {
-  const content = createRoadmapDocument("Board");
-  const state = readState(content);
-
-  if (state === null) {
-    throw new Error("expected a state block");
-  }
-
-  const session = new RoadmapSession(state, content);
+  const session = newSession();
   const note = createNoteNode("notes/a.md", { x: 0, y: 0 });
   const url = createUrlNode("https://example.com/path", { x: 300, y: 0 });
   const image = createImageNode("img/pic.png", { x: 600, y: 0 });

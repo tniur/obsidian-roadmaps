@@ -9,19 +9,8 @@ import {
   createTextNode,
   createUrlNode,
 } from "../src/domain/create";
-import { createRoadmapDocument, readState } from "../src/state/document";
-import { RoadmapSession } from "../src/state/session";
-
-function newSession(): RoadmapSession {
-  const content = createRoadmapDocument("R");
-  const state = readState(content);
-
-  if (state === null) {
-    throw new Error("expected a state block");
-  }
-
-  return new RoadmapSession(state, content);
-}
+import { readState } from "../src/state/document";
+import { newSession } from "./helpers";
 
 describe("roadmap session", () => {
   it("adds a node to state, body and state block without mutating the prior snapshot", () => {

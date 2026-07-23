@@ -1,23 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { createNoteNode, createTextNode, createUrlNode } from "../src/domain/create";
 import { nodeSearchText, searchNodes } from "../src/domain/search";
-import type { RoadmapCluster, RoadmapNode, RoadmapState } from "../src/domain/types";
-
-function stateWith(nodes: RoadmapNode[], clusters: RoadmapCluster[] = []): RoadmapState {
-  return {
-    schemaVersion: 1,
-    id: "r",
-    nodes: Object.fromEntries(nodes.map((node) => [node.id, node])),
-    clusters: Object.fromEntries(clusters.map((cluster) => [cluster.id, cluster])),
-    edges: {},
-  };
-}
+import type { RoadmapCluster } from "../src/domain/types";
+import { makeState } from "./helpers";
 
 describe("searchNodes", () => {
   it("matches on file-name title, description and source", () => {
     const note = createNoteNode("notes/auth-service.md", { x: 0, y: 0 });
     const url = { ...createUrlNode("https://example.com/login", { x: 0, y: 100 }), description: "session flow" };
-    const state = stateWith([note, url]);
+    const state = makeState([note, url]);
 
     expect(searchNodes(state, "auth")).toEqual([note.id]);
     expect(searchNodes(state, "session")).toEqual([url.id]);
@@ -26,7 +17,7 @@ describe("searchNodes", () => {
 
   it("requires every whitespace term to match and ignores case", () => {
     const node = { ...createNoteNode("notes/user-auth.md", { x: 0, y: 0 }), description: "OAuth login" };
-    const state = stateWith([node]);
+    const state = makeState([node]);
 
     expect(searchNodes(state, "AUTH login")).toEqual([node.id]);
     expect(searchNodes(state, "auth missing")).toEqual([]);
@@ -36,7 +27,7 @@ describe("searchNodes", () => {
     const a = createNoteNode("notes/a.md", { x: 100, y: 0 });
     const b = createNoteNode("notes/b.md", { x: 0, y: 0 });
     const c = createNoteNode("notes/c.md", { x: 0, y: 50 });
-    const state = stateWith([a, b, c]);
+    const state = makeState([a, b, c]);
 
     expect(searchNodes(state, "notes")).toEqual([b.id, a.id, c.id]);
   });
@@ -50,7 +41,7 @@ describe("searchNodes", () => {
       layout: { x: 0, y: 0, width: 300, height: 200 },
       collapsed: true,
     };
-    const state = stateWith([inside, outside], [cluster]);
+    const state = makeState([inside, outside], [], [cluster]);
 
     expect(searchNodes(state, "auth")).toEqual([outside.id]);
   });
@@ -58,7 +49,7 @@ describe("searchNodes", () => {
   it("returns nothing for an empty query", () => {
     const node = createNoteNode("notes/auth.md", { x: 0, y: 0 });
 
-    expect(searchNodes(stateWith([node]), "   ")).toEqual([]);
+    expect(searchNodes(makeState([node]), "   ")).toEqual([]);
   });
 });
 

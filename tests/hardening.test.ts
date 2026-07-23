@@ -1,23 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { copyNode, createNoteNode, createTextNode } from "../src/domain/create";
-import { createRoadmapDocument, readState } from "../src/state/document";
+import { readState } from "../src/state/document";
 import { reconcileState } from "../src/state/reconcile";
-import { RoadmapSession } from "../src/state/session";
-
-function freshSession(): RoadmapSession {
-  const content = createRoadmapDocument("Board");
-  const state = readState(content);
-
-  if (state === null) {
-    throw new Error("expected a state block");
-  }
-
-  return new RoadmapSession(state, content);
-}
+import { newSession } from "./helpers";
 
 describe("write-path safety", () => {
   it("writes a safe wikilink alias for a title with link syntax", () => {
-    const session = freshSession();
+    const session = newSession();
     const node = createNoteNode("notes/a.md", { x: 0, y: 0 });
 
     session.addNode(node);
@@ -28,7 +17,7 @@ describe("write-path safety", () => {
   });
 
   it("strips marker sequences from edge labels", () => {
-    const session = freshSession();
+    const session = newSession();
     const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
     const b = createNoteNode("notes/b.md", { x: 300, y: 0 });
 
@@ -43,7 +32,7 @@ describe("write-path safety", () => {
   });
 
   it("round-trips text node content that looks like a heading", () => {
-    const session = freshSession();
+    const session = newSession();
     const text = createTextNode("## Fake heading", { x: 0, y: 0 });
 
     session.addNode(text);
@@ -54,7 +43,7 @@ describe("write-path safety", () => {
   });
 
   it("rejects reserved cluster names on rename and create", () => {
-    const session = freshSession();
+    const session = newSession();
     const node = createNoteNode("notes/a.md", { x: 0, y: 0 });
 
     session.addNode(node);
@@ -71,7 +60,7 @@ describe("write-path safety", () => {
 
 describe("cluster membership consistency", () => {
   it("pastes a copy of a cluster member as unclustered and reload-stable", () => {
-    const session = freshSession();
+    const session = newSession();
     const node = createNoteNode("notes/a.md", { x: 100, y: 100 });
 
     session.addNode(node);
@@ -89,7 +78,7 @@ describe("cluster membership consistency", () => {
   });
 
   it("keeps a node↔node edge when grouping connected nodes into a cluster", () => {
-    const session = freshSession();
+    const session = newSession();
     const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
     const b = createNoteNode("notes/b.md", { x: 300, y: 0 });
 
@@ -102,7 +91,7 @@ describe("cluster membership consistency", () => {
   });
 
   it("drops a node↔cluster edge when the node is dragged into that cluster", () => {
-    const session = freshSession();
+    const session = newSession();
     const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
     const b = createNoteNode("notes/b.md", { x: 600, y: 0 });
 
@@ -118,7 +107,7 @@ describe("cluster membership consistency", () => {
   });
 
   it("keeps a node↔node edge when one end is dragged into the other's cluster", () => {
-    const session = freshSession();
+    const session = newSession();
     const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
     const b = createNoteNode("notes/b.md", { x: 600, y: 0 });
 
@@ -136,7 +125,7 @@ describe("cluster membership consistency", () => {
 
 describe("viewport persistence", () => {
   it("stores the viewport without creating an undo step", () => {
-    const session = freshSession();
+    const session = newSession();
 
     session.setViewport({ x: 10, y: 20, zoom: 1.5 });
 
@@ -148,7 +137,7 @@ describe("viewport persistence", () => {
 
 describe("reverse edge merging", () => {
   it("upgrades the existing edge to bidirectional instead of adding a reverse line", () => {
-    const session = freshSession();
+    const session = newSession();
     const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
     const b = createNoteNode("notes/b.md", { x: 300, y: 0 });
 
@@ -168,7 +157,7 @@ describe("reverse edge merging", () => {
   });
 
   it("treats a reverse draw over a bidirectional edge as a no-op", () => {
-    const session = freshSession();
+    const session = newSession();
     const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
     const b = createNoteNode("notes/b.md", { x: 300, y: 0 });
 
@@ -185,7 +174,7 @@ describe("reverse edge merging", () => {
   });
 
   it("merges a reconnect landing on the mirror of another edge into a bidirectional one", () => {
-    const session = freshSession();
+    const session = newSession();
     const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
     const b = createNoteNode("notes/b.md", { x: 300, y: 0 });
     const c = createNoteNode("notes/c.md", { x: 600, y: 0 });
@@ -212,7 +201,7 @@ describe("reverse edge merging", () => {
   });
 
   it("rejects a reconnect that would exactly duplicate another edge", () => {
-    const session = freshSession();
+    const session = newSession();
     const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
     const b = createNoteNode("notes/b.md", { x: 300, y: 0 });
     const c = createNoteNode("notes/c.md", { x: 600, y: 0 });
@@ -234,7 +223,7 @@ describe("reverse edge merging", () => {
 
 describe("vault renames", () => {
   it("re-points node sources, body links and relations without an undo step", () => {
-    const session = freshSession();
+    const session = newSession();
     const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
     const b = createNoteNode("notes/b.md", { x: 300, y: 0 });
 
@@ -250,7 +239,7 @@ describe("vault renames", () => {
   });
 
   it("re-points every source inside a renamed folder", () => {
-    const session = freshSession();
+    const session = newSession();
     const a = createNoteNode("notes/a.md", { x: 0, y: 0 });
     const b = createNoteNode("elsewhere/b.md", { x: 300, y: 0 });
 
@@ -262,7 +251,7 @@ describe("vault renames", () => {
   });
 
   it("reports false when nothing references the renamed path", () => {
-    const session = freshSession();
+    const session = newSession();
 
     expect(session.applySourceRename("notes/x.md", "notes/y.md")).toBe(false);
   });
@@ -270,7 +259,7 @@ describe("vault renames", () => {
 
 describe("storage round-trip at scale", () => {
   it("keeps 300 nodes and their edges intact through write and reconcile", () => {
-    const session = freshSession();
+    const session = newSession();
     const nodes = Array.from({ length: 300 }, (_, i) =>
       createNoteNode(`notes/n${i}.md`, { x: (i % 20) * 220, y: Math.floor(i / 20) * 100 }),
     );
@@ -298,7 +287,7 @@ describe("storage round-trip at scale", () => {
 
 describe("no-op mutations", () => {
   it("does not record history for a meta patch that changes nothing", () => {
-    const session = freshSession();
+    const session = newSession();
     const node = createNoteNode("notes/a.md", { x: 0, y: 0 });
 
     session.addNode(node);

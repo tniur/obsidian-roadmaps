@@ -1,19 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createNoteNode } from "../src/domain/create";
 import { computeAutoLayout } from "../src/domain/autoLayout";
-import { createRoadmapDocument, readState } from "../src/state/document";
-import { RoadmapSession } from "../src/state/session";
-
-function newSession(): RoadmapSession {
-  const content = createRoadmapDocument("Board");
-  const state = readState(content);
-
-  if (state === null) {
-    throw new Error("expected a state block");
-  }
-
-  return new RoadmapSession(state, content);
-}
+import { newSession } from "./helpers";
 
 describe("computeAutoLayout", () => {
   it("lays a directed chain out left to right, one layer per hop", () => {
