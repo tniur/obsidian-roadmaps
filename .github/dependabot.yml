@@ -5,9 +5,27 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 10
+    ignore:
+      # Pinned: 1.11.12+ drop the SVG layer from the snapshot, so exports lose edges.
+      - dependency-name: "html-to-image"
+      # typescript-eslint refuses to run on TS 7.0 and caps its peer range below 6.1.
+      # Scoped to 7.0.x so a later 7.x, once linting supports it, still gets proposed.
+      - dependency-name: "typescript"
+        versions: ["7.0.x"]
     groups:
+      # Kept apart from the rest so a compiler or bundler bump, which needs its own
+      # verification pass, never blocks routine formatter and linter updates.
+      toolchain:
+        patterns:
+          - "typescript"
+          - "vitest"
+          - "esbuild"
       dev-dependencies:
         dependency-type: development
+        exclude-patterns:
+          - "typescript"
+          - "vitest"
+          - "esbuild"
   - package-ecosystem: github-actions
     directory: "/"
     schedule:

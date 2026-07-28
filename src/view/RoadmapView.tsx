@@ -678,10 +678,7 @@ export class RoadmapView extends TextFileView {
 
       const path = availableVaultPath(this.app.vault, file.parent?.path, file.basename, extension);
 
-      await this.app.vault.createBinary(
-        path,
-        bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
-      );
+      await this.app.vault.createBinary(path, new Uint8Array(bytes).buffer);
       new Notice(`Exported ${label}: ${path}`);
     } catch (error) {
       new Notice(`Failed to export ${label}: ${error instanceof Error ? error.message : String(error)}`);
