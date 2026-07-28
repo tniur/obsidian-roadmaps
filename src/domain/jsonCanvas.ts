@@ -37,7 +37,7 @@ const canvasNodeSchema = z
     label: z.string().optional(),
     color: z.string().optional(),
   })
-  .passthrough();
+  .loose();
 
 const canvasEdgeSchema = z
   .object({
@@ -51,14 +51,14 @@ const canvasEdgeSchema = z
     label: z.string().optional(),
     color: z.string().optional(),
   })
-  .passthrough();
+  .loose();
 
 const canvasSchema = z
   .object({
     nodes: z.array(canvasNodeSchema).default([]),
     edges: z.array(canvasEdgeSchema).default([]),
   })
-  .passthrough();
+  .loose();
 
 export type JsonCanvas = z.infer<typeof canvasSchema>;
 

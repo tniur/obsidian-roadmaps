@@ -172,21 +172,19 @@ export function stateToFlowNodes(
     }
   }
 
-  const clusters = Object.values(state.clusters).map(
-    (cluster): RoadmapClusterNode => ({
-      id: cluster.id,
-      type: ROADMAP_CLUSTER_TYPE,
-      position: { x: cluster.layout.x, y: cluster.layout.y },
-      width: cluster.layout.width,
-      height: cluster.collapsed === true ? COLLAPSED_CLUSTER_HEIGHT : cluster.layout.height,
-      data: {
-        title: cluster.title,
-        color: cluster.style?.color,
-        collapsed: cluster.collapsed === true,
-        count: memberCounts.get(cluster.id) ?? 0,
-      },
-    }),
-  );
+  const clusters = Object.values(state.clusters).map((cluster): RoadmapClusterNode => ({
+    id: cluster.id,
+    type: ROADMAP_CLUSTER_TYPE,
+    position: { x: cluster.layout.x, y: cluster.layout.y },
+    width: cluster.layout.width,
+    height: cluster.collapsed === true ? COLLAPSED_CLUSTER_HEIGHT : cluster.layout.height,
+    data: {
+      title: cluster.title,
+      color: cluster.style?.color,
+      collapsed: cluster.collapsed === true,
+      count: memberCounts.get(cluster.id) ?? 0,
+    },
+  }));
   const nodes = Object.values(state.nodes).map((node): RoadmapCardNode => {
     const cluster = node.clusterId != null ? state.clusters[node.clusterId] : undefined;
     const flow: RoadmapCardNode = {
