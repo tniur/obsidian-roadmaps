@@ -37,7 +37,7 @@ export interface TextAlign {
 }
 
 /** Alignment assumed wherever a node carries no explicit `align`; never persisted. */
-export const DEFAULT_TEXT_ALIGN: Readonly<TextAlign> = { h: "left", v: "top" };
+export const DEFAULT_TEXT_ALIGN: Readonly<TextAlign> = { h: "center", v: "middle" };
 
 export interface RoadmapLayout {
   x: number;
