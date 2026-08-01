@@ -29,6 +29,7 @@ import {
   normalizeHexColor,
   sanitizePalette,
 } from "./domain/palette";
+import { ExplorerRoadmapTags } from "./services/explorerTags";
 import { availableVaultPath } from "./services/vaultFiles";
 import { createRoadmapDocument, renderStateDocument } from "./state/document";
 import { ADD_NODE_ACTIONS } from "./view/addNodeActions";
@@ -60,6 +61,7 @@ interface RoadmapSettings {
   progressInCorner: boolean;
   progressCompact: boolean;
   compactControls: boolean;
+  showExplorerTag: boolean;
   newRoadmapFolder: string;
   palette: string[];
   previewWidth: number;
@@ -73,6 +75,7 @@ const DEFAULT_SETTINGS: RoadmapSettings = {
   progressInCorner: false,
   progressCompact: false,
   compactControls: false,
+  showExplorerTag: true,
   newRoadmapFolder: "",
   palette: [...DEFAULT_PALETTE],
   previewWidth: PREVIEW_DEFAULT_WIDTH,
@@ -80,6 +83,7 @@ const DEFAULT_SETTINGS: RoadmapSettings = {
 
 export default class RoadmapPlugin extends Plugin {
   private readonly fileModes: Record<string, ViewMode> = {};
+  private readonly explorerTags = new ExplorerRoadmapTags(this.app, (path) => this.isRoadmapPath(path));
   private displaySettings: RoadmapSettings = { ...DEFAULT_SETTINGS };
   private boardClipboard: BoardClipboard | null = null;
 
@@ -97,6 +101,7 @@ export default class RoadmapPlugin extends Plugin {
     });
 
     this.registerCommands();
+    this.registerExplorerTags();
 
     this.registerEvent(
       this.app.workspace.on("file-menu", (menu, file, _source, leaf) => {
@@ -137,6 +142,22 @@ export default class RoadmapPlugin extends Plugin {
         );
       }),
     );
+  }
+
+  private registerExplorerTags(): void {
+    this.register(() => {
+      this.explorerTags.destroy();
+    });
+    this.explorerTags.setEnabled(this.displaySettings.showExplorerTag);
+
+    const refresh = (): void => {
+      this.explorerTags.refresh();
+    };
+
+    this.app.workspace.onLayoutReady(refresh);
+    this.registerEvent(this.app.workspace.on("layout-change", refresh));
+    this.registerEvent(this.app.metadataCache.on("resolved", refresh));
+    this.registerEvent(this.app.metadataCache.on("changed", refresh));
   }
 
   private registerCommands(): void {
@@ -374,6 +395,16 @@ export default class RoadmapPlugin extends Plugin {
 
   setCompactControls(value: boolean): void {
     this.displaySettings.compactControls = value;
+    void this.saveSettings();
+  }
+
+  getShowExplorerTag(): boolean {
+    return this.displaySettings.showExplorerTag;
+  }
+
+  setShowExplorerTag(value: boolean): void {
+    this.displaySettings.showExplorerTag = value;
+    this.explorerTags.setEnabled(value);
     void this.saveSettings();
   }
 
@@ -716,6 +747,15 @@ class RoadmapSettingTab extends PluginSettingTab {
       .addToggle((toggle) =>
         toggle.setValue(this.plugin.getCompactControls()).onChange((value) => {
           this.plugin.setCompactControls(value);
+        }),
+      );
+
+    new Setting(this.containerEl)
+      .setName("Tag roadmaps in the file explorer")
+      .setDesc("Mark roadmap files in the file list, the way Obsidian marks Canvas files.")
+      .addToggle((toggle) =>
+        toggle.setValue(this.plugin.getShowExplorerTag()).onChange((value) => {
+          this.plugin.setShowExplorerTag(value);
         }),
       );
 
