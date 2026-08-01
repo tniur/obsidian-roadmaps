@@ -199,7 +199,7 @@ button.rm-toolbar__zoom:focus-visible {
 }
 
 @container (max-width: 460px) {
-  .rm-canvas .react-flow__panel.react-flow__minimap.rm-minimap {
+  .rm-canvas .react-flow__panel.rm-minimap {
     display: none;
   }
 
@@ -393,11 +393,12 @@ button.rm-toolbar__button:active:not(:disabled) {
 }
 
 /* Muted overview docked bottom-left, out of the way of the add bar and the strip. */
-.rm-canvas .react-flow__panel.react-flow__minimap.rm-minimap {
+.rm-canvas .react-flow__panel.rm-minimap {
   width: var(--rm-minimap-width);
   height: var(--rm-minimap-height);
   margin: var(--rm-space-3);
-  background: var(--rm-panel-bg);
+  padding: var(--rm-minimap-inset);
+  background: var(--rm-minimap-dim);
   border: var(--rm-border-width) solid var(--rm-strip-border);
   border-radius: var(--rm-radius-tile);
   box-shadow: var(--rm-strip-shadow);
@@ -405,8 +406,23 @@ button.rm-toolbar__button:active:not(:disabled) {
   opacity: var(--rm-minimap-opacity);
 }
 
-.rm-canvas .react-flow__minimap-node {
-  stroke: none;
+.rm-minimap__frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+}
+
+.rm-minimap__view {
+  fill: var(--rm-panel-bg);
+}
+
+.rm-minimap__node {
+  fill: var(--rm-minimap-fill, var(--rm-minimap-node));
+}
+
+.rm-minimap__cluster {
+  fill: var(--rm-minimap-fill, var(--rm-minimap-cluster));
 }
 
 .rm-icon {

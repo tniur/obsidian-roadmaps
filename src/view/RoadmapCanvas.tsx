@@ -4,7 +4,6 @@ import {
   Background,
   BackgroundVariant,
   ConnectionMode,
-  MiniMap,
   NodeToolbar as FlowNodeToolbar,
   Position,
   ReactFlow,
@@ -36,6 +35,7 @@ import { filterIsActive, nodeMatchesFilter, type NodeFilter } from "../domain/fi
 import { boardProgress } from "../domain/progress";
 import type { RoadmapState, RoadmapViewport } from "../domain/types";
 import type { AddNodeActionId } from "./addNodeActions";
+import { BoardMiniMap } from "./BoardMiniMap";
 import { ClusterNodeView } from "./ClusterNodeView";
 import { getEdgeEndpoints } from "./edgeParams";
 import { FloatingEdge } from "./FloatingEdge";
@@ -133,9 +133,6 @@ const ALT_COPY_Z_INDEX = 1000;
 const DOUBLE_CLICK_ZOOM_FACTOR = 2;
 
 const DOUBLE_CLICK_ZOOM_DURATION = 200;
-
-/** Board-unit corner radius for mini-map node rects; scales down with the map. */
-const MINIMAP_NODE_RADIUS = 8;
 
 const SEARCH_CENTER_DURATION = 300;
 
@@ -1041,11 +1038,6 @@ export function RoadmapCanvas({
     [getNodes, storeApi, setCenter, getViewport, maxZoom],
   );
 
-  const miniMapNodeColor = useCallback(
-    (node: RoadmapFlowNode): string => node.data.color ?? "var(--rm-minimap-node)",
-    [],
-  );
-
   const onMoveEnd = useCallback(
     (_event: MouseEvent | TouchEvent | null, viewport: RoadmapViewport) => {
       onViewportChange(viewport);
@@ -1122,18 +1114,7 @@ export function RoadmapCanvas({
             {dotsVisible ? (
               <Background variant={BackgroundVariant.Dots} gap={BACKGROUND_DOT_GAP} size={BACKGROUND_DOT_SIZE} />
             ) : null}
-            {miniMapVisible ? (
-              <MiniMap
-                className="rm-minimap"
-                position="bottom-left"
-                ariaLabel="Mini-map"
-                pannable
-                zoomable
-                nodeColor={miniMapNodeColor}
-                nodeBorderRadius={MINIMAP_NODE_RADIUS}
-                maskColor="var(--rm-minimap-mask)"
-              />
-            ) : null}
+            {miniMapVisible ? <BoardMiniMap nodes={nodes} /> : null}
             {progressVisible && !(!progressInCorner && (searchOpen || filterOpen)) ? (
               <ProgressIsland
                 progress={progress}
