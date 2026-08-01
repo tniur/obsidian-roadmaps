@@ -75,25 +75,6 @@
   box-shadow: var(--rm-focus-halo);
 }
 
-.rm-modal__hint {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  color: var(--rm-text-faint);
-  font-size: var(--rm-node-secondary-size);
-}
-
-.rm-modal__kbd {
-  padding: 1px 6px;
-  background: var(--rm-hover);
-  border: var(--rm-border-width) solid var(--rm-border);
-  border-radius: 5px;
-  color: var(--rm-text-muted);
-  font-family: inherit;
-  font-size: var(--rm-chip-size-caps);
-  font-weight: 600;
-}
-
 .rm-modal__footer {
   display: flex;
   justify-content: flex-end;
