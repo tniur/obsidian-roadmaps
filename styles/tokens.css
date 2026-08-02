@@ -60,6 +60,7 @@
   --rm-dot-color: color-mix(in srgb, var(--rm-text-faint) 45%, transparent);
   --rm-guide-color: var(--rm-accent);
   --rm-guide-width: 1px;
+  --rm-guide-cap: 4px;
   --rm-selection-fill: var(--rm-accent-tint);
   --rm-selection-radius: var(--rm-radius-m);
   --rm-selection-pad: 6px;

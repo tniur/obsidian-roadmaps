@@ -42,7 +42,7 @@ import { FloatingEdge } from "./FloatingEdge";
 import { ClusterBubble, EdgeBubble, NodeBubble } from "./menus/bubbles";
 import { AddActionRows, CardMenu, SelectionCard } from "./menus/cards";
 import type { CanvasMenuActions } from "./menus/menuActions";
-import { getHelperLines } from "./alignment";
+import { getHelperLines, offsetGuides, sameGuides, type BoardGuides } from "./alignment";
 import { HelperLines } from "./HelperLines";
 import { NodeCallbacksContext, type NodeCallbacks } from "./nodeCallbacks";
 import { NodeFilterContext, type NodeDimPredicate } from "./nodeFilterContext";
@@ -321,7 +321,7 @@ export function RoadmapCanvas({
       ))
     | null
   >(null);
-  const [helperLines, setHelperLines] = useState<{ horizontal?: number; vertical?: number }>({});
+  const [helperLines, setHelperLines] = useState<BoardGuides>({});
   /** Alt-drag duplicate state. A rubber-band drag fires both onNodeDragStop and
    * onSelectionDragStop for one gesture; `finalized` makes the second finalize a no-op. */
   const altDragRef = useRef<{
@@ -433,7 +433,7 @@ export function RoadmapCanvas({
         return;
       }
 
-      let lines: { horizontal?: number; vertical?: number } = {};
+      let lines: BoardGuides = {};
       const [first] = changes;
       const activeNode = first?.type === "position" ? getNodes().find((node) => node.id === first.id) : undefined;
 
@@ -459,15 +459,10 @@ export function RoadmapCanvas({
           first.position.y = result.snapY;
         }
 
-        lines = {
-          horizontal: result.horizontal === undefined ? undefined : result.horizontal + offsetY,
-          vertical: result.vertical === undefined ? undefined : result.vertical + offsetX,
-        };
+        lines = offsetGuides(result, offsetX, offsetY);
       }
 
-      setHelperLines((prev) =>
-        prev.horizontal === lines.horizontal && prev.vertical === lines.vertical ? prev : lines,
-      );
+      setHelperLines((prev) => (sameGuides(prev, lines) ? prev : lines));
       setNodes((current) => normalizeClusterSelection(applyNodeChanges(changes, current)));
     },
     [getNodes],
@@ -1124,7 +1119,11 @@ export function RoadmapCanvas({
                 onToggleExpanded={toggleProgressExpanded}
               />
             ) : null}
-            <HelperLines horizontal={helperLines.horizontal} vertical={helperLines.vertical} />
+            <HelperLines
+              horizontal={helperLines.horizontal}
+              vertical={helperLines.vertical}
+              spacing={helperLines.spacing}
+            />
             {bubblesVisible && soleNode !== null ? (
               <FlowNodeToolbar nodeId={soleNode.id} isVisible position={Position.Top} offset={12}>
                 {isCardNode(soleNode) ? (
