@@ -156,6 +156,9 @@
   /* modals & menus */
   --rm-radius-modal: 13px;
   --rm-flyout-wide: 250px;
+  /* Row density of the card menus; the tile drives the row height. */
+  --rm-card-menu-tile: 26px;
+  --rm-card-menu-row-pad: 3px;
   --rm-shadow-modal: 0 16px 44px rgba(15, 17, 24, 0.3), 0 3px 10px rgba(15, 17, 24, 0.18);
   /* Transient menus sit close to their anchor, so they lift less than a modal. */
   --rm-shadow-popover: 0 3px 10px rgba(20, 22, 30, 0.1), 0 1px 3px rgba(20, 22, 30, 0.06);

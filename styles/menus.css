@@ -418,7 +418,7 @@ button.rm-menu__row[data-danger="true"]:hover {
   left: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--rm-space-1);
+  gap: var(--rm-space-0);
   width: 272px;
   padding: var(--rm-space-2);
   background: var(--rm-surface);
@@ -432,7 +432,7 @@ button.rm-menu__row[data-danger="true"]:hover {
 }
 
 .rm-card-menu__title {
-  padding: 8px 10px 6px;
+  padding: 5px 8px 4px;
   color: var(--rm-text-faint);
   font-size: var(--rm-chip-size-caps);
   font-weight: 700;
@@ -443,10 +443,10 @@ button.rm-menu__row[data-danger="true"]:hover {
 .rm-card-menu button.rm-card-menu__item {
   display: flex;
   align-items: center;
-  gap: 11px;
+  gap: 9px;
   min-height: 0;
   height: auto;
-  padding: 6px;
+  padding: var(--rm-card-menu-row-pad) 6px;
   background-color: transparent;
   border: none;
   border-radius: var(--rm-radius-tile);
@@ -466,14 +466,14 @@ button.rm-menu__row[data-danger="true"]:hover {
 }
 
 .rm-card-menu__tile {
-  --icon-size: 16px;
+  --icon-size: 15px;
 
   display: inline-flex;
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  width: var(--rm-card-menu-tile);
+  height: var(--rm-card-menu-tile);
   background: var(--rm-hover);
   border-radius: var(--rm-radius-m);
   color: var(--rm-text-muted);
