@@ -11,7 +11,7 @@
   background: var(--rm-surface);
   border: var(--rm-border-width) solid var(--rm-border);
   border-radius: var(--rm-radius-node);
-  box-shadow: var(--rm-shadow-card-drag);
+  box-shadow: var(--rm-shadow-popover);
 }
 
 .rm-bubble__caret {
@@ -118,7 +118,7 @@ button.rm-bubble__btn[data-active="true"] .rm-bubble__dot {
   background: var(--rm-surface);
   border: var(--rm-border-width) solid var(--rm-border);
   border-radius: var(--rm-radius-node);
-  box-shadow: var(--rm-shadow-card-drag);
+  box-shadow: var(--rm-shadow-popover);
   transform: translateX(-50%);
 }
 
@@ -424,7 +424,7 @@ button.rm-menu__row[data-danger="true"]:hover {
   background: var(--rm-surface);
   border: var(--rm-border-width) solid var(--rm-border);
   border-radius: var(--rm-radius-modal);
-  box-shadow: var(--rm-shadow-modal);
+  box-shadow: var(--rm-shadow-popover);
 }
 
 .rm-card-menu.rm-card-menu--narrow {

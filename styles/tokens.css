@@ -157,6 +157,8 @@
   --rm-radius-modal: 13px;
   --rm-flyout-wide: 250px;
   --rm-shadow-modal: 0 16px 44px rgba(15, 17, 24, 0.3), 0 3px 10px rgba(15, 17, 24, 0.18);
+  /* Transient menus sit close to their anchor, so they lift less than a modal. */
+  --rm-shadow-popover: 0 3px 10px rgba(20, 22, 30, 0.1), 0 1px 3px rgba(20, 22, 30, 0.06);
   --rm-danger-tint: color-mix(in srgb, var(--rm-danger) 5%, transparent);
   --rm-danger-tint-strong: color-mix(in srgb, var(--rm-danger) 12%, transparent);
   --rm-danger-border: color-mix(in srgb, var(--rm-danger) 40%, transparent);
@@ -232,6 +234,7 @@
   --rm-cluster-border-tint: 65%;
   --rm-preview-header-tint: 9%;
   --rm-shadow-modal: 0 16px 44px rgba(0, 0, 0, 0.6), 0 3px 10px rgba(0, 0, 0, 0.45);
+  --rm-shadow-popover: 0 3px 12px rgba(0, 0, 0, 0.42), 0 1px 3px rgba(0, 0, 0, 0.3);
   --rm-danger-tint: color-mix(in srgb, var(--rm-danger) 9%, transparent);
   --rm-danger-tint-strong: color-mix(in srgb, var(--rm-danger) 18%, transparent);
   --rm-danger-border: color-mix(in srgb, var(--rm-danger) 50%, transparent);
