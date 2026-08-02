@@ -76,11 +76,17 @@
   --rm-dim-opacity: 0.15;
   --rm-dim-grayscale: 0.6;
 
+  /* Weight ladder: bold is reserved for the active or selected state, so resting
+     chrome stays medium and only surface titles carry extra weight. */
+  --rm-weight-medium: 500;
+  --rm-weight-title: 600;
+  --rm-weight-active: 700;
+
   /* node typography */
   --rm-node-title-size: 14px;
-  --rm-node-title-weight: 650;
+  --rm-node-title-weight: var(--rm-weight-title);
   --rm-node-text-size: 17px;
-  --rm-node-text-weight: 550;
+  --rm-node-text-weight: var(--rm-weight-medium);
   --rm-node-desc-size: 12px;
   --rm-node-secondary-size: 11.5px;
 

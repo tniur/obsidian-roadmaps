@@ -155,7 +155,7 @@ button.rm-bubble__btn[data-active="true"] .rm-bubble__dot {
 .rm-menu__section-label {
   color: var(--rm-text-faint);
   font-size: var(--rm-chip-size-caps);
-  font-weight: 700;
+  font-weight: var(--rm-weight-title);
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
@@ -184,7 +184,7 @@ button.rm-menu__seg-btn {
   box-shadow: none;
   color: var(--rm-text-muted);
   font-size: var(--rm-menu-chip-size);
-  font-weight: 600;
+  font-weight: var(--rm-weight-medium);
   cursor: pointer;
   transition:
     background-color var(--rm-transition-fast),
@@ -195,6 +195,7 @@ button.rm-menu__seg-btn[data-active="true"] {
   background-color: var(--rm-surface);
   box-shadow: var(--rm-shadow-card);
   color: var(--rm-accent);
+  font-weight: var(--rm-weight-active);
 }
 
 button.rm-menu__seg-btn:focus-visible {
@@ -302,7 +303,7 @@ button.rm-menu__chip {
   box-shadow: none;
   color: var(--rm-text-muted);
   font-size: var(--rm-menu-chip-size);
-  font-weight: 600;
+  font-weight: var(--rm-weight-medium);
   cursor: pointer;
   transition:
     background-color var(--rm-transition-fast),
@@ -312,7 +313,7 @@ button.rm-menu__chip {
 
 button.rm-menu__chip[data-caps="true"] {
   font-size: var(--rm-chip-size);
-  font-weight: 700;
+  font-weight: var(--rm-weight-title);
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
@@ -321,6 +322,7 @@ button.rm-menu__chip[data-active="true"] {
   background-color: color-mix(in srgb, var(--rm-chip-color) 14%, transparent);
   border-color: color-mix(in srgb, var(--rm-chip-color) 40%, transparent);
   color: var(--rm-chip-color);
+  font-weight: var(--rm-weight-active);
 }
 
 button.rm-menu__chip:focus-visible {
@@ -336,7 +338,7 @@ button.rm-menu__chip:focus-visible {
 .rm-menu__field-label {
   color: var(--rm-text-faint);
   font-size: var(--rm-menu-caps-size);
-  font-weight: 700;
+  font-weight: var(--rm-weight-title);
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
@@ -350,7 +352,7 @@ button.rm-menu__chip:focus-visible {
   border-radius: var(--rm-radius-m);
   color: var(--rm-text);
   font-size: var(--rm-menu-row-size);
-  font-weight: 500;
+  font-weight: var(--rm-weight-medium);
 }
 
 .rm-view .rm-menu__input:focus {
@@ -380,7 +382,7 @@ button.rm-menu__row {
   box-shadow: none;
   color: var(--rm-text);
   font-size: var(--rm-menu-row-size);
-  font-weight: 500;
+  font-weight: var(--rm-weight-medium);
   text-align: left;
   cursor: pointer;
   transition: background-color var(--rm-transition-fast);
@@ -435,7 +437,7 @@ button.rm-menu__row[data-danger="true"]:hover {
   padding: 5px 8px 4px;
   color: var(--rm-text-faint);
   font-size: var(--rm-chip-size-caps);
-  font-weight: 700;
+  font-weight: var(--rm-weight-title);
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
@@ -490,7 +492,7 @@ button.rm-menu__row[data-danger="true"]:hover {
 .rm-card-menu__label {
   color: var(--rm-text);
   font-size: var(--rm-label-size);
-  font-weight: 600;
+  font-weight: var(--rm-weight-medium);
   line-height: 1.25;
 }
 
@@ -562,7 +564,7 @@ button.rm-card-menu__item[data-danger="true"]:hover {
 .rm-card-menu__section-label {
   color: var(--rm-text-faint);
   font-size: var(--rm-chip-size-caps);
-  font-weight: 600;
+  font-weight: var(--rm-weight-title);
   letter-spacing: 0.03em;
 }
 
