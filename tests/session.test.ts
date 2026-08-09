@@ -9,6 +9,7 @@ import {
   createTextNode,
   createUrlNode,
 } from "../src/domain/create";
+import { DEFAULT_TEXT_ALIGN } from "../src/domain/types";
 import { readState } from "../src/state/document";
 import { newSession } from "./helpers";
 
@@ -154,15 +155,15 @@ describe("roadmap session", () => {
 
     session.addNode(node);
 
-    session.setNodeAlign(node.id, { h: "center" });
+    session.setNodeAlign(node.id, { h: "right" });
 
-    expect(session.state.nodes[node.id]?.align).toEqual({ h: "center", v: "top" });
+    expect(session.state.nodes[node.id]?.align).toEqual({ h: "right", v: DEFAULT_TEXT_ALIGN.v });
 
     session.setNodeAlign(node.id, { v: "bottom" });
 
-    expect(session.state.nodes[node.id]?.align).toEqual({ h: "center", v: "bottom" });
-    expect(session.content).toContain(`id=${node.id} type=note ah=center av=bottom -->`);
-    expect(readState(session.content)?.nodes[node.id]?.align).toEqual({ h: "center", v: "bottom" });
+    expect(session.state.nodes[node.id]?.align).toEqual({ h: "right", v: "bottom" });
+    expect(session.content).toContain(`id=${node.id} type=note ah=right av=bottom -->`);
+    expect(readState(session.content)?.nodes[node.id]?.align).toEqual({ h: "right", v: "bottom" });
   });
 
   it("sets and clears node status in state and the body block", () => {
@@ -722,13 +723,13 @@ describe("bulk node mutations", () => {
 
     session.addNode(a);
     session.addNode(b);
-    session.setNodeAlign(a.id, { h: "center" });
+    session.setNodeAlign(a.id, { h: "right" });
     const before = session.state;
 
-    session.setNodesAlign([a.id, b.id, "ghost"], { h: "center" });
+    session.setNodesAlign([a.id, b.id, "ghost"], { h: "right" });
 
-    expect(session.state.nodes[a.id]?.align).toEqual({ h: "center", v: "top" });
-    expect(session.state.nodes[b.id]?.align).toEqual({ h: "center", v: "top" });
+    expect(session.state.nodes[a.id]?.align).toEqual({ h: "right", v: DEFAULT_TEXT_ALIGN.v });
+    expect(session.state.nodes[b.id]?.align).toEqual({ h: "right", v: DEFAULT_TEXT_ALIGN.v });
     expect(session.state.nodes[a.id]).toBe(before.nodes[a.id]);
   });
 

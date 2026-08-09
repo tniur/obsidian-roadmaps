@@ -79,7 +79,7 @@
   min-width: 0;
   overflow: hidden;
   font-size: var(--rm-preview-title-size);
-  font-weight: 700;
+  font-weight: var(--rm-weight-title);
   letter-spacing: -0.01em;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -90,7 +90,7 @@
   overflow: hidden;
   color: var(--rm-text-faint);
   font-size: var(--rm-node-secondary-size);
-  font-weight: 500;
+  font-weight: var(--rm-weight-medium);
   white-space: nowrap;
   text-overflow: ellipsis;
 }
@@ -253,19 +253,19 @@
   border-radius: 5px;
   color: var(--rm-surface);
   font-size: var(--rm-chip-size);
-  font-weight: 700;
+  font-weight: var(--rm-weight-title);
 }
 
 .rm-preview__link-domain {
   color: var(--rm-text-muted);
   font-size: var(--rm-label-size-sm);
-  font-weight: 600;
+  font-weight: var(--rm-weight-medium);
 }
 
 .rm-preview__link-title {
   margin-top: 2px;
   font-size: 15.5px;
-  font-weight: 700;
+  font-weight: var(--rm-weight-title);
   line-height: 1.35;
   overflow-wrap: anywhere;
 }

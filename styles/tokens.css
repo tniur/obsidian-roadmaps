@@ -60,6 +60,7 @@
   --rm-dot-color: color-mix(in srgb, var(--rm-text-faint) 45%, transparent);
   --rm-guide-color: var(--rm-accent);
   --rm-guide-width: 1px;
+  --rm-guide-cap: 4px;
   --rm-selection-fill: var(--rm-accent-tint);
   --rm-selection-radius: var(--rm-radius-m);
   --rm-selection-pad: 6px;
@@ -75,11 +76,26 @@
   --rm-dim-opacity: 0.15;
   --rm-dim-grayscale: 0.6;
 
+  /* Text cards carry the board's own content, so they read as a sticky note: no border,
+     a warmer fill and a lifted shadow set them apart from cards that point at a file. */
+  --rm-node-sticky-tint: 7%;
+  --rm-node-sticky-bg: color-mix(in srgb, var(--color-yellow) var(--rm-node-sticky-tint), var(--rm-surface));
+
+  /* Weight ladder: bold is reserved for the active or selected state, so resting
+     chrome stays medium and only surface titles carry extra weight. */
+  --rm-weight-medium: 500;
+  --rm-weight-title: 600;
+  --rm-weight-active: 700;
+
   /* node typography */
   --rm-node-title-size: 14px;
-  --rm-node-title-weight: 650;
+  --rm-node-title-weight: var(--rm-weight-title);
+  --rm-node-title-leading: 1.3;
+
+  /* Sized against the title's cap height so glyph and glyph-sized icon read as one line. */
+  --rm-node-title-icon: 15px;
   --rm-node-text-size: 17px;
-  --rm-node-text-weight: 550;
+  --rm-node-text-weight: var(--rm-weight-medium);
   --rm-node-desc-size: 12px;
   --rm-node-secondary-size: 11.5px;
 
@@ -155,7 +171,12 @@
   /* modals & menus */
   --rm-radius-modal: 13px;
   --rm-flyout-wide: 250px;
+  /* Row density of the card menus; the tile drives the row height. */
+  --rm-card-menu-tile: 26px;
+  --rm-card-menu-row-pad: 3px;
   --rm-shadow-modal: 0 16px 44px rgba(15, 17, 24, 0.3), 0 3px 10px rgba(15, 17, 24, 0.18);
+  /* Transient menus sit close to their anchor, so they lift less than a modal. */
+  --rm-shadow-popover: 0 3px 10px rgba(20, 22, 30, 0.1), 0 1px 3px rgba(20, 22, 30, 0.06);
   --rm-danger-tint: color-mix(in srgb, var(--rm-danger) 5%, transparent);
   --rm-danger-tint-strong: color-mix(in srgb, var(--rm-danger) 12%, transparent);
   --rm-danger-border: color-mix(in srgb, var(--rm-danger) 40%, transparent);
@@ -177,7 +198,9 @@
   --rm-minimap-height: 96px;
   --rm-minimap-opacity: 0.85;
   --rm-minimap-node: color-mix(in srgb, var(--rm-text-faint) 62%, transparent);
-  --rm-minimap-mask: color-mix(in srgb, #000 30%, transparent);
+  --rm-minimap-cluster: color-mix(in srgb, var(--rm-text-faint) 24%, transparent);
+  --rm-minimap-dim: color-mix(in srgb, var(--rm-text-faint) 14%, var(--rm-panel-bg));
+  --rm-minimap-inset: 6px;
 
   /* status / priority */
   --rm-status-draft: var(--text-muted);
@@ -221,6 +244,7 @@
   --rm-strip-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
   --rm-edge-label-shadow: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
   --rm-node-tint: 18%;
+  --rm-node-sticky-tint: 13%;
   --rm-badge-tint: 24%;
   --rm-badge-tint-priority: 26%;
   --rm-cluster-tint: 16%;
@@ -229,6 +253,7 @@
   --rm-cluster-border-tint: 65%;
   --rm-preview-header-tint: 9%;
   --rm-shadow-modal: 0 16px 44px rgba(0, 0, 0, 0.6), 0 3px 10px rgba(0, 0, 0, 0.45);
+  --rm-shadow-popover: 0 3px 12px rgba(0, 0, 0, 0.42), 0 1px 3px rgba(0, 0, 0, 0.3);
   --rm-danger-tint: color-mix(in srgb, var(--rm-danger) 9%, transparent);
   --rm-danger-tint-strong: color-mix(in srgb, var(--rm-danger) 18%, transparent);
   --rm-danger-border: color-mix(in srgb, var(--rm-danger) 50%, transparent);

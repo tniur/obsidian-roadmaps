@@ -15,6 +15,7 @@ import {
   type NodePlacement,
 } from "../domain/create";
 import { roadmapToCanvas, serializeCanvas } from "../domain/jsonCanvas";
+import { nodeActionIcon, nodeActionLabel, type FileNodeAction } from "../domain/nodeAction";
 import { nodeOpenTarget } from "../domain/openTarget";
 import { formatFileSize, isSafeUrl, looksLikeUrl, normalizeHttpUrl } from "../domain/paths";
 import { sourceFile } from "../domain/source";
@@ -28,7 +29,7 @@ import { RoadmapSession, type RoadmapConnection } from "../state/session";
 import { runAddNodeAction, type AddNodeActionId } from "./addNodeActions";
 import type { BoardContext } from "./boardContext";
 import { ChoiceModal } from "./ChoiceModal";
-import { promptEditText, promptGroupIntoCluster, promptNodeUrl } from "./dialogs";
+import { promptGroupIntoCluster } from "./dialogs";
 import { exportBoardPdf, exportBoardPng } from "./exportPdf";
 import type { CanvasMenuActions } from "./menus/menuActions";
 import { NodePreviewPanel } from "./NodePreviewPanel";
@@ -59,6 +60,7 @@ export interface RoadmapViewHost {
   getCompactControls: () => boolean;
   setCompactControls: (value: boolean) => void;
   getPalette: () => readonly string[];
+  getFileNodeAction: () => FileNodeAction;
   getPreviewWidth: () => number;
   setPreviewWidth: (value: number) => void;
   getClipboard: () => BoardClipboard | null;
@@ -1092,31 +1094,20 @@ export class RoadmapView extends TextFileView {
   };
 
   /**
-   * Header edit action of the preview panel: board-owned content (text, URL) edits in
-   * place through its dialog and disappears under lock; file-backed sources open the
-   * file in an Obsidian tab, which the lock does not restrict.
+   * Header action of the preview panel. The panel already shows the content, so the button
+   * leads out of it — to the file or the link. Text nodes have nowhere to go and get none;
+   * the lock does not restrict opening.
    */
-  private previewEditAction(node: RoadmapNode): { label: string; run: () => void } | undefined {
-    const type = node.source.type;
-
-    if (type === "text" || type === "url") {
-      if (this.editableSession() === null) {
-        return undefined;
-      }
-
-      return {
-        label: type === "text" ? "Edit text" : "Edit URL",
-        run: () => {
-          const ctx = this.editableContext();
-
-          if (ctx !== null) {
-            (type === "text" ? promptEditText : promptNodeUrl)(ctx, node.id);
-          }
-        },
-      };
+  private previewAction(node: RoadmapNode): { label: string; icon: string; run: () => void } | undefined {
+    if (nodeOpenTarget(node) === null) {
+      return undefined;
     }
 
-    return { label: "Edit in Obsidian", run: () => this.handleNodeOpen(node.id, true) };
+    return {
+      label: nodeActionLabel("open", node.kind),
+      icon: nodeActionIcon("open"),
+      run: () => this.handleNodeOpen(node.id, true),
+    };
   }
 
   private readonly mountPreview = (node: RoadmapNode, el: HTMLElement, onRendered: () => void): (() => void) =>
@@ -1158,7 +1149,6 @@ export class RoadmapView extends TextFileView {
           mutate((ctx) => ctx.session.updateNodeMeta(id, { title: value }));
         }
       },
-      openNodeSource: (id) => this.handleNodeOpen(id, true),
       duplicateNodes: (ids) => this.duplicateNodes(ids),
       deleteNodes: (ids) => this.handleDeleteElements([...ids], []),
       groupIntoCluster: (ids) => this.withEditable((ctx) => promptGroupIntoCluster(ctx, [...ids])),
@@ -1396,6 +1386,7 @@ export class RoadmapView extends TextFileView {
               boardActions={this.boardActions}
               menuActions={this.menuActions}
               palette={this.host.getPalette()}
+              fileNodeAction={this.host.getFileNodeAction()}
             />
           </ReactFlowProvider>
           {previewNode !== undefined ? (
@@ -1404,7 +1395,7 @@ export class RoadmapView extends TextFileView {
               node={previewNode}
               mount={this.mountPreview}
               refreshNonce={this.previewRefreshNonce}
-              edit={this.previewEditAction(previewNode)}
+              action={this.previewAction(previewNode)}
               initialWidth={this.host.getPreviewWidth()}
               onWidthChange={this.host.setPreviewWidth}
               onClose={this.handleClosePreview}

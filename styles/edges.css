@@ -117,7 +117,7 @@
   border-radius: var(--rm-radius-chip);
   color: var(--rm-text-muted);
   font-size: var(--rm-chip-size);
-  font-weight: 500;
+  font-weight: var(--rm-weight-medium);
   line-height: 1.3;
   white-space: nowrap;
   pointer-events: none;

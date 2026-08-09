@@ -54,7 +54,7 @@ button.rm-toolbar__zoom {
   box-shadow: none;
   color: var(--rm-text-faint);
   font-size: 10px;
-  font-weight: 600;
+  font-weight: var(--rm-weight-medium);
   font-variant-numeric: tabular-nums;
   line-height: 1;
   text-align: center;
@@ -112,7 +112,7 @@ button.rm-toolbar__zoom:focus-visible {
 .rm-progress__percent {
   color: var(--rm-status-done);
   font-size: 17px;
-  font-weight: 600;
+  font-weight: var(--rm-weight-title);
   line-height: 1;
 }
 
@@ -184,7 +184,7 @@ button.rm-toolbar__zoom:focus-visible {
 
 .rm-progress__count {
   color: var(--rm-text-muted);
-  font-weight: 600;
+  font-weight: var(--rm-weight-medium);
 }
 
 .rm-progress__name {
@@ -199,7 +199,7 @@ button.rm-toolbar__zoom:focus-visible {
 }
 
 @container (max-width: 460px) {
-  .rm-canvas .react-flow__panel.react-flow__minimap.rm-minimap {
+  .rm-canvas .react-flow__panel.rm-minimap {
     display: none;
   }
 
@@ -276,7 +276,7 @@ button.rm-toolbar__zoom:focus-visible {
   width: 56px;
   color: var(--rm-text-muted);
   font-size: var(--rm-label-size-sm);
-  font-weight: 600;
+  font-weight: var(--rm-weight-medium);
 }
 
 .rm-filter__chips {
@@ -295,7 +295,7 @@ button.rm-toolbar__zoom:focus-visible {
   border: var(--rm-border-width) solid var(--rm-border);
   border-radius: var(--rm-radius-chip);
   font-size: var(--rm-label-size-sm);
-  font-weight: 500;
+  font-weight: var(--rm-weight-medium);
   cursor: pointer;
   transition:
     color var(--rm-transition-fast),
@@ -314,6 +314,7 @@ button.rm-toolbar__zoom:focus-visible {
 
 .rm-filter__chip[data-active="true"] {
   color: var(--rm-chip-color, var(--rm-accent));
+  font-weight: var(--rm-weight-active);
   background: color-mix(in srgb, var(--rm-chip-color, var(--rm-accent)) var(--rm-badge-tint), transparent);
   border-color: color-mix(in srgb, var(--rm-chip-color, var(--rm-accent)) 45%, transparent);
 }
@@ -333,7 +334,7 @@ button.rm-toolbar__zoom:focus-visible {
   border: none;
   border-radius: var(--rm-radius-control);
   font-size: 13px;
-  font-weight: 600;
+  font-weight: var(--rm-weight-medium);
   cursor: pointer;
   transition:
     color var(--rm-transition-fast),
@@ -393,11 +394,12 @@ button.rm-toolbar__button:active:not(:disabled) {
 }
 
 /* Muted overview docked bottom-left, out of the way of the add bar and the strip. */
-.rm-canvas .react-flow__panel.react-flow__minimap.rm-minimap {
+.rm-canvas .react-flow__panel.rm-minimap {
   width: var(--rm-minimap-width);
   height: var(--rm-minimap-height);
   margin: var(--rm-space-3);
-  background: var(--rm-panel-bg);
+  padding: var(--rm-minimap-inset);
+  background: var(--rm-minimap-dim);
   border: var(--rm-border-width) solid var(--rm-strip-border);
   border-radius: var(--rm-radius-tile);
   box-shadow: var(--rm-strip-shadow);
@@ -405,8 +407,23 @@ button.rm-toolbar__button:active:not(:disabled) {
   opacity: var(--rm-minimap-opacity);
 }
 
-.rm-canvas .react-flow__minimap-node {
-  stroke: none;
+.rm-minimap__frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+}
+
+.rm-minimap__view {
+  fill: var(--rm-panel-bg);
+}
+
+.rm-minimap__node {
+  fill: var(--rm-minimap-fill, var(--rm-minimap-node));
+}
+
+.rm-minimap__cluster {
+  fill: var(--rm-minimap-fill, var(--rm-minimap-cluster));
 }
 
 .rm-icon {

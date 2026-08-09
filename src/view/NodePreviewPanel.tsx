@@ -17,7 +17,7 @@ interface NodePreviewPanelProps {
   node: RoadmapNode;
   mount: (node: RoadmapNode, el: HTMLElement, onRendered: () => void) => () => void;
   refreshNonce: number;
-  edit?: { label: string; run: () => void };
+  action?: { label: string; icon: string; run: () => void };
   initialWidth: number;
   onWidthChange: (width: number) => void;
   onClose: () => void;
@@ -25,14 +25,14 @@ interface NodePreviewPanelProps {
 
 /**
  * Right-docked panel that renders a node's source content inside the canvas; a refresh re-mounts
- * the content but carries the scroll offset across. The edit action is optional (board-owned
- * content loses it under lock); dragging the left edge resizes, double-click resets.
+ * the content but carries the scroll offset across. The header action is optional (text nodes
+ * have none); dragging the left edge resizes, double-click resets.
  */
 export function NodePreviewPanel({
   node,
   mount,
   refreshNonce,
-  edit,
+  action,
   initialWidth,
   onWidthChange,
   onClose,
@@ -129,7 +129,7 @@ export function NodePreviewPanel({
           <span className="rm-preview__title">{nodeTitle(node)}</span>
           {sourceLabel !== undefined ? <span className="rm-preview__source">{sourceLabel}</span> : null}
         </div>
-        {edit !== undefined ? <ToolbarButton icon="pencil" label={edit.label} onClick={edit.run} /> : null}
+        {action !== undefined ? <ToolbarButton icon={action.icon} label={action.label} onClick={action.run} /> : null}
         <ToolbarButton icon="x" label="Close preview" onClick={onClose} />
       </div>
       {node.description !== undefined ? <div className="rm-preview__desc">{node.description}</div> : null}

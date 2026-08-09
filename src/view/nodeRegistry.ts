@@ -3,10 +3,10 @@ import type { RoadmapNodeKind } from "../domain/types";
 import type { RoadmapNodeData } from "./flow";
 import { iconTitleNodeBody } from "./IconTitleNodeBody";
 import { ImageNodeBody } from "./ImageNodeBody";
-import { NoteNodeBody } from "./NoteNodeBody";
 import { TextNodeBody } from "./TextNodeBody";
 
 export interface NodeBodyProps {
+  id: string;
   data: RoadmapNodeData;
 }
 
@@ -20,7 +20,7 @@ export function getNodeRenderer(kind: RoadmapNodeKind): ComponentType<NodeBodyPr
   return registry.get(kind) ?? null;
 }
 
-registerNodeRenderer("note", NoteNodeBody);
+registerNodeRenderer("note", iconTitleNodeBody("file-text"));
 registerNodeRenderer("url", iconTitleNodeBody("link"));
 registerNodeRenderer("image", ImageNodeBody);
 registerNodeRenderer("text", TextNodeBody);

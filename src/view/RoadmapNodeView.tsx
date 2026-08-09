@@ -39,7 +39,7 @@ export function RoadmapNodeView({ id, data, selected, isConnectable }: NodeProps
             <Icon name="alert-triangle" />
           </span>
         ) : null}
-        {Body !== null ? <Body data={node} /> : <span className="rm-node__title">{node.displayTitle}</span>}
+        {Body !== null ? <Body id={id} data={node} /> : <span className="rm-node__title">{node.displayTitle}</span>}
       </div>
       <NodeResizer
         minWidth={MIN_NODE_WIDTH}

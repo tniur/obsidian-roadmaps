@@ -9,7 +9,7 @@ interface PromptOptions {
   onSubmit: (value: string) => void;
 }
 
-/** Single-line text prompt: input with an Enter hint, Cancel and a confirm button. */
+/** Single-line text prompt: input, Cancel and a confirm button; Enter confirms. */
 export class PromptModal extends RoadmapModal {
   private value: string;
 
@@ -42,12 +42,6 @@ export class PromptModal extends RoadmapModal {
         this.submit();
       }
     });
-
-    const hint = this.contentEl.createDiv({ cls: "rm-modal__hint" });
-
-    hint.appendText("Press ");
-    hint.createEl("kbd", { cls: "rm-modal__kbd", text: "Enter" });
-    hint.appendText(` to ${cta.toLowerCase()}`);
 
     const footer = createModalFooter(this.contentEl);
 

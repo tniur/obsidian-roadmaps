@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { nodeActionIcon, nodeActionLabel, type NodeAction } from "../../domain/nodeAction";
 import { TEXT_ALIGNS_H, TEXT_ALIGNS_V, DEFAULT_TEXT_ALIGN } from "../../domain/types";
 import type { RoadmapCardNode, RoadmapClusterNode, RoadmapFlowEdge } from "../flow";
 import { BubbleToolbar, MoreRow, type BubbleGroup } from "./BubbleToolbar";
@@ -39,12 +40,18 @@ export function NodeBubble({
   selectionIds,
   palette,
   actions,
-}: BubbleProps & { node: RoadmapCardNode; selectionIds: readonly string[] }) {
+  nodeActions,
+  onRunAction,
+}: BubbleProps & {
+  node: RoadmapCardNode;
+  selectionIds: readonly string[];
+  nodeActions: readonly NodeAction[];
+  onRunAction: (id: string, action: NodeAction) => void;
+}) {
   const id = node.id;
   const data = node.data;
   const align = data.align ?? DEFAULT_TEXT_ALIGN;
   const groupIds = selectionIds.includes(id) ? selectionIds : [id];
-  const openLabel = data.kind === "url" ? "Open link" : data.kind === "image" ? "Open image" : "Open note";
 
   const contentFlyout = (close: () => void): ReactNode => (
     <FlyoutSection label="Content">
@@ -160,9 +167,14 @@ export function NodeBubble({
         flyoutKind: "tight",
         flyout: () => (
           <>
-            {data.kind === "text" ? null : (
-              <MoreRow icon="external-link" label={openLabel} onClick={() => actions.openNodeSource(id)} />
-            )}
+            {nodeActions.map((action) => (
+              <MoreRow
+                key={action}
+                icon={nodeActionIcon(action)}
+                label={nodeActionLabel(action, data.kind)}
+                onClick={() => onRunAction(id, action)}
+              />
+            ))}
             <MoreRow icon="copy" label="Duplicate" onClick={() => actions.duplicateNodes([id])} />
             {node.parentId == null ? (
               <MoreRow icon="group" label="Group into cluster" onClick={() => actions.groupIntoCluster(groupIds)} />

@@ -1,5 +1,4 @@
 import { Notice } from "obsidian";
-import { normalizeHttpUrl } from "../domain/paths";
 import type { RoadmapCluster } from "../domain/types";
 import { isReservedHeading } from "../markdown/cluster";
 import { sanitizeAlias } from "../markdown/sanitize";
@@ -79,53 +78,6 @@ export function promptNodeText(ctx: BoardContext, id: string, field: "title" | "
     cta: "Save",
     onSubmit: (value) => {
       ctx.session.updateNodeMeta(id, { [field]: value });
-      ctx.commit();
-    },
-  }).open();
-}
-
-/** Inline text nodes keep their content in `title`; unlike meta text it must stay non-empty. */
-export function promptEditText(ctx: BoardContext, id: string): void {
-  const node = ctx.session.state.nodes[id];
-
-  if (node === undefined || node.source.type !== "text") {
-    return;
-  }
-
-  new PromptModal(ctx.app, {
-    title: "Edit text",
-    placeholder: "Text",
-    initialValue: node.title ?? "",
-    cta: "Save",
-    onSubmit: (value) => {
-      if (value.length === 0) {
-        return;
-      }
-
-      ctx.session.updateNodeMeta(id, { title: value });
-      ctx.commit();
-    },
-  }).open();
-}
-
-export function promptNodeUrl(ctx: BoardContext, id: string): void {
-  const node = ctx.session.state.nodes[id];
-
-  if (node === undefined || node.source.type !== "url") {
-    return;
-  }
-
-  new PromptModal(ctx.app, {
-    title: "Node URL",
-    placeholder: "https://example.com",
-    initialValue: node.source.url,
-    cta: "Save",
-    onSubmit: (value) => {
-      if (value.length === 0) {
-        return;
-      }
-
-      ctx.session.setNodeUrl(id, normalizeHttpUrl(value));
       ctx.commit();
     },
   }).open();

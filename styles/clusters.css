@@ -46,7 +46,7 @@
   padding: 0 12px;
   background: var(--rm-cluster-header);
   border-bottom: var(--rm-border-width) solid color-mix(in srgb, var(--rm-cluster-border) 60%, transparent);
-  font-weight: 700;
+  font-weight: var(--rm-weight-title);
   font-size: var(--rm-label-size);
   line-height: 1;
   color: var(--rm-text);
@@ -64,7 +64,7 @@
   background: color-mix(in srgb, var(--rm-text-muted) 12%, transparent);
   color: var(--rm-text-muted);
   font-size: var(--rm-chip-size);
-  font-weight: 700;
+  font-weight: var(--rm-weight-medium);
   line-height: 1;
   font-variant-numeric: tabular-nums;
 }
@@ -87,7 +87,7 @@
   border-radius: var(--rm-radius-tile);
   color: var(--rm-text-faint);
   font-size: var(--rm-label-size-sm);
-  font-weight: 600;
+  font-weight: var(--rm-weight-medium);
 }
 
 .rm-cluster__placeholder-icon {
@@ -178,10 +178,16 @@ button.rm-cluster__action:active {
   gap: var(--rm-space-1);
 }
 
+/* Flex, not inline: an inline box would reserve descender space below the glyph and push the
+   icon off the text's centre line. */
 .rm-node__type-icon {
-  --icon-size: var(--rm-icon-size);
+  --icon-size: var(--rm-node-title-icon);
 
+  display: inline-flex;
   flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  height: calc(var(--rm-node-title-size) * var(--rm-node-title-leading));
   color: var(--rm-text-muted);
 }
 
@@ -224,7 +230,7 @@ button.rm-cluster__action:active {
   background: color-mix(in srgb, currentColor var(--rm-badge-tint), transparent);
   border-radius: var(--rm-radius-chip);
   font-size: var(--rm-chip-size);
-  font-weight: 600;
+  font-weight: var(--rm-weight-medium);
   line-height: 1;
   white-space: nowrap;
 }
@@ -236,7 +242,7 @@ button.rm-cluster__action:active {
 .rm-node__badge[data-priority] {
   background: color-mix(in srgb, currentColor var(--rm-badge-tint-priority), transparent);
   font-size: var(--rm-chip-size-caps);
-  font-weight: 700;
+  font-weight: var(--rm-weight-title);
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
