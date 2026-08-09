@@ -33,6 +33,13 @@ import { BACKGROUND_DOT_GAP, BACKGROUND_DOT_SIZE, FIT_VIEW_PADDING, MAX_ZOOM, MI
 import { asSide, type NodePlacement } from "../domain/create";
 import { filterIsActive, nodeMatchesFilter, type NodeFilter } from "../domain/filter";
 import { boardProgress } from "../domain/progress";
+import {
+  alternateNodeAction,
+  nodeMenuActions,
+  primaryNodeAction,
+  type FileNodeAction,
+  type NodeAction,
+} from "../domain/nodeAction";
 import type { RoadmapState, RoadmapViewport } from "../domain/types";
 import type { AddNodeActionId } from "./addNodeActions";
 import { BoardMiniMap } from "./BoardMiniMap";
@@ -46,6 +53,7 @@ import { getHelperLines, offsetGuides, sameGuides, type BoardGuides } from "./al
 import { HelperLines } from "./HelperLines";
 import { NodeCallbacksContext, type NodeCallbacks } from "./nodeCallbacks";
 import { NodeFilterContext, type NodeDimPredicate } from "./nodeFilterContext";
+import { TextEditingContext, type TextEditing } from "./textEditingContext";
 import {
   absoluteNodePosition,
   isCardNode,
@@ -225,6 +233,7 @@ interface RoadmapCanvasProps {
   boardActions: CanvasBoardActions;
   menuActions: CanvasMenuActions;
   palette: readonly string[];
+  fileNodeAction: FileNodeAction;
 }
 
 export function RoadmapCanvas({
@@ -253,6 +262,7 @@ export function RoadmapCanvas({
   boardActions,
   menuActions,
   palette,
+  fileNodeAction,
 }: RoadmapCanvasProps) {
   const {
     onMoved: onNodesMoved,
@@ -322,6 +332,7 @@ export function RoadmapCanvas({
     | null
   >(null);
   const [helperLines, setHelperLines] = useState<BoardGuides>({});
+  const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
   /** Alt-drag duplicate state. A rubber-band drag fires both onNodeDragStop and
    * onSelectionDragStop for one gesture; `finalized` makes the second finalize a no-op. */
   const altDragRef = useRef<{
@@ -368,6 +379,13 @@ export function RoadmapCanvas({
 
     return () => onFlowInit(null);
   }, [reactFlow, onFlowInit]);
+
+  /** Locking the board or losing the node under the caret leaves the editor with nothing to commit. */
+  useEffect(() => {
+    if (editingNodeId !== null && (locked || state.nodes[editingNodeId] === undefined)) {
+      setEditingNodeId(null);
+    }
+  }, [editingNodeId, locked, state.nodes]);
 
   useEffect(() => {
     if (focusNonce === 0) {
@@ -756,16 +774,49 @@ export function RoadmapCanvas({
     [onSelectionChange],
   );
 
-  const onNodeDoubleClick = useCallback(
-    (event: ReactMouseEvent, node: RoadmapFlowNode) => {
-      if (event.ctrlKey || event.metaKey) {
-        onNodeOpen(node.id, true);
-      } else {
-        onNodePreview(node.id);
+  /** Text editing is board-local; the other actions leave the canvas through the view. */
+  const runNodeAction = useCallback(
+    (id: string, action: NodeAction | null) => {
+      const runners: Record<NodeAction, (nodeId: string) => void> = {
+        preview: onNodePreview,
+        open: (nodeId) => onNodeOpen(nodeId, true),
+        "edit-text": setEditingNodeId,
+      };
+
+      if (action !== null) {
+        runners[action](id);
       }
     },
     [onNodeOpen, onNodePreview],
   );
+
+  /** The modifier gesture reaches the action the board preference displaced. */
+  const onNodeDoubleClick = useCallback(
+    (event: ReactMouseEvent, node: RoadmapFlowNode) => {
+      if (!isCardNode(node)) {
+        return;
+      }
+
+      const kind = node.data.kind;
+      const action =
+        event.ctrlKey || event.metaKey
+          ? alternateNodeAction(kind, fileNodeAction, locked)
+          : primaryNodeAction(kind, fileNodeAction, locked);
+
+      runNodeAction(node.id, action);
+    },
+    [fileNodeAction, locked, runNodeAction],
+  );
+
+  const commitNodeText = useCallback(
+    (id: string, value: string) => {
+      setEditingNodeId(null);
+      menuActions.setNodeText(id, value);
+    },
+    [menuActions],
+  );
+
+  const cancelNodeEdit = useCallback(() => setEditingNodeId(null), []);
 
   /** Right-click selects its target; the bubble toolbar follows the selection. */
   const selectOnly = useCallback((id: string, kind: "node" | "edge") => {
@@ -1045,202 +1096,211 @@ export function RoadmapCanvas({
     [locked, onNodeResized, onClusterToggleCollapse, onClusterArrange],
   );
 
+  const textEditing = useMemo<TextEditing>(
+    () => ({ editingId: editingNodeId, onCommit: commitNodeText, onCancel: cancelNodeEdit }),
+    [editingNodeId, commitNodeText, cancelNodeEdit],
+  );
+
   const selectedNodes = nodes.filter((node) => node.selected === true);
   const selectedEdges = edges.filter((edge) => edge.selected === true);
   const soleNode = selectedNodes.length === 1 && selectedEdges.length === 0 ? selectedNodes[0] : null;
   const soleEdge = selectedEdges.length === 1 && selectedNodes.length === 0 ? selectedEdges[0] : null;
-  const bubblesVisible = interactive && !dragging && cardMenu === null;
+  const bubblesVisible = interactive && !dragging && cardMenu === null && editingNodeId === null;
 
   return (
     <NodeCallbacksContext.Provider value={nodeCallbacks}>
-      <NodeFilterContext.Provider value={filterState}>
-        <div
-          className="rm-canvas"
-          data-locked={locked}
-          onDoubleClick={onCanvasDoubleClick}
-          onDragOver={onDragOver}
-          onDrop={onDrop}
-        >
-          <ReactFlow
-            id={flowId}
-            nodes={nodes}
-            edges={edges}
-            nodeTypes={nodeTypes}
-            edgeTypes={edgeTypes}
-            connectionMode={ConnectionMode.Loose}
-            nodesDraggable={interactive}
-            nodesConnectable={interactive}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onConnect={onConnect}
-            onReconnect={onReconnect}
-            onReconnectStart={onReconnectStart}
-            onReconnectEnd={onReconnectEnd}
-            edgesReconnectable={interactive}
-            edgesFocusable={interactive}
-            onConnectEnd={onConnectEnd}
-            onNodeDragStart={onNodeDragStart}
-            onNodeDragStop={onNodeDragStop}
-            onSelectionDragStart={onSelectionDragStart}
-            onSelectionDragStop={onSelectionDragStop}
-            onSelectionChange={onSelectionChangeInternal}
-            onNodeDoubleClick={onNodeDoubleClick}
-            onNodeContextMenu={onNodeContextMenuInternal}
-            onSelectionContextMenu={onSelectionContextMenuInternal}
-            onEdgeContextMenu={onEdgeContextMenuInternal}
-            onPaneContextMenu={onPaneContextMenuInternal}
-            onDelete={onDeleteInternal}
-            onMoveEnd={onMoveEnd}
-            deleteKeyCode={interactive ? ["Backspace", "Delete"] : null}
-            multiSelectionKeyCode="Shift"
-            selectionKeyCode={null}
-            selectionOnDrag
-            selectionMode={SelectionMode.Partial}
-            panOnDrag={[1, 2]}
-            panOnScroll
-            zoomOnDoubleClick={false}
-            proOptions={{ hideAttribution: true }}
-            minZoom={MIN_ZOOM}
-            maxZoom={MAX_ZOOM}
-            fitViewOptions={{ padding: FIT_VIEW_PADDING }}
-            defaultViewport={initialViewportRef.current}
-            fitView={initialViewportRef.current === undefined}
+      <TextEditingContext.Provider value={textEditing}>
+        <NodeFilterContext.Provider value={filterState}>
+          <div
+            className="rm-canvas"
+            data-locked={locked}
+            onDoubleClick={onCanvasDoubleClick}
+            onDragOver={onDragOver}
+            onDrop={onDrop}
           >
-            {dotsVisible ? (
-              <Background variant={BackgroundVariant.Dots} gap={BACKGROUND_DOT_GAP} size={BACKGROUND_DOT_SIZE} />
-            ) : null}
-            {miniMapVisible ? <BoardMiniMap nodes={nodes} /> : null}
-            {progressVisible && !(!progressInCorner && (searchOpen || filterOpen)) ? (
-              <ProgressIsland
-                progress={progress}
-                inCorner={progressInCorner}
-                compact={progressCompact}
-                expanded={progressExpanded}
-                onToggleExpanded={toggleProgressExpanded}
+            <ReactFlow
+              id={flowId}
+              nodes={nodes}
+              edges={edges}
+              nodeTypes={nodeTypes}
+              edgeTypes={edgeTypes}
+              connectionMode={ConnectionMode.Loose}
+              nodesDraggable={interactive}
+              nodesConnectable={interactive}
+              onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+              onConnect={onConnect}
+              onReconnect={onReconnect}
+              onReconnectStart={onReconnectStart}
+              onReconnectEnd={onReconnectEnd}
+              edgesReconnectable={interactive}
+              edgesFocusable={interactive}
+              onConnectEnd={onConnectEnd}
+              onNodeDragStart={onNodeDragStart}
+              onNodeDragStop={onNodeDragStop}
+              onSelectionDragStart={onSelectionDragStart}
+              onSelectionDragStop={onSelectionDragStop}
+              onSelectionChange={onSelectionChangeInternal}
+              onNodeDoubleClick={onNodeDoubleClick}
+              onNodeContextMenu={onNodeContextMenuInternal}
+              onSelectionContextMenu={onSelectionContextMenuInternal}
+              onEdgeContextMenu={onEdgeContextMenuInternal}
+              onPaneContextMenu={onPaneContextMenuInternal}
+              onDelete={onDeleteInternal}
+              onMoveEnd={onMoveEnd}
+              deleteKeyCode={interactive ? ["Backspace", "Delete"] : null}
+              multiSelectionKeyCode="Shift"
+              selectionKeyCode={null}
+              selectionOnDrag
+              selectionMode={SelectionMode.Partial}
+              panOnDrag={[1, 2]}
+              panOnScroll
+              zoomOnDoubleClick={false}
+              proOptions={{ hideAttribution: true }}
+              minZoom={MIN_ZOOM}
+              maxZoom={MAX_ZOOM}
+              fitViewOptions={{ padding: FIT_VIEW_PADDING }}
+              defaultViewport={initialViewportRef.current}
+              fitView={initialViewportRef.current === undefined}
+            >
+              {dotsVisible ? (
+                <Background variant={BackgroundVariant.Dots} gap={BACKGROUND_DOT_GAP} size={BACKGROUND_DOT_SIZE} />
+              ) : null}
+              {miniMapVisible ? <BoardMiniMap nodes={nodes} /> : null}
+              {progressVisible && !(!progressInCorner && (searchOpen || filterOpen)) ? (
+                <ProgressIsland
+                  progress={progress}
+                  inCorner={progressInCorner}
+                  compact={progressCompact}
+                  expanded={progressExpanded}
+                  onToggleExpanded={toggleProgressExpanded}
+                />
+              ) : null}
+              <HelperLines
+                horizontal={helperLines.horizontal}
+                vertical={helperLines.vertical}
+                spacing={helperLines.spacing}
               />
-            ) : null}
-            <HelperLines
-              horizontal={helperLines.horizontal}
-              vertical={helperLines.vertical}
-              spacing={helperLines.spacing}
-            />
-            {bubblesVisible && soleNode !== null ? (
-              <FlowNodeToolbar nodeId={soleNode.id} isVisible position={Position.Top} offset={12}>
-                {isCardNode(soleNode) ? (
-                  <NodeBubble
-                    node={soleNode}
-                    selectionIds={selectedNodes.map((node) => node.id)}
-                    palette={palette}
-                    actions={menuActions}
-                  />
-                ) : (
-                  <ClusterBubble cluster={soleNode} palette={palette} actions={menuActions} />
-                )}
-              </FlowNodeToolbar>
-            ) : null}
-            {bubblesVisible && soleEdge !== null ? (
-              <EdgeBubbleAnchor edge={soleEdge}>
-                <EdgeBubble edge={soleEdge} palette={palette} actions={menuActions} />
-              </EdgeBubbleAnchor>
-            ) : null}
-            {addBarVisible && interactive ? <NodeToolbar onAction={onAddAction} /> : null}
-            {searchOpen ? (
-              <NodeSearchPanel state={state} onActivate={focusMatch} onClose={() => setSearchOpen(false)} />
-            ) : null}
-            {filterOpen ? (
-              <NodeFilterPanel
-                statuses={filterStatuses}
-                priorities={filterPriorities}
-                onToggle={toggleFilterValue}
-                onClear={clearFilter}
-                onClose={() => setFilterOpen(false)}
+              {bubblesVisible && soleNode !== null ? (
+                <FlowNodeToolbar nodeId={soleNode.id} isVisible position={Position.Top} offset={12}>
+                  {isCardNode(soleNode) ? (
+                    <NodeBubble
+                      node={soleNode}
+                      selectionIds={selectedNodes.map((node) => node.id)}
+                      palette={palette}
+                      actions={menuActions}
+                      nodeActions={nodeMenuActions(soleNode.data.kind, fileNodeAction, locked)}
+                      onRunAction={runNodeAction}
+                    />
+                  ) : (
+                    <ClusterBubble cluster={soleNode} palette={palette} actions={menuActions} />
+                  )}
+                </FlowNodeToolbar>
+              ) : null}
+              {bubblesVisible && soleEdge !== null ? (
+                <EdgeBubbleAnchor edge={soleEdge}>
+                  <EdgeBubble edge={soleEdge} palette={palette} actions={menuActions} />
+                </EdgeBubbleAnchor>
+              ) : null}
+              {addBarVisible && interactive ? <NodeToolbar onAction={onAddAction} /> : null}
+              {searchOpen ? (
+                <NodeSearchPanel state={state} onActivate={focusMatch} onClose={() => setSearchOpen(false)} />
+              ) : null}
+              {filterOpen ? (
+                <NodeFilterPanel
+                  statuses={filterStatuses}
+                  priorities={filterPriorities}
+                  onToggle={toggleFilterValue}
+                  onClear={clearFilter}
+                  onClose={() => setFilterOpen(false)}
+                />
+              ) : null}
+              <RoadmapToolbar
+                compact={compactControls}
+                onToggleCompact={toggleCompactControls}
+                dotsVisible={dotsVisible}
+                onToggleDots={toggleDots}
+                miniMapVisible={miniMapVisible}
+                onToggleMiniMap={toggleMiniMap}
+                addBarVisible={addBarVisible}
+                onToggleAddBar={toggleAddBar}
+                progressVisible={progressVisible}
+                onToggleProgress={toggleProgress}
+                progressInCorner={progressInCorner}
+                onToggleProgressCorner={toggleProgressCorner}
+                progressCompact={progressCompact}
+                onToggleProgressCompact={toggleProgressCompact}
+                searchOpen={searchOpen}
+                onToggleSearch={toggleSearch}
+                filterOpen={filterOpen}
+                filterActive={filterActive}
+                onToggleFilter={toggleFilter}
+                locked={locked}
+                onToggleLock={onToggleLock}
+                canUndo={canUndo}
+                canRedo={canRedo}
+                onUndo={onUndo}
+                onRedo={onRedo}
+                onAutoLayout={onAutoLayout}
+                onExportPdf={onExportPdf}
+                onExportPng={onExportPng}
+                onExportCanvas={onExportCanvas}
+                onOpenSettings={onOpenSettings}
               />
+            </ReactFlow>
+            {cardMenu !== null && interactive ? (
+              <FlowAnchor point={cardMenu.flow}>
+                <CardMenu
+                  title={
+                    cardMenu.kind === "pane"
+                      ? "Add to canvas"
+                      : cardMenu.kind === "void"
+                        ? "Connect to new node"
+                        : `${cardMenu.ids.length} nodes selected`
+                  }
+                  narrow={cardMenu.kind !== "selection"}
+                  onClose={() => setCardMenu(null)}
+                >
+                  {cardMenu.kind === "selection" ? (
+                    <SelectionCard
+                      ids={cardMenu.ids}
+                      nodes={nodes.filter(
+                        (node): node is RoadmapCardNode => cardMenu.ids.includes(node.id) && isCardNode(node),
+                      )}
+                      palette={palette}
+                      actions={menuActions}
+                      onClose={() => setCardMenu(null)}
+                    />
+                  ) : (
+                    <AddActionRows
+                      onPick={(action) => {
+                        const menu = cardMenu;
+
+                        setCardMenu(null);
+
+                        if (menu.kind === "pane") {
+                          menuActions.addNodeAt(action, menu.flow);
+                        } else if (menu.kind === "void") {
+                          menuActions.connectNewNode(action, menu.source, menu.handle, menu.flow);
+                        }
+                      }}
+                    />
+                  )}
+                </CardMenu>
+              </FlowAnchor>
             ) : null}
-            <RoadmapToolbar
-              compact={compactControls}
-              onToggleCompact={toggleCompactControls}
-              dotsVisible={dotsVisible}
-              onToggleDots={toggleDots}
-              miniMapVisible={miniMapVisible}
-              onToggleMiniMap={toggleMiniMap}
-              addBarVisible={addBarVisible}
-              onToggleAddBar={toggleAddBar}
-              progressVisible={progressVisible}
-              onToggleProgress={toggleProgress}
-              progressInCorner={progressInCorner}
-              onToggleProgressCorner={toggleProgressCorner}
-              progressCompact={progressCompact}
-              onToggleProgressCompact={toggleProgressCompact}
-              searchOpen={searchOpen}
-              onToggleSearch={toggleSearch}
-              filterOpen={filterOpen}
-              filterActive={filterActive}
-              onToggleFilter={toggleFilter}
-              locked={locked}
-              onToggleLock={onToggleLock}
-              canUndo={canUndo}
-              canRedo={canRedo}
-              onUndo={onUndo}
-              onRedo={onRedo}
-              onAutoLayout={onAutoLayout}
-              onExportPdf={onExportPdf}
-              onExportPng={onExportPng}
-              onExportCanvas={onExportCanvas}
-              onOpenSettings={onOpenSettings}
-            />
-          </ReactFlow>
-          {cardMenu !== null && interactive ? (
-            <FlowAnchor point={cardMenu.flow}>
-              <CardMenu
-                title={
-                  cardMenu.kind === "pane"
-                    ? "Add to canvas"
-                    : cardMenu.kind === "void"
-                      ? "Connect to new node"
-                      : `${cardMenu.ids.length} nodes selected`
-                }
-                narrow={cardMenu.kind !== "selection"}
-                onClose={() => setCardMenu(null)}
-              >
-                {cardMenu.kind === "selection" ? (
-                  <SelectionCard
-                    ids={cardMenu.ids}
-                    nodes={nodes.filter(
-                      (node): node is RoadmapCardNode => cardMenu.ids.includes(node.id) && isCardNode(node),
-                    )}
-                    palette={palette}
-                    actions={menuActions}
-                    onClose={() => setCardMenu(null)}
-                  />
-                ) : (
-                  <AddActionRows
-                    onPick={(action) => {
-                      const menu = cardMenu;
-
-                      setCardMenu(null);
-
-                      if (menu.kind === "pane") {
-                        menuActions.addNodeAt(action, menu.flow);
-                      } else if (menu.kind === "void") {
-                        menuActions.connectNewNode(action, menu.source, menu.handle, menu.flow);
-                      }
-                    }}
-                  />
-                )}
-              </CardMenu>
-            </FlowAnchor>
-          ) : null}
-          {nodes.length === 0 && interactive ? (
-            <div className="rm-empty">
-              <span className="rm-empty__icon">
-                <Icon name="map" />
-              </span>
-              <span className="rm-empty__title">This board is empty</span>
-              <span className="rm-empty__hint">Right-click the canvas or use the toolbar to add the first node</span>
-            </div>
-          ) : null}
-        </div>
-      </NodeFilterContext.Provider>
+            {nodes.length === 0 && interactive ? (
+              <div className="rm-empty">
+                <span className="rm-empty__icon">
+                  <Icon name="map" />
+                </span>
+                <span className="rm-empty__title">This board is empty</span>
+                <span className="rm-empty__hint">Right-click the canvas or use the toolbar to add the first node</span>
+              </div>
+            ) : null}
+          </div>
+        </NodeFilterContext.Provider>
+      </TextEditingContext.Provider>
     </NodeCallbacksContext.Provider>
   );
 }

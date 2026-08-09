@@ -21,6 +21,7 @@ import {
   VIEW_TYPE_ROADMAP,
 } from "./constants";
 import { canvasToState, parseCanvas } from "./domain/jsonCanvas";
+import { DEFAULT_FILE_NODE_ACTION, isFileNodeAction, nodeActionLabel, type FileNodeAction } from "./domain/nodeAction";
 import {
   colorLabel,
   DEFAULT_PALETTE,
@@ -65,6 +66,7 @@ interface RoadmapSettings {
   newRoadmapFolder: string;
   palette: string[];
   previewWidth: number;
+  fileNodeAction: FileNodeAction;
 }
 
 const DEFAULT_SETTINGS: RoadmapSettings = {
@@ -79,6 +81,7 @@ const DEFAULT_SETTINGS: RoadmapSettings = {
   newRoadmapFolder: "",
   palette: [...DEFAULT_PALETTE],
   previewWidth: PREVIEW_DEFAULT_WIDTH,
+  fileNodeAction: DEFAULT_FILE_NODE_ACTION,
 };
 
 export default class RoadmapPlugin extends Plugin {
@@ -426,6 +429,15 @@ export default class RoadmapPlugin extends Plugin {
     void this.saveSettings();
   }
 
+  getFileNodeAction(): FileNodeAction {
+    return this.displaySettings.fileNodeAction;
+  }
+
+  setFileNodeAction(value: FileNodeAction): void {
+    this.displaySettings.fileNodeAction = value;
+    void this.saveSettings();
+  }
+
   getPalette(): readonly string[] {
     return this.displaySettings.palette;
   }
@@ -467,6 +479,7 @@ export default class RoadmapPlugin extends Plugin {
         this.setCompactControls(value);
       },
       getPalette: () => this.getPalette(),
+      getFileNodeAction: () => this.getFileNodeAction(),
       getPreviewWidth: () => this.getPreviewWidth(),
       setPreviewWidth: (value) => {
         this.setPreviewWidth(value);
@@ -500,12 +513,14 @@ export default class RoadmapPlugin extends Plugin {
 
   private async loadSettings(): Promise<void> {
     const data = (await this.loadData()) as Partial<RoadmapSettings> | null;
+    const storedAction = String(data?.fileNodeAction ?? "");
 
     this.displaySettings = {
       ...DEFAULT_SETTINGS,
       ...data,
       palette: sanitizePalette(data?.palette ?? DEFAULT_PALETTE),
       previewWidth: clampPreviewWidth(data?.previewWidth ?? PREVIEW_DEFAULT_WIDTH),
+      fileNodeAction: isFileNodeAction(storedAction) ? storedAction : DEFAULT_FILE_NODE_ACTION,
     };
   }
 
@@ -757,6 +772,24 @@ class RoadmapSettingTab extends PluginSettingTab {
         toggle.setValue(this.plugin.getShowExplorerTag()).onChange((value) => {
           this.plugin.setShowExplorerTag(value);
         }),
+      );
+
+    new Setting(this.containerEl)
+      .setName("Double-click on file-backed nodes")
+      .setDesc(
+        "What opening a note, image or attachment node does. Holding Cmd/Ctrl always does the other one. " +
+          "URL nodes always open their link, text nodes always edit in place.",
+      )
+      .addDropdown((dropdown) =>
+        dropdown
+          .addOption("preview", nodeActionLabel("preview", "note"))
+          .addOption("open", nodeActionLabel("open", "note"))
+          .setValue(this.plugin.getFileNodeAction())
+          .onChange((value) => {
+            if (isFileNodeAction(value)) {
+              this.plugin.setFileNodeAction(value);
+            }
+          }),
       );
 
     new Setting(this.containerEl)

@@ -178,10 +178,16 @@ button.rm-cluster__action:active {
   gap: var(--rm-space-1);
 }
 
+/* Flex, not inline: an inline box would reserve descender space below the glyph and push the
+   icon off the text's centre line. */
 .rm-node__type-icon {
-  --icon-size: var(--rm-icon-size);
+  --icon-size: var(--rm-node-title-icon);
 
+  display: inline-flex;
   flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  height: calc(var(--rm-node-title-size) * var(--rm-node-title-leading));
   color: var(--rm-text-muted);
 }
 

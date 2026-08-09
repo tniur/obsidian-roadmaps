@@ -76,6 +76,11 @@
   --rm-dim-opacity: 0.15;
   --rm-dim-grayscale: 0.6;
 
+  /* Text cards carry the board's own content, so they read as a sticky note: no border,
+     a warmer fill and a lifted shadow set them apart from cards that point at a file. */
+  --rm-node-sticky-tint: 7%;
+  --rm-node-sticky-bg: color-mix(in srgb, var(--color-yellow) var(--rm-node-sticky-tint), var(--rm-surface));
+
   /* Weight ladder: bold is reserved for the active or selected state, so resting
      chrome stays medium and only surface titles carry extra weight. */
   --rm-weight-medium: 500;
@@ -85,6 +90,10 @@
   /* node typography */
   --rm-node-title-size: 14px;
   --rm-node-title-weight: var(--rm-weight-title);
+  --rm-node-title-leading: 1.3;
+
+  /* Sized against the title's cap height so glyph and glyph-sized icon read as one line. */
+  --rm-node-title-icon: 15px;
   --rm-node-text-size: 17px;
   --rm-node-text-weight: var(--rm-weight-medium);
   --rm-node-desc-size: 12px;
@@ -235,6 +244,7 @@
   --rm-strip-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
   --rm-edge-label-shadow: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
   --rm-node-tint: 18%;
+  --rm-node-sticky-tint: 13%;
   --rm-badge-tint: 24%;
   --rm-badge-tint-priority: 26%;
   --rm-cluster-tint: 16%;

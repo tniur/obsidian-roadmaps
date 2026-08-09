@@ -30,6 +30,13 @@
   padding: 0;
 }
 
+/* Sticky treatment applies only while the card keeps the default fill; an explicit
+   node color wins and restores the ordinary bordered card. */
+.rm-node[data-kind="text"][data-colored="false"] {
+  background: var(--rm-node-sticky-bg);
+  border-color: transparent;
+}
+
 /* Dimmed by the active status/priority filter; still interactive, just de-emphasised. */
 .rm-node[data-dimmed="true"] {
   opacity: var(--rm-dim-opacity);
@@ -93,6 +100,32 @@
   border: var(--rm-border-width) solid color-mix(in srgb, var(--rm-danger) 50%, transparent);
   border-radius: var(--rm-radius-full);
   box-shadow: var(--rm-shadow-card);
+}
+
+.rm-canvas .rm-node__text-input {
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  padding: 0;
+  color: inherit;
+  font-family: inherit;
+  font-size: var(--rm-node-text-size);
+  font-weight: var(--rm-node-text-weight);
+  line-height: 1.35;
+  text-align: inherit;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  resize: none;
+  cursor: text;
+}
+
+.rm-canvas .rm-node__text-input:focus,
+.rm-canvas .rm-node__text-input:focus-visible {
+  border: none;
+  box-shadow: none;
+  outline: none;
 }
 
 /* The alignment matrix moves only the text block; the meta chips stay pinned below it. */
@@ -213,7 +246,7 @@
   max-width: 100%;
   font-size: var(--rm-node-title-size);
   font-weight: var(--rm-node-title-weight);
-  line-height: 1.3;
+  line-height: var(--rm-node-title-leading);
   overflow-wrap: anywhere;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -224,7 +257,7 @@
 .rm-node__title-row {
   display: flex;
   align-items: center;
-  gap: var(--rm-space-2);
+  gap: var(--rm-space-1);
   min-width: 0;
   max-width: 100%;
 }

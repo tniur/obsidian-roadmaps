@@ -21,7 +21,6 @@ export interface CanvasMenuActions {
   setNodeDescription: (id: string, value: string) => void;
   setNodeUrl: (id: string, value: string) => void;
   setNodeText: (id: string, value: string) => void;
-  openNodeSource: (id: string) => void;
   duplicateNodes: (ids: readonly string[]) => void;
   deleteNodes: (ids: readonly string[]) => void;
   groupIntoCluster: (ids: readonly string[]) => void;

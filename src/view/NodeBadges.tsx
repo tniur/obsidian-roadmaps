@@ -1,8 +1,8 @@
 import { STATUS_IN_PROGRESS_ICON_ID } from "../constants";
 import { humanizeValue } from "../domain/title";
 import type { RoadmapStatus } from "../domain/types";
+import type { RoadmapNodeData } from "./flow";
 import { Icon } from "./Icon";
-import type { NodeBodyProps } from "./nodeRegistry";
 
 export const STATUS_ICONS: Record<RoadmapStatus, string> = {
   draft: "pencil",
@@ -16,7 +16,7 @@ export const STATUS_ICONS: Record<RoadmapStatus, string> = {
  * The row flows with the card content and follows its alignment; `overlay` floats it
  * over the image of picture cards instead.
  */
-export function NodeBadges({ data, overlay = false }: NodeBodyProps & { overlay?: boolean }) {
+export function NodeBadges({ data, overlay = false }: { data: RoadmapNodeData; overlay?: boolean }) {
   if (data.status === undefined && data.priority === undefined) {
     return null;
   }
