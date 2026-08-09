@@ -115,6 +115,35 @@ describe("mini-map frame", () => {
   it("ignores a viewport that has not been measured yet", () => {
     expect(boardFrame(content, { x: -9000, y: -9000, width: 0, height: 0 })).toEqual(content);
   });
+
+  it("closes in on a camera zoomed well inside the content", () => {
+    const camera: MapRect = { x: 40, y: 40, width: 20, height: 20 };
+    const frame = boardFrame(content, camera);
+
+    expect(frame.width).toBeLessThan(content.width);
+    expect(camera.width / frame.width).toBeCloseTo(0.5);
+    expect(contains(frame, camera)).toBe(true);
+  });
+
+  it("keeps zooming as the camera keeps zooming", () => {
+    const share = (size: number) =>
+      size / boardFrame(content, { x: 50 - size / 2, y: 50 - size / 2, width: size, height: size }).width;
+
+    expect(share(20)).toBeCloseTo(share(5));
+  });
+
+  it("follows a small camera panning across the board", () => {
+    const left = boardFrame(content, { x: 10, y: 40, width: 20, height: 20 });
+    const right = boardFrame(content, { x: 70, y: 40, width: 20, height: 20 });
+
+    expect(right.x).toBeGreaterThan(left.x);
+    expect(right.width).toBeCloseTo(left.width);
+  });
+
+  it("leaves a camera that already fills the frame alone", () => {
+    expect(boardFrame(content, { x: 0, y: 0, width: 100, height: 100 })).toEqual(content);
+    expect(boardFrame(content, { x: 20, y: 20, width: 60, height: 60 })).toEqual(content);
+  });
 });
 
 describe("mini-map viewport rect", () => {

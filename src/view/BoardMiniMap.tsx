@@ -1,5 +1,5 @@
 import { Panel, useReactFlow, useStore } from "@xyflow/react";
-import { useCallback, useMemo, useRef, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
+import { useCallback, useId, useMemo, useRef, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
 import { absoluteNodePosition, isCardNode, nodeSize, type RoadmapFlowNode } from "./flow";
 import { boardFrame, clampToBounds, contentBounds, viewportRect } from "./miniMapGeometry";
 
@@ -17,6 +17,7 @@ interface BoardMiniMapProps {
 /** Board overview; pointer down or drag centres the camera on the spot, an empty board renders nothing. */
 export function BoardMiniMap({ nodes }: BoardMiniMapProps) {
   const svgRef = useRef<SVGSVGElement>(null);
+  const clipId = useId();
   const { setCenter, getZoom } = useReactFlow();
   const transform = useStore((state) => state.transform);
   const flowWidth = useStore((state) => state.width);
@@ -96,19 +97,26 @@ export function BoardMiniMap({ nodes }: BoardMiniMapProps) {
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
       >
-        <rect className="rm-minimap__view" x={view.x} y={view.y} width={view.width} height={view.height} />
-        {rects.map((rect) => (
-          <rect
-            key={rect.id}
-            className={rect.card ? "rm-minimap__node" : "rm-minimap__cluster"}
-            x={rect.x}
-            y={rect.y}
-            width={rect.width}
-            height={rect.height}
-            rx={NODE_RADIUS}
-            style={fillStyle(rect.color)}
-          />
-        ))}
+        <defs>
+          <clipPath id={clipId}>
+            <rect x={frame.x} y={frame.y} width={frame.width} height={frame.height} />
+          </clipPath>
+        </defs>
+        <g clipPath={`url(#${clipId})`}>
+          <rect className="rm-minimap__view" x={view.x} y={view.y} width={view.width} height={view.height} />
+          {rects.map((rect) => (
+            <rect
+              key={rect.id}
+              className={rect.card ? "rm-minimap__node" : "rm-minimap__cluster"}
+              x={rect.x}
+              y={rect.y}
+              width={rect.width}
+              height={rect.height}
+              rx={NODE_RADIUS}
+              style={fillStyle(rect.color)}
+            />
+          ))}
+        </g>
       </svg>
     </Panel>
   );

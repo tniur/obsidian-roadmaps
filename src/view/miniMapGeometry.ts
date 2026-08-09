@@ -10,6 +10,10 @@ const MIN_VIEW_SHARE = 0.04;
  * nodes readable: past it the frame stops widening and the content packs against an edge. */
 const MAX_FRAME_GROWTH = 3;
 
+/** Share of the frame the camera rect keeps at least. Once a zoom-in would take it below, the
+ * frame closes in on the camera instead, so the map zooms rather than the rect shrinking away. */
+const MIN_CAMERA_SHARE = 0.5;
+
 export interface MapRect {
   x: number;
   y: number;
@@ -67,11 +71,11 @@ export function viewportRect(transform: readonly [number, number, number], width
   return { x: -transform[0] / zoom, y: -transform[1] / zoom, width: width / zoom, height: height / zoom };
 }
 
-function capAxis(
+function shrinkAxis(
   unionMin: number,
   unionMax: number,
-  contentMin: number,
-  contentMax: number,
+  coreMin: number,
+  coreMax: number,
   max: number,
 ): [number, number] {
   const excess = unionMax - unionMin - max;
@@ -80,38 +84,34 @@ function capAxis(
     return [unionMin, unionMax];
   }
 
-  const before = contentMin - unionMin;
-  const after = unionMax - contentMax;
+  const before = coreMin - unionMin;
+  const after = unionMax - coreMax;
   const total = before + after;
 
   return [unionMin + (excess * before) / total, unionMax - (excess * after) / total];
 }
 
-/**
- * Frame the map draws: the content plus wherever the camera has wandered, capped so the nodes
- * never shrink away and instead pack against the edge away from a far camera.
- */
+function frameAxis(contentMin: number, contentMax: number, viewMin: number, viewMax: number): [number, number] {
+  const unionMin = Math.min(contentMin, viewMin);
+  const unionMax = Math.max(contentMax, viewMax);
+  const growth = (contentMax - contentMin) * MAX_FRAME_GROWTH;
+
+  if (unionMax - unionMin > growth) {
+    return shrinkAxis(unionMin, unionMax, contentMin, contentMax, growth);
+  }
+
+  return shrinkAxis(unionMin, unionMax, viewMin, viewMax, (viewMax - viewMin) / MIN_CAMERA_SHARE);
+}
+
+/** Frame the map draws: the content plus wherever the camera has wandered, bounded at both ends —
+ * a far camera stops widening it, a zoomed-in one pulls it close so the map zooms with the board. */
 export function boardFrame(content: MapRect, view: MapRect): MapRect {
   if (view.width <= 0 || view.height <= 0) {
     return content;
   }
 
-  const contentMaxX = content.x + content.width;
-  const contentMaxY = content.y + content.height;
-  const [x0, x1] = capAxis(
-    Math.min(content.x, view.x),
-    Math.max(contentMaxX, view.x + view.width),
-    content.x,
-    contentMaxX,
-    content.width * MAX_FRAME_GROWTH,
-  );
-  const [y0, y1] = capAxis(
-    Math.min(content.y, view.y),
-    Math.max(contentMaxY, view.y + view.height),
-    content.y,
-    contentMaxY,
-    content.height * MAX_FRAME_GROWTH,
-  );
+  const [x0, x1] = frameAxis(content.x, content.x + content.width, view.x, view.x + view.width);
+  const [y0, y1] = frameAxis(content.y, content.y + content.height, view.y, view.y + view.height);
 
   return { x: x0, y: y0, width: x1 - x0, height: y1 - y0 };
 }
