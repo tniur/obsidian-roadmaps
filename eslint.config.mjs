@@ -1,9 +1,19 @@
 import stylistic from "@stylistic/eslint-plugin";
 import js from "@eslint/js";
 import prettier from "eslint-config-prettier";
+import obsidianmd from "eslint-plugin-obsidianmd";
 import reactHooks from "eslint-plugin-react-hooks";
 import globals from "globals";
 import tseslint from "typescript-eslint";
+
+/** Proper nouns the sentence-case rule must not lowercase. Plain "canvas" stays a common noun. */
+const BRANDS = ["Obsidian", "Markdown", "JSON Canvas", "PDF", "PNG"];
+
+/** Navigation paths quote on-screen labels verbatim; re-casing them would misdirect the reader. */
+const UI_PATH_PATTERN = "→";
+
+/** Drives the pre-commit hook only, and never reaches the bundle shipped to users. */
+const BUILD_ONLY_DEPENDENCIES = ["lint-staged"];
 
 export default tseslint.config(
   {
@@ -11,6 +21,13 @@ export default tseslint.config(
   },
   js.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,
+  ...obsidianmd.configs.recommended,
+  {
+    rules: {
+      "obsidianmd/ui/sentence-case": ["warn", { brands: BRANDS, ignoreRegex: [UI_PATH_PATTERN] }],
+      "depend/ban-dependencies": ["error", { allowed: BUILD_ONLY_DEPENDENCIES }],
+    },
+  },
   {
     files: ["**/*.{ts,tsx}"],
     plugins: { "react-hooks": reactHooks },

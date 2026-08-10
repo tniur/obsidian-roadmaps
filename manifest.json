@@ -2,7 +2,7 @@
   "id": "roadmaps",
   "name": "Roadmaps",
   "version": "0.0.1",
-  "minAppVersion": "1.5.0",
+  "minAppVersion": "1.7.2",
   "description": "Turn your notes into interactive visual roadmaps with connections, clusters, statuses, and priorities.",
   "author": "tniur",
   "isDesktopOnly": true

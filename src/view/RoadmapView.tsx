@@ -432,12 +432,12 @@ export class RoadmapView extends TextFileView {
       return;
     }
 
-    const target = event.target;
+    const target = event.targetNode;
 
     if (
-      target instanceof HTMLInputElement ||
-      target instanceof HTMLTextAreaElement ||
-      (target instanceof HTMLElement && target.isContentEditable)
+      target?.instanceOf(HTMLInputElement) === true ||
+      target?.instanceOf(HTMLTextAreaElement) === true ||
+      (target?.instanceOf(HTMLElement) === true && target.isContentEditable)
     ) {
       return;
     }
@@ -700,9 +700,9 @@ export class RoadmapView extends TextFileView {
       const path = availableVaultPath(this.app.vault, file.parent?.path, file.basename, "canvas");
 
       await this.app.vault.create(path, canvas);
-      new Notice(`Exported Canvas: ${path}`);
+      new Notice(`Exported canvas: ${path}`);
     } catch (error) {
-      new Notice(`Failed to export Canvas: ${error instanceof Error ? error.message : String(error)}`);
+      new Notice(`Failed to export canvas: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 

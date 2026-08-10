@@ -46,7 +46,7 @@ export function CardMenu({
     const el = ref.current;
     const host = el?.closest(".rm-canvas");
 
-    if (el === null || !(host instanceof HTMLElement)) {
+    if (el === null || host?.instanceOf(HTMLElement) !== true) {
       return;
     }
 
@@ -61,8 +61,16 @@ export function CardMenu({
 
   useEffect(() => {
     const el = ref.current;
+
+    if (el === null) {
+      return;
+    }
+
+    const doc = el.ownerDocument;
     const onPress = (event: PointerEvent): void => {
-      if (el !== null && event.target instanceof Node && !el.contains(event.target)) {
+      const target = event.targetNode;
+
+      if (target !== null && !el.contains(target)) {
         onClose();
       }
     };
@@ -72,12 +80,12 @@ export function CardMenu({
       }
     };
 
-    document.addEventListener("pointerdown", onPress, true);
-    document.addEventListener("keydown", onKey, true);
+    doc.addEventListener("pointerdown", onPress, true);
+    doc.addEventListener("keydown", onKey, true);
 
     return () => {
-      document.removeEventListener("pointerdown", onPress, true);
-      document.removeEventListener("keydown", onKey, true);
+      doc.removeEventListener("pointerdown", onPress, true);
+      doc.removeEventListener("keydown", onKey, true);
     };
   }, [onClose]);
 

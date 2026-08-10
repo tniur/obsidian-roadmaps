@@ -95,9 +95,9 @@ export function mountPreviewContent(app: App, node: RoadmapNode, el: HTMLElement
 
   el.dataset.previewKind = "note";
   component.registerDomEvent(el, "click", (event) => {
-    const target = event.target;
+    const target = event.targetNode;
 
-    if (!(target instanceof HTMLInputElement) || !target.matches(TASK_CHECKBOX)) {
+    if (target?.instanceOf(HTMLInputElement) !== true || !target.matches(TASK_CHECKBOX)) {
       return;
     }
 

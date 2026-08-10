@@ -1,5 +1,5 @@
 import { Panel } from "@xyflow/react";
-import { useEffect, type CSSProperties } from "react";
+import { useEffect, useRef, type CSSProperties } from "react";
 import { FILTER_NONE } from "../domain/filter";
 import { ROADMAP_PRIORITIES, ROADMAP_STATUSES } from "../domain/types";
 import { humanizeValue } from "../domain/title";
@@ -38,16 +38,24 @@ interface NodeFilterPanelProps {
  * OR within a category and AND across categories; the `none` chip covers nodes without a value.
  */
 export function NodeFilterPanel({ statuses, priorities, onToggle, onClear, onClose }: NodeFilterPanelProps) {
+  const ref = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
+    const doc = ref.current?.ownerDocument;
+
+    if (doc === undefined) {
+      return;
+    }
+
     const onKeyDown = (event: KeyboardEvent): void => {
       if (event.key === "Escape") {
         onClose();
       }
     };
 
-    document.addEventListener("keydown", onKeyDown);
+    doc.addEventListener("keydown", onKeyDown);
 
-    return () => document.removeEventListener("keydown", onKeyDown);
+    return () => doc.removeEventListener("keydown", onKeyDown);
   }, [onClose]);
 
   const active = statuses.size > 0 || priorities.size > 0;
@@ -67,7 +75,7 @@ export function NodeFilterPanel({ statuses, priorities, onToggle, onClear, onClo
     ));
 
   return (
-    <Panel position="top-center" className="rm-panel rm-filter">
+    <Panel ref={ref} position="top-center" className="rm-panel rm-filter">
       <div className="rm-filter__row">
         <span className="rm-filter__label">Status</span>
         <div className="rm-filter__chips">{renderChips("status", STATUS_CHIPS, statuses)}</div>
