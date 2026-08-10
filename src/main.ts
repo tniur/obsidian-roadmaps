@@ -137,7 +137,7 @@ export default class RoadmapPlugin extends Plugin {
         menu.addItem((item) =>
           item
             .setSection("action")
-            .setTitle("Create roadmap from Canvas")
+            .setTitle("Create roadmap from canvas")
             .setIcon("file-json")
             .onClick(() => {
               void this.createRoadmapFromCanvas(file);
@@ -175,7 +175,7 @@ export default class RoadmapPlugin extends Plugin {
 
     this.addCommand({
       id: "import-canvas",
-      name: "Create roadmap from Canvas",
+      name: "Create roadmap from canvas",
       icon: "file-json",
       callback: () => {
         this.importCanvas();
@@ -767,7 +767,7 @@ class RoadmapSettingTab extends PluginSettingTab {
 
     new Setting(this.containerEl)
       .setName("Tag roadmaps in the file explorer")
-      .setDesc("Mark roadmap files in the file list, the way Obsidian marks Canvas files.")
+      .setDesc("Mark roadmap files in the file list, the way Obsidian marks canvas files.")
       .addToggle((toggle) =>
         toggle.setValue(this.plugin.getShowExplorerTag()).onChange((value) => {
           this.plugin.setShowExplorerTag(value);

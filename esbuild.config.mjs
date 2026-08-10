@@ -3,7 +3,7 @@ import process from "node:process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import builtins from "builtin-modules";
+import { builtinModules } from "node:module";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const prod = process.argv.includes("production");
@@ -59,7 +59,8 @@ const options = {
     "@lezer/common",
     "@lezer/highlight",
     "@lezer/lr",
-    ...builtins,
+    ...builtinModules,
+    ...builtinModules.map((name) => `node:${name}`),
   ],
   outfile: path.join(outDir, "main.js"),
   sourcemap: prod ? false : "inline",
