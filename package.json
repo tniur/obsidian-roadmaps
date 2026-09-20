@@ -37,7 +37,7 @@
     "@stylistic/eslint-plugin": "^5.10.0",
     "@types/node": "^26.1.1",
     "@types/react": "^19.2.17",
-    "@types/react-dom": "^19.2.3",
+    "@types/react-dom": "^19.3.0",
     "esbuild": "^0.28.1",
     "eslint": "^10.8.0",
     "eslint-config-prettier": "^10.1.8",
@@ -58,7 +58,7 @@
     "nanoid": "^6.0.0",
     "pdf-lib": "^1.17.1",
     "react": "^19.2.8",
-    "react-dom": "^19.2.8",
+    "react-dom": "^19.3.0",
     "zod": "^4.4.3"
   }
 }
